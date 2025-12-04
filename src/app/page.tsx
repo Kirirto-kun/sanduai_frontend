@@ -3,7 +3,6 @@ export default function Home() {
     <main className="min-h-screen pb-10 pt-6">
       <div className="mx-auto max-w-5xl">
         {/* Hero + язык */}
-        {/* @ts-expect-error Server Component importing client components is allowed in Next app router */}
         <LandingPage />
       </div>
     </main>

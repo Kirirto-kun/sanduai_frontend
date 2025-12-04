@@ -5,7 +5,7 @@ import { LanguageProvider } from "../i18n/LanguageContext";
 
 const outfit = Outfit({
   variable: "--font-outfit",
-  subsets: ["latin", "cyrillic"],
+  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
