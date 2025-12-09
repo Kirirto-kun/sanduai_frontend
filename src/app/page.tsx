@@ -4,8 +4,8 @@ export default function Home() {
       <div className="mx-auto max-w-5xl">
         {/* Hero + язык */}
         <LandingPage />
-      </div>
-    </main>
+        </div>
+      </main>
   );
 }
 

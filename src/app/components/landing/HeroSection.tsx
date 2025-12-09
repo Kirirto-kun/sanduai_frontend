@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+import Link from "next/link";
 import { useLanguage, useTranslations } from "../../../i18n/LanguageContext";
+import { useAuth } from "../../../contexts/AuthContext";
 
 export function HeroSection() {
   const { language, setLanguage } = useLanguage();
   const t = useTranslations();
+  const { isAuthenticated } = useAuth();
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
@@ -22,29 +25,37 @@ export function HeroSection() {
           <span className="text-sm font-semibold uppercase tracking-[0.24em] text-[color:var(--primary)]">
             {t.common.brand}
           </span>
-          <div className="inline-flex rounded-full bg-[rgba(255,255,255,0.8)] p-1 shadow-sm ring-1 ring-black/5">
-            <button
-              type="button"
-              onClick={() => setLanguage("ru")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-full transition ${
-                language === "ru"
-                  ? "bg-[color:var(--primary)] text-white shadow"
-                  : "text-slate-700 hover:bg-white/80"
-              }`}
+          <div className="flex items-center gap-3">
+            <div className="inline-flex rounded-full bg-[rgba(255,255,255,0.8)] p-1 shadow-sm ring-1 ring-black/5">
+              <button
+                type="button"
+                onClick={() => setLanguage("ru")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full transition ${
+                  language === "ru"
+                    ? "bg-[color:var(--primary)] text-white shadow"
+                    : "text-slate-700 hover:bg-white/80"
+                }`}
+              >
+                {t.common.ru}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage("kk")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full transition ${
+                  language === "kk"
+                    ? "bg-[color:var(--secondary)] text-white shadow"
+                    : "text-slate-700 hover:bg-white/80"
+                }`}
+              >
+                {t.common.kk}
+              </button>
+            </div>
+            <Link
+              href={isAuthenticated ? "/dashboard" : "/login"}
+              className="hidden items-center gap-2 rounded-full bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 sm:inline-flex"
             >
-              {t.common.ru}
-            </button>
-            <button
-              type="button"
-              onClick={() => setLanguage("kk")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-full transition ${
-                language === "kk"
-                  ? "bg-[color:var(--secondary)] text-white shadow"
-                  : "text-slate-700 hover:bg-white/80"
-              }`}
-            >
-              {t.common.kk}
-            </button>
+              {isAuthenticated ? "Dashboard" : "Войти"}
+            </Link>
           </div>
         </header>
 

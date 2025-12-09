@@ -3,13 +3,13 @@
 :root {
   --background: #fdfbf7; /* Light Beige background */
   --foreground: #111827; /* Dark Gray text */
-
+  
   /* Brand Colors */
   --primary: #ff6b00; /* Vibrant Orange */
   --secondary: #10b981; /* Emerald Green */
   --accent: #fff7ed; /* Very Light Orange */
   --beige: #f5e6d3; /* Beige */
-
+  
   /* Gradients */
   --gradient-start: #ff6b00;
   --gradient-end: #10b981;
@@ -18,12 +18,12 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-
+  
   --color-primary: var(--primary);
   --color-secondary: var(--secondary);
   --color-accent: var(--accent);
   --color-beige: var(--beige);
-
+  
   --font-sans: var(--font-outfit);
 }
 

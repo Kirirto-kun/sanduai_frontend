@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "../i18n/LanguageContext";
+import { AuthProvider } from "../contexts/AuthContext";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -21,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className={`${outfit.variable} antialiased`}>
-        <LanguageProvider>{children}</LanguageProvider>
+        <AuthProvider>
+          <LanguageProvider>{children}</LanguageProvider>
+        </AuthProvider>
       </body>
     </html>
   );
