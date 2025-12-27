@@ -1,4 +1,4 @@
-import KmzhPage from "../../../kmzh/page";
+import LessonPlanPage from "../lesson-plan/page";
 
-export default KmzhPage;
+export default LessonPlanPage;
 

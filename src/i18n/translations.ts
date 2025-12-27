@@ -107,8 +107,7 @@ type Translations = {
         kmzh: string;
         essay: string;
         article: string;
-        bjb: string;
-        tjb: string;
+        bjbTjb: string;
         scientificProjects: string;
         classHours: string;
         worksheets: string;
@@ -229,6 +228,157 @@ type Translations = {
       generic: string;
     };
     loading: string;
+  };
+  exam: {
+    form: {
+      title: string;
+      examType: string;
+      subject: string;
+      grade: string;
+      topic: string;
+      learningObjectives: string;
+      addObjective: string;
+      totalScore: string;
+      language: string;
+      generate: string;
+    };
+    types: {
+      bjb: string;
+      tjb: string;
+    };
+    results: {
+      scoreIndicator: string;
+      currentTotal: string;
+      targetTotal: string;
+      valid: string;
+      invalid: string;
+      warning: string;
+      taskNumber: string;
+      score: string;
+      descriptor: string;
+      imagePlaceholder: string;
+      exportStudent: string;
+      exportTeacher: string;
+    };
+    widgets: {
+      multipleChoice: string;
+      matching: string;
+      trueFalse: string;
+      textOpen: string;
+    };
+    errors: {
+      required: string;
+      auth: string;
+      generic: string;
+    };
+    loading: string;
+  };
+  lessonPlan: {
+    form: {
+      title: string;
+      subject: string;
+      grade: string;
+      topic: string;
+      teacherName: string;
+      sectionName: string;
+      lessonNumber: string;
+      learningObjectives: string;
+      addObjective: string;
+      date: string;
+      generate: string;
+    };
+    meta: {
+      title: string;
+      sectionName: string;
+      subject: string;
+      teacherName: string;
+      date: string;
+      grade: string;
+      studentsPresent: string;
+      studentsAbsent: string;
+      topic: string;
+      learningObjectives: string;
+      lessonObjectives: string;
+      addObjective: string;
+      removeObjective: string;
+    };
+    table: {
+      stage: string;
+      time: string;
+      teacherActivity: string;
+      studentActivity: string;
+      assessment: string;
+      resources: string;
+      workType: string;
+      methodName: string;
+    };
+    stages: {
+      beginning: string;
+      middle: string;
+      end: string;
+      neuroExercise: string;
+    };
+    workTypes: {
+      individual: string;
+      group: string;
+    };
+    actions: {
+      download: string;
+      createNew: string;
+      addDescriptor: string;
+      removeDescriptor: string;
+      addTask: string;
+      edit: string;
+      save: string;
+      cancel: string;
+    };
+    errors: {
+      required: string;
+      lessonNumberMin: string;
+      objectivesMin: string;
+      auth: string;
+      generic: string;
+      flowStagesRequired: string;
+      taskMinRequired: string;
+    };
+    loading: string;
+    validation: {
+      allFieldsRequired: string;
+      lessonNumberPositive: string;
+      objectivesRequired: string;
+    };
+  };
+  classHour: {
+    form: {
+      title: string;
+      language: string;
+      topic: string;
+      grade: string;
+      value: string;
+      valuePlaceholder: string;
+      format: string;
+      formatPlaceholder: string;
+      wishes: string;
+      wishesPlaceholder: string;
+      generate: string;
+    };
+    results: {
+      title: string;
+      regenerateBlock: string;
+      editBlock: string;
+      instructionPlaceholder: string;
+      regenerateButton: string;
+      cancel: string;
+      export: string;
+      createNew: string;
+    };
+    errors: {
+      required: string;
+      auth: string;
+      generic: string;
+    };
+    loading: string;
+    regenerating: string;
   };
   footer: {
     ctaTitle: string;
@@ -430,8 +580,7 @@ export const translations: Record<Language, Translations> = {
           kmzh: "КМЖ",
           essay: "Эссе",
           article: "Макала (Статьи)",
-          bjb: "БЖБ (СОР)",
-          tjb: "ТЖБ (СОЧ)",
+          bjbTjb: "БЖБ/ТЖБ (СОР/СОЧ)",
           scientificProjects: "Научные проекты",
           classHours: "Классные часы",
           worksheets: "Рабочие листы",
@@ -568,6 +717,157 @@ export const translations: Record<Language, Translations> = {
         generic: "Произошла ошибка. Попробуйте ещё раз.",
       },
       loading: "Идёт генерация (15–40 секунд)...",
+    },
+    exam: {
+      form: {
+        title: "БЖБ/ТЖБ (СОР/СОЧ)",
+        examType: "Тип работы",
+        subject: "Предмет",
+        grade: "Класс",
+        topic: "Тема",
+        learningObjectives: "Цели обучения",
+        addObjective: "Добавить цель",
+        totalScore: "Общий балл",
+        language: "Язык",
+        generate: "Сгенерировать",
+      },
+      types: {
+        bjb: "БЖБ (СОР)",
+        tjb: "ТЖБ (СОЧ)",
+      },
+      results: {
+        scoreIndicator: "Баллы",
+        currentTotal: "Текущая сумма",
+        targetTotal: "Целевая сумма",
+        valid: "✅",
+        invalid: "❌",
+        warning: "Сумма баллов не совпадает с заданной. Проверьте баллы каждого задания.",
+        taskNumber: "Задание",
+        score: "Балл",
+        descriptor: "Дескриптор",
+        imagePlaceholder: "🖼️ Место для изображения",
+        exportStudent: "Скачать для ученика",
+        exportTeacher: "Скачать для учителя",
+      },
+      widgets: {
+        multipleChoice: "Множественный выбор",
+        matching: "Сопоставление",
+        trueFalse: "Верно/Неверно",
+        textOpen: "Открытый вопрос",
+      },
+      errors: {
+        required: "Заполните все обязательные поля.",
+        auth: "Авторизуйтесь, чтобы сгенерировать экзамен.",
+        generic: "Произошла ошибка. Попробуйте ещё раз.",
+      },
+      loading: "Идёт генерация (20–50 секунд)...",
+    },
+    lessonPlan: {
+      form: {
+        title: "КМЖ - Краткосрочное планирование урока",
+        subject: "Предмет",
+        grade: "Класс",
+        topic: "Тема урока",
+        teacherName: "ФИО учителя",
+        sectionName: "Раздел",
+        lessonNumber: "Номер урока",
+        learningObjectives: "Цели обучения",
+        addObjective: "Добавить цель",
+        date: "Дата",
+        generate: "Сгенерировать план урока",
+      },
+      meta: {
+        title: "Информация об уроке",
+        sectionName: "Раздел",
+        subject: "Предмет",
+        teacherName: "ФИО учителя",
+        date: "Дата",
+        grade: "Класс",
+        studentsPresent: "Присутствующие",
+        studentsAbsent: "Отсутствующие",
+        topic: "Тема урока",
+        learningObjectives: "Цели обучения",
+        lessonObjectives: "Задачи урока",
+        addObjective: "Добавить задачу",
+        removeObjective: "Удалить",
+      },
+      table: {
+        stage: "Этап урока",
+        time: "Время",
+        teacherActivity: "Действия педагога",
+        studentActivity: "Действия учеников",
+        assessment: "Оценивание",
+        resources: "Ресурсы",
+        workType: "Тип работы",
+        methodName: "Метод",
+      },
+      stages: {
+        beginning: "Начало урока",
+        middle: "Середина урока",
+        end: "Конец урока",
+        neuroExercise: "Нейроупражнение",
+      },
+      workTypes: {
+        individual: "ЖЖ",
+        group: "ТЖ",
+      },
+      actions: {
+        download: "Скачать DOCX",
+        createNew: "Создать новый план",
+        addDescriptor: "Добавить дескриптор",
+        removeDescriptor: "Удалить",
+        addTask: "Добавить задание",
+        edit: "Редактировать",
+        save: "Сохранить",
+        cancel: "Отмена",
+      },
+      errors: {
+        required: "Заполните все обязательные поля.",
+        lessonNumberMin: "Номер урока должен быть больше 0.",
+        objectivesMin: "Добавьте хотя бы одну цель обучения.",
+        auth: "Авторизуйтесь, чтобы создать план урока.",
+        generic: "Произошла ошибка. Попробуйте ещё раз.",
+        flowStagesRequired: "План должен содержать ровно 3 этапа.",
+        taskMinRequired: "Каждый этап должен содержать минимум 1 задание.",
+      },
+      loading: "Создание плана урока (это может занять 20-50 секунд)...",
+      validation: {
+        allFieldsRequired: "Все обязательные поля должны быть заполнены.",
+        lessonNumberPositive: "Номер урока должен быть положительным числом.",
+        objectivesRequired: "Необходимо указать минимум одну цель обучения.",
+      },
+    },
+    classHour: {
+      form: {
+        title: "Классный час (Сынып сағаты)",
+        language: "Язык сценария",
+        topic: "Тема классного часа",
+        grade: "Класс",
+        value: "Ценность",
+        valuePlaceholder: "Например: Отан, Отбасы, Денсаулық...",
+        format: "Формат",
+        formatPlaceholder: "Например: Дискуссия, Тренинг, Викторина...",
+        wishes: "Дополнительные пожелания (необязательно)",
+        wishesPlaceholder: "Например: Включи видео про Астану",
+        generate: "Сгенерировать сценарий",
+      },
+      results: {
+        title: "Сценарий классного часа",
+        regenerateBlock: "Регенерировать блок",
+        editBlock: "Редактировать",
+        instructionPlaceholder: "Что изменить? (необязательно)",
+        regenerateButton: "Регенерировать",
+        cancel: "Отмена",
+        export: "Скачать DOCX",
+        createNew: "Создать новый сценарий",
+      },
+      errors: {
+        required: "Заполните все обязательные поля.",
+        auth: "Авторизуйтесь для генерации сценария.",
+        generic: "Произошла ошибка. Попробуйте ещё раз.",
+      },
+      loading: "Генерация сценария (20–50 секунд)...",
+      regenerating: "Регенерация блока...",
     },
     footer: {
       ctaTitle: "Присоединиться к запуску Sandu AI",
@@ -770,8 +1070,7 @@ export const translations: Record<Language, Translations> = {
           kmzh: "КМЖ",
           essay: "Эссе",
           article: "Мақала",
-          bjb: "БЖБ",
-          tjb: "ТЖБ",
+          bjbTjb: "БЖБ/ТЖБ (СОР/СОЧ)",
           scientificProjects: "Ғылыми жобалар",
           classHours: "Тәрбие сағаттары",
           worksheets: "Жұмыс парақтары",
@@ -909,6 +1208,157 @@ export const translations: Record<Language, Translations> = {
       },
       loading: "Генерация жүріп жатыр (15–40 секунд)...",
     },
+    exam: {
+      form: {
+        title: "БЖБ/ТЖБ (СОР/СОЧ)",
+        examType: "Жұмыс түрі",
+        subject: "Пән",
+        grade: "Сынып",
+        topic: "Тақырып",
+        learningObjectives: "Оқу мақсаттары",
+        addObjective: "Мақсат қосу",
+        totalScore: "Жалпы балл",
+        language: "Тіл",
+        generate: "Генерациялау",
+      },
+      types: {
+        bjb: "БЖБ (СОР)",
+        tjb: "ТЖБ (СОЧ)",
+      },
+      results: {
+        scoreIndicator: "Баллдар",
+        currentTotal: "Ағымдағы сома",
+        targetTotal: "Мақсатты сома",
+        valid: "✅",
+        invalid: "❌",
+        warning: "Баллдардың сомасы берілгенмен сәйкес келмейді. Әр тапсырманың баллын тексеріңіз.",
+        taskNumber: "Тапсырма",
+        score: "Балл",
+        descriptor: "Дескриптор",
+        imagePlaceholder: "🖼️ Сурет орны",
+        exportStudent: "Оқушыға арналған жүктеу",
+        exportTeacher: "Мұғалімге арналған жүктеу",
+      },
+      widgets: {
+        multipleChoice: "Көп таңдау",
+        matching: "Сәйкестендіру",
+        trueFalse: "Дұрыс/Бұрыс",
+        textOpen: "Ашық сұрақ",
+      },
+      errors: {
+        required: "Барлық міндетті өрістерді толтырыңыз.",
+        auth: "Емтихан генерациялау үшін авторизациядан өтіңіз.",
+        generic: "Қате пайда болды. Қайта көріңіз.",
+      },
+      loading: "Генерация жүріп жатыр (20–50 секунд)...",
+    },
+    lessonPlan: {
+      form: {
+        title: "ҚМЖ - Қысқа мерзімді жоспар",
+        subject: "Пән",
+        grade: "Сынып",
+        topic: "Сабақтың тақырыбы",
+        teacherName: "Мұғалімнің аты-жөні",
+        sectionName: "Бөлім",
+        lessonNumber: "Сабақ нөмірі",
+        learningObjectives: "Оқу мақсаттары",
+        addObjective: "Мақсат қосу",
+        date: "Күні",
+        generate: "Сабақ жоспарын жасау",
+      },
+      meta: {
+        title: "Сабақ туралы ақпарат",
+        sectionName: "Бөлім",
+        subject: "Пән",
+        teacherName: "Мұғалімнің аты-жөні",
+        date: "Күні",
+        grade: "Сынып",
+        studentsPresent: "Қатысқандар",
+        studentsAbsent: "Қатыспағандар",
+        topic: "Сабақтың тақырыбы",
+        learningObjectives: "Оқу мақсаттары",
+        lessonObjectives: "Сабақ міндеттері",
+        addObjective: "Міндет қосу",
+        removeObjective: "Жою",
+      },
+      table: {
+        stage: "Сабақ кезеңі",
+        time: "Уақыт",
+        teacherActivity: "Педагогтің әрекеті",
+        studentActivity: "Оқушының әрекеті",
+        assessment: "Бағалау",
+        resources: "Ресурстар",
+        workType: "Жұмыс түрі",
+        methodName: "Әдіс",
+      },
+      stages: {
+        beginning: "Сабақтың басы",
+        middle: "Сабақтың ортасы",
+        end: "Сабақтың соңы",
+        neuroExercise: "Нейрожаттығу",
+      },
+      workTypes: {
+        individual: "ЖЖ",
+        group: "ТЖ",
+      },
+      actions: {
+        download: "DOCX жүктеу",
+        createNew: "Жаңа жоспар жасау",
+        addDescriptor: "Дескриптор қосу",
+        removeDescriptor: "Жою",
+        addTask: "Тапсырма қосу",
+        edit: "Өңдеу",
+        save: "Сақтау",
+        cancel: "Болдырмау",
+      },
+      errors: {
+        required: "Барлық міндетті өрістерді толтырыңыз.",
+        lessonNumberMin: "Сабақ нөмірі 0-ден үлкен болуы керек.",
+        objectivesMin: "Кемінде бір оқу мақсатын қосыңыз.",
+        auth: "Сабақ жоспарын жасау үшін авторизациядан өтіңіз.",
+        generic: "Қате пайда болды. Қайта көріңіз.",
+        flowStagesRequired: "Жоспарда дәл 3 кезең болуы керек.",
+        taskMinRequired: "Әр кезеңде кемінде 1 тапсырма болуы керек.",
+      },
+      loading: "Сабақ жоспары жасалуда (20-50 секунд)...",
+      validation: {
+        allFieldsRequired: "Барлық міндетті өрістер толтырылуы керек.",
+        lessonNumberPositive: "Сабақ нөмірі оң сан болуы керек.",
+        objectivesRequired: "Кемінде бір оқу мақсаты көрсету қажет.",
+      },
+    },
+    classHour: {
+      form: {
+        title: "Сынып сағаты",
+        language: "Сценарий тілі",
+        topic: "Сынып сағатының тақырыбы",
+        grade: "Сынып",
+        value: "Құндылық",
+        valuePlaceholder: "Мысалы: Отан, Отбасы, Денсаулық...",
+        format: "Формат",
+        formatPlaceholder: "Мысалы: Дискуссия, Тренинг, Викторина...",
+        wishes: "Қосымша тілектер (міндетті емес)",
+        wishesPlaceholder: "Мысалы: Астана туралы бейне қосыңыз",
+        generate: "Сценарий жасау",
+      },
+      results: {
+        title: "Сынып сағаты сценарийі",
+        regenerateBlock: "Блокты қайта жасау",
+        editBlock: "Өңдеу",
+        instructionPlaceholder: "Не өзгерту керек? (міндетті емес)",
+        regenerateButton: "Қайта жасау",
+        cancel: "Болдырмау",
+        export: "DOCX жүктеу",
+        createNew: "Жаңа сценарий жасау",
+      },
+      errors: {
+        required: "Барлық міндетті өрістерді толтырыңыз.",
+        auth: "Сценарий жасау үшін авторизациядан өтіңіз.",
+        generic: "Қате пайда болды. Қайта көріңіз.",
+      },
+      loading: "Сценарий жасалуда (20–50 секунд)...",
+      regenerating: "Блок қайта жасалуда...",
+    },
     footer: {
       ctaTitle: "Sandu AI іске қосылуына қосылыңыз",
       ctaSubtitle:
@@ -924,5 +1374,7 @@ export const translations: Record<Language, Translations> = {
     },
   },
 };
+
+// Updated: Added exam translations for BJB/TJB functionality
 
 

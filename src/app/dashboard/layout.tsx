@@ -66,8 +66,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         { label: t.dashboard.menu.aiGenerationItems.kmzh, href: "/dashboard/ai/kmzh" },
         { label: t.dashboard.menu.aiGenerationItems.essay, href: "/dashboard/ai/essay" },
         { label: t.dashboard.menu.aiGenerationItems.article, href: "/dashboard/ai/article" },
-        { label: t.dashboard.menu.aiGenerationItems.bjb, href: "/dashboard/ai/bjb" },
-        { label: t.dashboard.menu.aiGenerationItems.tjb, href: "/dashboard/ai/tjb" },
+        { label: t.dashboard.menu.aiGenerationItems.bjbTjb, href: "/dashboard/ai/bjb-tjb" },
         {
           label: t.dashboard.menu.aiGenerationItems.scientificProjects,
           href: "/dashboard/ai/scientific-projects",

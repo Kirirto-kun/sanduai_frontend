@@ -109,6 +109,139 @@ export type ArticleRevisePayload = {
   general_instruction?: string;
 };
 
+// Lesson Plan (Short-term КМЖ) types
+export type LessonPlanRequest = {
+  subject: string;
+  grade: string;
+  topic: string;
+  teacher_name: string;
+  section_name: string;
+  lesson_number: number;
+  learning_objectives: string[];
+  date?: string | null;
+};
+
+export type LessonMeta = {
+  section_name: string;
+  subject: string;
+  teacher_name: string;
+  date: string;
+  grade: string;
+  students_present: string;
+  students_absent: string;
+  topic: string;
+  learning_objectives: string[];
+  lesson_objectives: string[];
+};
+
+export type LessonTask = {
+  work_type: "ЖЖ" | "ТЖ";
+  method_name: string;
+  teacher_activity: string;
+  student_activity: string;
+  descriptors: string[];
+  resources: string;
+  time_marker: string | null;
+};
+
+export type NeuroExercise = string | { name: string; description?: string } | null;
+
+export type LessonStage = {
+  stage_name: string;
+  time: string;
+  neuro_exercise: NeuroExercise;
+  tasks: LessonTask[];
+};
+
+export type LessonPlanResponse = {
+  meta: LessonMeta;
+  flow: LessonStage[];
+};
+
+export type LessonPlanDocxRequest = LessonPlanResponse;
+
+// Exam (BJB/TJB) types
+export type WidgetType = "multiple_choice" | "matching" | "true_false" | "text_open";
+
+export type TaskGrading = {
+  correct_answer: any;
+  descriptor: string;
+  score: number;
+};
+
+export type TaskContent = {
+  question?: string;
+  statement?: string;
+  instruction?: string;
+  options?: string[];
+  pairs?: Array<{ left: string; right: string }>;
+  image_placeholder_prompt?: string;
+};
+
+export type ExamTask = {
+  id: string;
+  widget_type: WidgetType;
+  content: TaskContent;
+  grading: TaskGrading;
+};
+
+export type ExamMeta = {
+  subject: string;
+  grade: string;
+  topic: string;
+  learning_objectives: string[];
+  total_score: number;
+  exam_type: "bjb" | "tjb";
+  lang: "kaz" | "rus";
+};
+
+export type ExamGeneratePayload = ExamMeta;
+
+export type ExamGenerateResponse = {
+  meta: ExamMeta;
+  tasks: ExamTask[];
+  calculated_total_score: number;
+};
+
+export type ExamExportPayload = {
+  exam_project: ExamGenerateResponse;
+  version: "student" | "teacher";
+};
+
+// Class Hour (Классный час / Сынып сағаты) types
+export type ClassHourGeneratePayload = {
+  language: "kz" | "ru";
+  topic: string;
+  grade: string;
+  value: string;
+  format: string;
+  wishes?: string;
+};
+
+export type ClassHourBlock = {
+  id: number;
+  title: string;
+  content: string;
+};
+
+export type ClassHourResponse = {
+  lesson_id: string;
+  topic: string;
+  blocks: ClassHourBlock[];
+};
+
+export type ClassHourRegeneratePayload = {
+  lesson_id: string;
+  block_id: number;
+  current_content: string;
+  instruction?: string;
+};
+
+export type ClassHourExportPayload = {
+  topic: string;
+  blocks: ClassHourBlock[];
+};
+
 async function request<T>(
   path: string,
   options: RequestInit & { auth?: boolean } = {},
@@ -264,6 +397,122 @@ export async function exportArticleDocx(payload: ArticleResponse): Promise<Blob>
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}/api/article/export/docx`, {
+    method: "POST",
+    headers,
+    cache: "no-store",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const message =
+      (data && (data.error || data.message)) ||
+      `Request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+  return res.blob();
+}
+
+// Exam (BJB/TJB) API functions
+export async function generateExam(
+  payload: ExamGeneratePayload,
+): Promise<ExamGenerateResponse> {
+  return request<ExamGenerateResponse>("/api/bjb/generate", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+export async function exportExamDocx(payload: ExamExportPayload): Promise<Blob> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/bjb/export/docx`, {
+    method: "POST",
+    headers,
+    cache: "no-store",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const message =
+      (data && (data.error || data.message)) ||
+      `Request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+  return res.blob();
+}
+
+// Class Hour (Классный час / Сынып сағаты) API functions
+export async function generateClassHour(
+  payload: ClassHourGeneratePayload,
+): Promise<ClassHourResponse> {
+  return request<ClassHourResponse>("/api/class-hour/generate", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+export async function regenerateClassHourBlock(
+  payload: ClassHourRegeneratePayload,
+): Promise<ClassHourBlock> {
+  return request<ClassHourBlock>("/api/class-hour/regenerate-block", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+export async function exportClassHourDocx(
+  payload: ClassHourExportPayload,
+): Promise<Blob> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/class-hour/export-docx`, {
+    method: "POST",
+    headers,
+    cache: "no-store",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const message =
+      (data && (data.error || data.message)) ||
+      `Request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+  return res.blob();
+}
+
+// Lesson Plan (Short-term КМЖ) API functions
+export async function generateLessonPlan(
+  payload: LessonPlanRequest,
+): Promise<LessonPlanResponse> {
+  return request<LessonPlanResponse>("/api/generate/kmzh", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+export async function exportLessonPlanDocx(
+  payload: LessonPlanDocxRequest,
+): Promise<Blob> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/generate/kmzh/docx`, {
     method: "POST",
     headers,
     cache: "no-store",

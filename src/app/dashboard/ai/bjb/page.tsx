@@ -1,13 +1,20 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
 export default function BjbPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/dashboard/ai/bjb-tjb");
+  }, [router]);
+
   return (
-    <div className="glass-card rounded-3xl border border-white/60 px-6 py-12 shadow-md sm:px-8">
+    <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
-        <h2 className="text-2xl font-semibold text-slate-900">БЖБ (СОР)</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Эта функция находится в разработке и скоро будет доступна.
-        </p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+        <p className="mt-4 text-slate-600">Перенаправление...</p>
       </div>
     </div>
   );
