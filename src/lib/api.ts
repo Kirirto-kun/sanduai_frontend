@@ -242,6 +242,52 @@ export type ClassHourExportPayload = {
   blocks: ClassHourBlock[];
 };
 
+// Quiz (Тест генератор) types
+export type QuizSourceType = "topic" | "text";
+export type QuizLanguage = "kz" | "ru" | "en";
+export type QuizDifficulty = "easy" | "medium" | "hard";
+export type QuestionType = "single_choice" | "multiple_choice" | "true_false" | "open";
+
+export type QuizTopicPayload = {
+  source_type: "topic";
+  subject: string;
+  grade: string;
+  topic: string;
+  language: QuizLanguage;
+  question_count: number;
+  difficulty: QuizDifficulty;
+  question_types: QuestionType[];
+};
+
+export type QuizTextPayload = {
+  source_type: "text";
+  context_text: string;
+  language: QuizLanguage;
+  question_count: number;
+  difficulty: QuizDifficulty;
+  question_types: QuestionType[];
+};
+
+export type QuizGeneratePayload = QuizTopicPayload | QuizTextPayload;
+
+export type QuizTask = {
+  id: string;
+  type: QuestionType;
+  question: string;
+  options: string[];
+  correct_answer: string | string[];
+  explanation: string;
+};
+
+export type QuizGenerateResponse = {
+  tasks: QuizTask[];
+};
+
+export type QuizExportPayload = {
+  title: string;
+  tasks: QuizTask[];
+};
+
 async function request<T>(
   path: string,
   options: RequestInit & { auth?: boolean } = {},
@@ -477,6 +523,42 @@ export async function exportClassHourDocx(
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}/api/class-hour/export-docx`, {
+    method: "POST",
+    headers,
+    cache: "no-store",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const message =
+      (data && (data.error || data.message)) ||
+      `Request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+  return res.blob();
+}
+
+// Quiz (Тест генератор) API functions
+export async function generateQuiz(
+  payload: QuizGeneratePayload,
+): Promise<QuizGenerateResponse> {
+  return request<QuizGenerateResponse>("/api/quiz/generate", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+export async function exportQuizDocx(
+  payload: QuizExportPayload,
+): Promise<Blob> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/quiz/export`, {
     method: "POST",
     headers,
     cache: "no-store",

@@ -380,6 +380,66 @@ type Translations = {
     loading: string;
     regenerating: string;
   };
+  quiz: {
+    form: {
+      title: string;
+      modeTab: {
+        topic: string;
+        text: string;
+      };
+      subject: string;
+      grade: string;
+      topic: string;
+      contextText: string;
+      contextTextPlaceholder: string;
+      contextTextLimit: string;
+      language: string;
+      questionCount: string;
+      difficulty: string;
+      difficultyOptions: {
+        easy: string;
+        medium: string;
+        hard: string;
+      };
+      questionTypes: string;
+      questionTypeOptions: {
+        single_choice: string;
+        multiple_choice: string;
+        true_false: string;
+        open: string;
+      };
+      generate: string;
+    };
+    results: {
+      title: string;
+      quizTitle: string;
+      quizTitlePlaceholder: string;
+      questionNumber: string;
+      question: string;
+      options: string;
+      correctAnswer: string;
+      explanation: string;
+      addQuestion: string;
+      removeQuestion: string;
+      export: string;
+      createNew: string;
+    };
+    questionTypeLabels: {
+      single_choice: string;
+      multiple_choice: string;
+      true_false: string;
+      open: string;
+    };
+    errors: {
+      required: string;
+      questionCountRange: string;
+      contextTextTooLong: string;
+      questionTypesRequired: string;
+      auth: string;
+      generic: string;
+    };
+    loading: string;
+  };
   footer: {
     ctaTitle: string;
     ctaSubtitle: string;
@@ -868,6 +928,66 @@ export const translations: Record<Language, Translations> = {
       },
       loading: "Генерация сценария (20–50 секунд)...",
       regenerating: "Регенерация блока...",
+    },
+    quiz: {
+      form: {
+        title: "Тест генератор (Quiz)",
+        modeTab: {
+          topic: "По теме",
+          text: "По тексту",
+        },
+        subject: "Предмет",
+        grade: "Класс",
+        topic: "Тема",
+        contextText: "Контекстный текст",
+        contextTextPlaceholder: "Вставьте текст, по которому нужно создать тест (до 10000 символов)...",
+        contextTextLimit: "символов",
+        language: "Язык теста",
+        questionCount: "Количество вопросов",
+        difficulty: "Сложность",
+        difficultyOptions: {
+          easy: "Легко",
+          medium: "Средне",
+          hard: "Сложно",
+        },
+        questionTypes: "Типы вопросов",
+        questionTypeOptions: {
+          single_choice: "Один верный (Single Choice)",
+          multiple_choice: "Несколько верных (Multiple Choice)",
+          true_false: "Правда/Ложь (True/False)",
+          open: "Открытый вопрос (Open)",
+        },
+        generate: "Сгенерировать тест",
+      },
+      results: {
+        title: "Сгенерированный тест",
+        quizTitle: "Название теста",
+        quizTitlePlaceholder: "Введите название теста для экспорта",
+        questionNumber: "Вопрос",
+        question: "Вопрос",
+        options: "Варианты ответов",
+        correctAnswer: "Правильный ответ",
+        explanation: "Объяснение",
+        addQuestion: "Добавить вопрос",
+        removeQuestion: "Удалить вопрос",
+        export: "Скачать ZIP (2 варианта + ключи)",
+        createNew: "Создать новый тест",
+      },
+      questionTypeLabels: {
+        single_choice: "Один верный",
+        multiple_choice: "Несколько верных",
+        true_false: "Правда/Ложь",
+        open: "Открытый",
+      },
+      errors: {
+        required: "Заполните все обязательные поля.",
+        questionCountRange: "Количество вопросов должно быть от 5 до 20.",
+        contextTextTooLong: "Текст не должен превышать 10000 символов.",
+        questionTypesRequired: "Выберите хотя бы один тип вопроса.",
+        auth: "Авторизуйтесь для генерации теста.",
+        generic: "Произошла ошибка. Попробуйте ещё раз.",
+      },
+      loading: "Генерация теста (20–50 секунд)...",
     },
     footer: {
       ctaTitle: "Присоединиться к запуску Sandu AI",
@@ -1358,6 +1478,66 @@ export const translations: Record<Language, Translations> = {
       },
       loading: "Сценарий жасалуда (20–50 секунд)...",
       regenerating: "Блок қайта жасалуда...",
+    },
+    quiz: {
+      form: {
+        title: "Тест генераторы (Quiz)",
+        modeTab: {
+          topic: "Тақырып бойынша",
+          text: "Мәтін бойынша",
+        },
+        subject: "Пән",
+        grade: "Сынып",
+        topic: "Тақырып",
+        contextText: "Контекстік мәтін",
+        contextTextPlaceholder: "Тест жасау үшін мәтінді енгізіңіз (10000 таңбаға дейін)...",
+        contextTextLimit: "таңба",
+        language: "Тест тілі",
+        questionCount: "Сұрақтар саны",
+        difficulty: "Қиындық",
+        difficultyOptions: {
+          easy: "Оңай",
+          medium: "Орташа",
+          hard: "Қиын",
+        },
+        questionTypes: "Сұрақ түрлері",
+        questionTypeOptions: {
+          single_choice: "Бір дұрыс (Single Choice)",
+          multiple_choice: "Бірнеше дұрыс (Multiple Choice)",
+          true_false: "Дұрыс/Бұрыс (True/False)",
+          open: "Ашық сұрақ (Open)",
+        },
+        generate: "Тест жасау",
+      },
+      results: {
+        title: "Жасалған тест",
+        quizTitle: "Тест атауы",
+        quizTitlePlaceholder: "Экспорт үшін тест атауын енгізіңіз",
+        questionNumber: "Сұрақ",
+        question: "Сұрақ",
+        options: "Жауап нұсқалары",
+        correctAnswer: "Дұрыс жауап",
+        explanation: "Түсініктеме",
+        addQuestion: "Сұрақ қосу",
+        removeQuestion: "Сұрақты жою",
+        export: "ZIP жүктеу (2 нұсқа + кілттер)",
+        createNew: "Жаңа тест жасау",
+      },
+      questionTypeLabels: {
+        single_choice: "Бір дұрыс",
+        multiple_choice: "Бірнеше дұрыс",
+        true_false: "Дұрыс/Бұрыс",
+        open: "Ашық",
+      },
+      errors: {
+        required: "Барлық міндетті өрістерді толтырыңыз.",
+        questionCountRange: "Сұрақтар саны 5-тен 20-ға дейін болуы керек.",
+        contextTextTooLong: "Мәтін 10000 таңбадан аспауы керек.",
+        questionTypesRequired: "Кемінде бір сұрақ түрін таңдаңыз.",
+        auth: "Тест жасау үшін авторизациядан өтіңіз.",
+        generic: "Қате пайда болды. Қайта көріңіз.",
+      },
+      loading: "Тест жасалуда (20–50 секунд)...",
     },
     footer: {
       ctaTitle: "Sandu AI іске қосылуына қосылыңыз",
