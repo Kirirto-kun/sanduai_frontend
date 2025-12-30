@@ -22,6 +22,21 @@ const labels = {
 export default function DashboardHome() {
   const t = useTranslations();
 
+  const getCardTitle = (key: keyof typeof labels) => {
+    switch (key) {
+      case "kmzh":
+        return t.dashboard.menu.aiGenerationItems.kmzh;
+      case "aiDocs":
+        return t.dashboard.menu.aiGeneration;
+      case "library":
+        return t.dashboard.menu.library;
+      case "media":
+        return t.dashboard.menu.media;
+      case "profile":
+        return t.dashboard.menu.profile;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
@@ -45,13 +60,13 @@ export default function DashboardHome() {
               className="group rounded-2xl bg-white/90 p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-lg hover:ring-[color:var(--primary)]/50"
             >
               <h4 className="text-sm font-semibold text-slate-900">
-                {t.dashboard.menu[card.key]}
+                {getCardTitle(card.key)}
               </h4>
               <p className="mt-2 text-xs leading-relaxed text-slate-600">
                 {t.dashboard.home.cards[card.key]}
               </p>
               <span className="mt-3 inline-flex items-center gap-2 text-[11px] font-semibold text-[color:var(--primary)]">
-                {t.dashboard.menu[card.key]} →
+                {getCardTitle(card.key)} →
               </span>
             </Link>
           ))}

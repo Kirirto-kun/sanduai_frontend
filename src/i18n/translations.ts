@@ -176,6 +176,22 @@ type Translations = {
       generalInstruction: string;
       apply: string;
       export: string;
+      addRevision: string;
+      selectedText: string;
+      whatToChange: string;
+      applyAllRevisions: string;
+      revision: string;
+      delete: string;
+      cancel: string;
+      pendingRevisions: string;
+      noRevisions: string;
+      editBlock: string;
+      saveBlock: string;
+      sectionTypes: {
+        introduction: string;
+        body: string;
+        conclusion: string;
+      };
     };
     errors: {
       required: string;
@@ -221,6 +237,7 @@ type Translations = {
       saveBlock: string;
       export: string;
       generalInstruction: string;
+      instruction: string;
     };
     errors: {
       required: string;
@@ -770,6 +787,7 @@ export const translations: Record<Language, Translations> = {
         saveBlock: "Сохранить",
         export: "Скачать DOCX",
         generalInstruction: "Общая инструкция для всей статьи",
+        instruction: "Инструкция",
       },
       errors: {
         required: "Заполните обязательные поля и попробуйте снова.",
@@ -1320,6 +1338,7 @@ export const translations: Record<Language, Translations> = {
         saveBlock: "Сақтау",
         export: "DOCX жүктеу",
         generalInstruction: "Бүкіл мақалаға жалпы нұсқау",
+        instruction: "Нұсқау",
       },
       errors: {
         required: "Міндетті өрістерді толтырыңыз да, қайта көріңіз.",
