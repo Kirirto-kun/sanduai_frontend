@@ -319,6 +319,64 @@ export type ScientificProjectExportPayload = {
   content: ScientificProjectResponse;
 };
 
+// Worksheet types
+export type WorksheetTaskType = "multiple_choice" | "fill_in_blank" | "matching" | "open_question";
+
+export type WorksheetGeneratePayload = {
+  subject: string;
+  topic: string;
+  grade: string;
+  language: "ru" | "kz" | "en";
+  task_types: WorksheetTaskType[];
+  user_comment?: string;
+};
+
+export type WorksheetMultipleChoiceOption = {
+  key: string;
+  text: string;
+  is_correct: boolean;
+};
+
+export type WorksheetMultipleChoiceTask = {
+  question: string;
+  options: WorksheetMultipleChoiceOption[];
+};
+
+export type WorksheetFillInBlankTask = {
+  text_with_gaps: string;
+  correct_answers: string[];
+};
+
+export type WorksheetMatchingPair = {
+  left: string;
+  right: string;
+};
+
+export type WorksheetMatchingTask = {
+  pairs: WorksheetMatchingPair[];
+};
+
+export type WorksheetOpenQuestionTask = {
+  question: string;
+  model_answer: string;
+};
+
+export type WorksheetContent = {
+  title: string;
+  multiple_choice?: WorksheetMultipleChoiceTask[];
+  fill_in_blank?: WorksheetFillInBlankTask[];
+  matching?: WorksheetMatchingTask[];
+  open_questions?: WorksheetOpenQuestionTask[];
+};
+
+export type WorksheetResponse = {
+  content: WorksheetContent;
+};
+
+export type WorksheetExportPayload = {
+  content: WorksheetContent;
+};
+
 // Voiceover (Озвучка ИИ) types
 export type VoiceoverGeneratePayload = {
   text: string;
@@ -692,6 +750,42 @@ export async function exportScientificProjectDocx(
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}/api/v1/generate/science-project/export-docx`, {
+    method: "POST",
+    headers,
+    cache: "no-store",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const message =
+      (data && (data.error || data.message)) ||
+      `Request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+  return res.blob();
+}
+
+// Worksheet API functions
+export async function generateWorksheet(
+  payload: WorksheetGeneratePayload,
+): Promise<WorksheetResponse> {
+  return request<WorksheetResponse>("/api/v1/generate/worksheet", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+export async function exportWorksheetDocx(
+  payload: WorksheetExportPayload,
+): Promise<Blob> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/v1/generate/worksheet/export-docx`, {
     method: "POST",
     headers,
     cache: "no-store",

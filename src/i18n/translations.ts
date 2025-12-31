@@ -512,6 +512,43 @@ type Translations = {
     };
     loading: string;
   };
+  worksheet: {
+    form: {
+      title: string;
+      subject: string;
+      topic: string;
+      grade: string;
+      language: string;
+      taskTypes: string;
+      userComment: string;
+      userCommentPlaceholder: string;
+      generate: string;
+    };
+    taskTypeLabels: {
+      multiple_choice: string;
+      fill_in_blank: string;
+      matching: string;
+      open_question: string;
+    };
+    results: {
+      title: string;
+      multipleChoice: string;
+      fillInBlank: string;
+      matching: string;
+      openQuestion: string;
+      export: string;
+      createNew: string;
+      editBlock: string;
+      saveBlock: string;
+      cancel: string;
+    };
+    errors: {
+      required: string;
+      auth: string;
+      generic: string;
+    };
+    loading: string;
+  };
   footer: {
     ctaTitle: string;
     ctaSubtitle: string;
@@ -1116,6 +1153,43 @@ export const translations: Record<Language, Translations> = {
         generic: "Произошла ошибка. Попробуйте ещё раз.",
       },
       loading: "Пишу научную работу (30-60 секунд)...",
+    },
+    worksheet: {
+      form: {
+        title: "Рабочие листы",
+        subject: "Предмет",
+        topic: "Тема",
+        grade: "Класс",
+        language: "Язык",
+        taskTypes: "Типы заданий",
+        userComment: "Комментарий для ИИ (опционально)",
+        userCommentPlaceholder: "Например: Сделай акцент на глаголах действия...",
+        generate: "Сгенерировать рабочий лист",
+      },
+      taskTypeLabels: {
+        multiple_choice: "Тесты (Multiple Choice)",
+        fill_in_blank: "Заполнение пропусков",
+        matching: "Соотнесение (Matching)",
+        open_question: "Открытые вопросы",
+      },
+      results: {
+        title: "Результат генерации",
+        multipleChoice: "Тесты",
+        fillInBlank: "Заполнение пропусков",
+        matching: "Соотнесение",
+        openQuestion: "Открытые вопросы",
+        export: "Скачать DOCX",
+        createNew: "Создать новый",
+        editBlock: "Редактировать",
+        saveBlock: "Сохранить",
+        cancel: "Отмена",
+      },
+      errors: {
+        required: "Заполните все обязательные поля.",
+        auth: "Авторизуйтесь для генерации рабочего листа.",
+        generic: "Произошла ошибка. Попробуйте ещё раз.",
+      },
+      loading: "Создаю рабочий лист (20-40 секунд)...",
     },
     footer: {
       ctaTitle: "Присоединиться к запуску Sandu AI",
@@ -1722,6 +1796,43 @@ export const translations: Record<Language, Translations> = {
         generic: "Қате пайда болды. Қайта көріңіз.",
       },
       loading: "Ғылыми жұмыс жазылуда (30-60 секунд)...",
+    },
+    worksheet: {
+      form: {
+        title: "Жұмыс парақтары",
+        subject: "Пән",
+        topic: "Тақырып",
+        grade: "Сынып",
+        language: "Тіл",
+        taskTypes: "Тапсырма түрлері",
+        userComment: "ИИ-ге түсініктеме (міндетті емес)",
+        userCommentPlaceholder: "Мысалы: Етістіктерге баса назар аудар...",
+        generate: "Жұмыс парағын жасау",
+      },
+      taskTypeLabels: {
+        multiple_choice: "Тесттер (Multiple Choice)",
+        fill_in_blank: "Бос орындарды толтыру",
+        matching: "Сәйкестендіру (Matching)",
+        open_question: "Ашық сұрақтар",
+      },
+      results: {
+        title: "Генерация нәтижесі",
+        multipleChoice: "Тесттер",
+        fillInBlank: "Бос орындарды толтыру",
+        matching: "Сәйкестендіру",
+        openQuestion: "Ашық сұрақтар",
+        export: "DOCX жүктеу",
+        createNew: "Жаңа парақ жасау",
+        editBlock: "Өңдеу",
+        saveBlock: "Сақтау",
+        cancel: "Болдырмау",
+      },
+      errors: {
+        required: "Барлық міндетті өрістерді толтырыңыз.",
+        auth: "Жұмыс парағын жасау үшін авторизациядан өтіңіз.",
+        generic: "Қате пайда болды. Қайта көріңіз.",
+      },
+      loading: "Жұмыс парағы жасалуда (20-40 секунд)...",
     },
     footer: {
       ctaTitle: "Sandu AI іске қосылуына қосылыңыз",
