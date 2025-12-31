@@ -19,7 +19,7 @@ export default function RegisterPage() {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!phone || !email || !password || !fullName) {
+    if (!email || !password || !fullName) {
       setError(t.auth.errors.required);
       return;
     }
@@ -33,7 +33,7 @@ export default function RegisterPage() {
     }
     try {
       await register({
-        phone,
+        phone: phone || undefined,
         email,
         password,
         full_name: fullName,

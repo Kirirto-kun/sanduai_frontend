@@ -137,70 +137,103 @@ export default function ExamPage() {
 
         {/* Generation Form */}
         <div className="glass-card mb-6 rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
-          <form className="grid gap-4" onSubmit={handleGenerate}>
+          <form className="space-y-6" onSubmit={handleGenerate}>
             {/* Exam Type */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
                 {t.exam.form.examType}
               </label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="exam_type"
-                    value="bjb"
-                    checked={form.exam_type === "bjb"}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, exam_type: e.target.value as "bjb" | "tjb" }))
-                    }
-                    className="h-4 w-4"
-                  />
-                  <span>{t.exam.types.bjb}</span>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label
+                  className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 transition-all ${
+                    form.exam_type === "bjb"
+                      ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="exam_type"
+                      value="bjb"
+                      checked={form.exam_type === "bjb"}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, exam_type: e.target.value as "bjb" | "tjb" }))
+                      }
+                      className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
+                    />
+                    <span className="text-sm font-medium text-slate-900">{t.exam.types.bjb}</span>
+                  </div>
                 </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="exam_type"
-                    value="tjb"
-                    checked={form.exam_type === "tjb"}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, exam_type: e.target.value as "bjb" | "tjb" }))
-                    }
-                    className="h-4 w-4"
-                  />
-                  <span>{t.exam.types.tjb}</span>
+                <label
+                  className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 transition-all ${
+                    form.exam_type === "tjb"
+                      ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="exam_type"
+                      value="tjb"
+                      checked={form.exam_type === "tjb"}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, exam_type: e.target.value as "bjb" | "tjb" }))
+                      }
+                      className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
+                    />
+                    <span className="text-sm font-medium text-slate-900">{t.exam.types.tjb}</span>
+                  </div>
                 </label>
               </div>
             </div>
 
-            {/* Subject, Grade, Topic */}
-            <div className="grid gap-4 sm:grid-cols-3">
+            {/* Subject, Grade, Topic, Total Score */}
+            <div className="grid gap-6 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.exam.form.subject}
                 </label>
                 <input
                   type="text"
                   value={form.subject}
                   onChange={(e) => setForm((prev) => ({ ...prev, subject: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                   placeholder={t.exam.form.subject}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.exam.form.grade}
+                </label>
+                <select
+                  value={form.grade}
+                  onChange={(e) => setForm((prev) => ({ ...prev, grade: e.target.value }))}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                >
+                  <option value="">--</option>
+                  {[...Array(12)].map((_, i) => (
+                    <option key={i} value={String(i + 1)}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {t.exam.form.topic}
                 </label>
                 <input
                   type="text"
-                  value={form.grade}
-                  onChange={(e) => setForm((prev) => ({ ...prev, grade: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                  placeholder={t.exam.form.grade}
+                  value={form.topic}
+                  onChange={(e) => setForm((prev) => ({ ...prev, topic: e.target.value }))}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                  placeholder={t.exam.form.topic}
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
+              <div className="sm:col-span-2">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.exam.form.totalScore}
                 </label>
                 <input
@@ -209,66 +242,61 @@ export default function ExamPage() {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, total_score: parseInt(e.target.value) || 0 }))
                   }
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                   min="1"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                {t.exam.form.topic}
-              </label>
-              <input
-                type="text"
-                value={form.topic}
-                onChange={(e) => setForm((prev) => ({ ...prev, topic: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                placeholder={t.exam.form.topic}
-              />
-            </div>
-
             {/* Learning Objectives */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
                 {t.exam.form.learningObjectives}
               </label>
-              {form.learning_objectives.map((obj, index) => (
-                <div key={index} className="mb-2 flex gap-2">
-                  <input
-                    type="text"
-                    value={obj}
-                    onChange={(e) => handleObjectiveChange(index, e.target.value)}
-                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                    placeholder={`${t.exam.form.learningObjectives} ${index + 1}`}
-                  />
-                  {form.learning_objectives.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveObjective(index)}
-                      className="rounded-lg bg-red-500 px-3 py-2 text-sm text-white hover:bg-red-600"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={handleAddObjective}
-                className="mt-2 rounded-lg bg-green-500 px-4 py-2 text-sm text-white hover:bg-green-600"
-              >
-                {t.exam.form.addObjective}
-              </button>
+              <div className="space-y-3">
+                {form.learning_objectives.map((obj, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={obj}
+                      onChange={(e) => handleObjectiveChange(index, e.target.value)}
+                      className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                      placeholder={`${t.exam.form.learningObjectives} ${index + 1}`}
+                    />
+                    {form.learning_objectives.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveObjective(index)}
+                        className="rounded-xl bg-red-50 px-4 text-red-600 hover:bg-red-100"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={handleAddObjective}
+                  className="flex items-center gap-2 rounded-xl border border-dashed border-[color:var(--primary)] bg-[color:var(--primary)]/5 px-4 py-2 text-sm font-semibold text-[color:var(--primary)] hover:bg-[color:var(--primary)]/10"
+                >
+                  + {t.exam.form.addObjective}
+                </button>
+              </div>
             </div>
 
             {/* Language */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
                 {t.exam.form.language}
               </label>
               <div className="flex gap-4">
-                <label className="flex items-center gap-2">
+                <label
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
+                    form.lang === "rus"
+                      ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
                   <input
                     type="radio"
                     name="lang"
@@ -277,11 +305,17 @@ export default function ExamPage() {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, lang: e.target.value as "rus" | "kaz" }))
                     }
-                    className="h-4 w-4"
+                    className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
                   />
-                  <span>Русский</span>
+                  <span className="text-sm font-medium text-slate-900">Русский</span>
                 </label>
-                <label className="flex items-center gap-2">
+                <label
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
+                    form.lang === "kaz"
+                      ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
                   <input
                     type="radio"
                     name="lang"
@@ -290,32 +324,39 @@ export default function ExamPage() {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, lang: e.target.value as "rus" | "kaz" }))
                     }
-                    className="h-4 w-4"
+                    className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
                   />
-                  <span>Қазақша</span>
+                  <span className="text-sm font-medium text-slate-900">Қазақша</span>
                 </label>
               </div>
             </div>
 
             {/* Error */}
             {error && !loading && (
-              <div className="rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700">{error}</div>
+              <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
             )}
 
             {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-gradient-to-r from-primary to-accent px-6 py-3 font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
             >
-              {loading ? t.exam.loading : t.exam.form.generate}
+              {loading ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                  {t.exam.loading}
+                </>
+              ) : (
+                t.exam.form.generate
+              )}
             </button>
           </form>
         </div>
 
         {/* Results */}
         {examProject && tasks.length > 0 && (
-          <div className="space-y-6">
+          <div className="animate-fade-in space-y-6">
             {/* Score Indicator */}
             <div
               className={`glass-card rounded-2xl border px-6 py-4 ${
@@ -355,17 +396,17 @@ export default function ExamPage() {
             ))}
 
             {/* Export Buttons */}
-            <div className="glass-card rounded-2xl border border-white/60 px-6 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md">
+              <div className="flex flex-col gap-4 sm:flex-row">
                 <button
                   onClick={() => handleExport("student")}
-                  className="flex-1 rounded-lg bg-blue-500 px-6 py-3 font-semibold text-white hover:bg-blue-600"
+                  className="flex-1 rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
                 >
                   {t.exam.results.exportStudent}
                 </button>
                 <button
                   onClick={() => handleExport("teacher")}
-                  className="flex-1 rounded-lg bg-purple-500 px-6 py-3 font-semibold text-white hover:bg-purple-600"
+                  className="flex-1 rounded-2xl bg-white px-6 py-3 font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50"
                 >
                   {t.exam.results.exportTeacher}
                 </button>
@@ -396,44 +437,44 @@ function TaskCard({ task, index, t, onScoreChange, onDescriptorChange }: TaskCar
   }[task.widget_type];
 
   return (
-    <div className="glass-card rounded-2xl border border-white/60 px-6 py-6 shadow-md">
+    <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-lg font-bold text-slate-900">
           {t.exam.results.taskNumber} {index + 1}
         </h3>
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+        <span className="rounded-full bg-[color:var(--primary)]/10 px-3 py-1 text-xs font-semibold text-[color:var(--primary)]">
           {widgetTypeLabel}
         </span>
       </div>
 
       {/* Task Content */}
-      <div className="mb-4 space-y-3">
+      <div className="mb-6 space-y-3 rounded-2xl bg-white/50 p-4">
         <TaskContent task={task} t={t} />
       </div>
 
       {/* Score and Descriptor */}
-      <div className="grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-2">
+      <div className="grid gap-6 border-t border-slate-200 pt-6 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
+          <label className="mb-2 block text-sm font-semibold text-slate-700">
             {t.exam.results.score}
           </label>
           <input
             type="number"
             value={task.grading.score}
             onChange={(e) => onScoreChange(task.id, parseInt(e.target.value) || 0)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
             min="0"
           />
         </div>
         <div className="sm:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-slate-700">
+          <label className="mb-2 block text-sm font-semibold text-slate-700">
             {t.exam.results.descriptor}
           </label>
           <textarea
             value={task.grading.descriptor}
             onChange={(e) => onDescriptorChange(task.id, e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
             rows={2}
           />
         </div>
@@ -442,7 +483,7 @@ function TaskCard({ task, index, t, onScoreChange, onDescriptorChange }: TaskCar
   );
 }
 
-// TaskContent Component
+// TaskContent Component (No changes needed to structure, just rendering)
 type TaskContentProps = {
   task: ExamTask;
   t: any;
@@ -456,15 +497,15 @@ function TaskContent({ task, t }: TaskContentProps) {
       <>
         {content.question && (
           <div>
-            <strong>Вопрос:</strong>
+            <div className="font-semibold text-slate-700">Вопрос:</div>
             <div className="mt-1">
               <LatexRenderer text={content.question} />
             </div>
           </div>
         )}
         {content.options && content.options.length > 0 && (
-          <div>
-            <strong>Варианты:</strong>
+          <div className="mt-2">
+            <div className="font-semibold text-slate-700">Варианты:</div>
             <ul className="mt-1 list-inside list-disc space-y-1 pl-2">
               {content.options.map((option, idx) => (
                 <li key={idx}>
@@ -483,35 +524,37 @@ function TaskContent({ task, t }: TaskContentProps) {
       <>
         {content.instruction && (
           <div>
-            <strong>Инструкция:</strong>
+            <div className="font-semibold text-slate-700">Инструкция:</div>
             <div className="mt-1">
               <LatexRenderer text={content.instruction} />
             </div>
           </div>
         )}
         {content.pairs && content.pairs.length > 0 && (
-          <div>
-            <strong>Пары:</strong>
-            <table className="mt-2 w-full border-collapse border border-slate-300">
-              <thead>
-                <tr className="bg-slate-100">
-                  <th className="border border-slate-300 px-3 py-2 text-left">Левая колонка</th>
-                  <th className="border border-slate-300 px-3 py-2 text-left">Правая колонка</th>
-                </tr>
-              </thead>
-              <tbody>
-                {content.pairs.map((pair, idx) => (
-                  <tr key={idx}>
-                    <td className="border border-slate-300 px-3 py-2">
-                      <LatexRenderer text={pair.left} />
-                    </td>
-                    <td className="border border-slate-300 px-3 py-2">
-                      <LatexRenderer text={pair.right} />
-                    </td>
+          <div className="mt-2">
+            <div className="font-semibold text-slate-700">Пары:</div>
+            <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-slate-50">
+                    <th className="border-b border-r border-slate-200 px-4 py-2 text-left text-xs font-semibold text-slate-600">Левая колонка</th>
+                    <th className="border-b border-slate-200 px-4 py-2 text-left text-xs font-semibold text-slate-600">Правая колонка</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {content.pairs.map((pair, idx) => (
+                    <tr key={idx} className="even:bg-slate-50/50">
+                      <td className="border-r border-slate-200 px-4 py-2 text-sm text-slate-800">
+                        <LatexRenderer text={pair.left} />
+                      </td>
+                      <td className="px-4 py-2 text-sm text-slate-800">
+                        <LatexRenderer text={pair.right} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </>
@@ -523,7 +566,7 @@ function TaskContent({ task, t }: TaskContentProps) {
       <>
         {content.statement && (
           <div>
-            <strong>Утверждение:</strong>
+            <div className="font-semibold text-slate-700">Утверждение:</div>
             <div className="mt-1">
               <LatexRenderer text={content.statement} />
             </div>
@@ -539,16 +582,16 @@ function TaskContent({ task, t }: TaskContentProps) {
       <>
         {content.question && (
           <div>
-            <strong>Вопрос:</strong>
+            <div className="font-semibold text-slate-700">Вопрос:</div>
             <div className="mt-1">
               <LatexRenderer text={content.question} />
             </div>
           </div>
         )}
         {content.image_placeholder_prompt && (
-          <div className="mt-3 rounded-lg bg-slate-100 p-3 text-sm">
-            <div className="font-semibold">{t.exam.results.imagePlaceholder}</div>
-            <div className="mt-1 text-slate-600">{content.image_placeholder_prompt}</div>
+          <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm">
+            <div className="font-semibold text-slate-600">{t.exam.results.imagePlaceholder}</div>
+            <div className="mt-1 text-slate-500">{content.image_placeholder_prompt}</div>
           </div>
         )}
       </>
@@ -557,4 +600,3 @@ function TaskContent({ task, t }: TaskContentProps) {
 
   return null;
 }
-

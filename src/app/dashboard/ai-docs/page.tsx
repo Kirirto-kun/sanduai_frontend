@@ -389,7 +389,7 @@ export default function AiDocsPage() {
                 type="button"
                 onClick={onExport}
                 disabled={loading}
-                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50 disabled:opacity-70"
+                className="rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
                 {t.essay.results.export}
               </button>

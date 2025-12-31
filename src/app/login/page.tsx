@@ -10,19 +10,24 @@ export default function LoginPage() {
   const t = useTranslations();
   const router = useRouter();
 
-  const [phone, setPhone] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!phone || !password) {
+    if (!identifier || !password) {
       setError(t.auth.errors.required);
       return;
     }
     try {
-      await login({ phone, password });
+      const isEmail = identifier.includes("@");
+      await login({
+        email: isEmail ? identifier : undefined,
+        phone: isEmail ? undefined : identifier,
+        password,
+      });
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : t.auth.errors.generic);
@@ -47,11 +52,11 @@ export default function LoginPage() {
                   {t.auth.login.phoneLabel}
                 </label>
                 <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
-                  placeholder="+7701..."
+                  placeholder="user@example.com / +7701..."
                 />
               </div>
               <div className="space-y-2">

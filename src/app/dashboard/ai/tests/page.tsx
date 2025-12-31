@@ -688,7 +688,7 @@ export default function TestsPage() {
             <div className="flex flex-wrap gap-4">
               <button
                 onClick={handleExport}
-                className="flex-1 rounded-xl bg-gradient-to-r from-orange-500 to-green-500 px-6 py-3 font-semibold text-white shadow-md transition hover:shadow-lg"
+                className="flex-1 rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
                 {t.quiz.results.export}
               </button>

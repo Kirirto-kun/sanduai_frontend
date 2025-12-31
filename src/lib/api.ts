@@ -1,4 +1,12 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
+const getApiBase = () => {
+  let base = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
+  if (!base.startsWith("http://") && !base.startsWith("https://")) {
+    base = `https://${base}`;
+  }
+  return base;
+};
+
+const API_BASE = getApiBase();
 const TOKEN_KEY = "sanduai_token";
 
 export type AuthResponse = {
@@ -7,14 +15,15 @@ export type AuthResponse = {
 };
 
 type RegisterPayload = {
-  phone: string;
+  phone?: string;
   email: string;
   password: string;
   full_name: string;
 };
 
 type LoginPayload = {
-  phone: string;
+  phone?: string;
+  email?: string;
   password: string;
 };
 
@@ -116,7 +125,7 @@ export type LessonPlanRequest = {
   topic: string;
   teacher_name: string;
   section_name: string;
-  lesson_number: number;
+  lesson_number: string;
   learning_objectives: string[];
   date?: string | null;
 };
@@ -286,6 +295,41 @@ export type QuizGenerateResponse = {
 export type QuizExportPayload = {
   title: string;
   tasks: QuizTask[];
+};
+
+// Scientific Project (Ғылыми жоба) types
+export type ScientificProjectGeneratePayload = {
+  subject: string;
+  topic: string;
+  grade: string;
+  language: "ru" | "kz" | "en";
+  user_comment?: string;
+};
+
+export type ScientificProjectResponse = {
+  topic: string;
+  abstract: string;
+  introduction: string;
+  main_part: string;
+  conclusion: string;
+  references: string;
+};
+
+export type ScientificProjectExportPayload = {
+  content: ScientificProjectResponse;
+};
+
+// Voiceover (Озвучка ИИ) types
+export type VoiceoverGeneratePayload = {
+  text: string;
+  voice: string;
+  speed?: number;
+};
+
+export type VoiceoverResponse = {
+  success: boolean;
+  audio_url: string;
+  duration?: any;
 };
 
 async function request<T>(
@@ -574,6 +618,23 @@ export async function exportQuizDocx(
   return res.blob();
 }
 
+// Voiceover API functions
+export async function generateVoiceover(
+  payload: VoiceoverGeneratePayload,
+): Promise<VoiceoverResponse> {
+  const res = await request<VoiceoverResponse>("/api/v1/ai/text-to-speech", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+
+  if (res.audio_url && !res.audio_url.startsWith("http")) {
+    res.audio_url = `${API_BASE}${res.audio_url}`;
+  }
+
+  return res;
+}
+
 // Lesson Plan (Short-term КМЖ) API functions
 export async function generateLessonPlan(
   payload: LessonPlanRequest,
@@ -595,6 +656,42 @@ export async function exportLessonPlanDocx(
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}/api/generate/kmzh/docx`, {
+    method: "POST",
+    headers,
+    cache: "no-store",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const message =
+      (data && (data.error || data.message)) ||
+      `Request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+  return res.blob();
+}
+
+// Scientific Project API functions
+export async function generateScientificProject(
+  payload: ScientificProjectGeneratePayload,
+): Promise<ScientificProjectResponse> {
+  return request<ScientificProjectResponse>("/api/v1/generate/science-project", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+export async function exportScientificProjectDocx(
+  payload: ScientificProjectExportPayload,
+): Promise<Blob> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/api/v1/generate/science-project/export-docx`, {
     method: "POST",
     headers,
     cache: "no-store",

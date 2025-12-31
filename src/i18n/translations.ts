@@ -114,7 +114,6 @@ type Translations = {
         kindergarten: string;
         tests: string;
         games: string;
-        voiceover: string;
         presentations: string;
       };
       library: string;
@@ -130,6 +129,7 @@ type Translations = {
         photo: string;
         video: string;
         avatar: string;
+        voiceover: string;
       };
       profile: string;
       settings: string;
@@ -457,6 +457,61 @@ type Translations = {
     };
     loading: string;
   };
+  voiceover: {
+    title: string;
+    placeholder: string;
+    voiceLabel: string;
+    voices: {
+      alloy: string;
+      echo: string;
+      fable: string;
+      onyx: string;
+      nova: string;
+      shimmer: string;
+    };
+    generate: string;
+    result: string;
+    download: string;
+    errors: {
+      required: string;
+      tooLong: string;
+      auth: string;
+      generic: string;
+    };
+    loading: string;
+  };
+  scientificProject: {
+    form: {
+      title: string;
+      subject: string;
+      topic: string;
+      grade: string;
+      language: string;
+      userComment: string;
+      userCommentPlaceholder: string;
+      generate: string;
+    };
+    results: {
+      title: string;
+      topic: string;
+      abstract: string;
+      introduction: string;
+      mainPart: string;
+      conclusion: string;
+      references: string;
+      export: string;
+      createNew: string;
+      editBlock: string;
+      saveBlock: string;
+      cancel: string;
+    };
+    errors: {
+      required: string;
+      auth: string;
+      generic: string;
+    };
+    loading: string;
+  };
   footer: {
     ctaTitle: string;
     ctaSubtitle: string;
@@ -591,8 +646,8 @@ export const translations: Record<Language, Translations> = {
     auth: {
       login: {
         title: "Вход в аккаунт",
-        subtitle: "Используйте телефон и пароль, чтобы войти.",
-        phoneLabel: "Телефон",
+        subtitle: "Используйте Email или телефон и пароль, чтобы войти.",
+        phoneLabel: "Email или телефон",
         passwordLabel: "Пароль",
         submit: "Войти",
         switchText: "Нет аккаунта? Зарегистрироваться",
@@ -600,7 +655,7 @@ export const translations: Record<Language, Translations> = {
       register: {
         title: "Регистрация",
         subtitle: "Создайте учётную запись, чтобы использовать Sandu AI.",
-        phoneLabel: "Телефон",
+        phoneLabel: "Телефон (необязательно)",
         emailLabel: "Email",
         passwordLabel: "Пароль",
         fullNameLabel: "Полное имя",
@@ -664,7 +719,6 @@ export const translations: Record<Language, Translations> = {
           kindergarten: "Детский сад",
           tests: "ИИ тесты",
           games: "Игры (Kahoot)",
-          voiceover: "Озвучка ИИ",
           presentations: "Презентации ИИ",
         },
         library: "Библиотека",
@@ -680,6 +734,7 @@ export const translations: Record<Language, Translations> = {
           photo: "Генерация фото",
           video: "Генерация видео",
           avatar: "Цифровой аватар",
+          voiceover: "Озвучка ИИ",
         },
         profile: "Профиль",
         settings: "Настройки",
@@ -1007,6 +1062,61 @@ export const translations: Record<Language, Translations> = {
       },
       loading: "Генерация теста (20–50 секунд)...",
     },
+    voiceover: {
+      title: "Озвучка при помощи ИИ",
+      placeholder: "Введите текст для озвучки (на казахском или русском)...",
+      voiceLabel: "Выберите голос",
+      voices: {
+        alloy: "Арайлым (Женский)",
+        echo: "Арман (Мужской)",
+        fable: "Данияр (Мужской)",
+        onyx: "Олжас (Мужской)",
+        nova: "Жанар (Женский)",
+        shimmer: "Айгерім (Женский)",
+      },
+      generate: "Генерировать",
+      result: "Результат озвучки",
+      download: "Скачать MP3",
+      errors: {
+        required: "Введите текст для озвучки.",
+        tooLong: "Текст слишком длинный (максимум 4096 символов).",
+        auth: "Авторизуйтесь для использования озвучки.",
+        generic: "Произошла ошибка. Попробуйте ещё раз.",
+      },
+      loading: "Генерирую аудио...",
+    },
+    scientificProject: {
+      form: {
+        title: "Научный проект",
+        subject: "Предмет",
+        topic: "Тема",
+        grade: "Класс",
+        language: "Язык проекта",
+        userComment: "Факты / Комментарии (для практической части)",
+        userCommentPlaceholder: "Например: Мы выращивали плесень 10 дней в темном шкафу и на солнце...",
+        generate: "Сгенерировать проект",
+      },
+      results: {
+        title: "Результат генерации",
+        topic: "Тема проекта",
+        abstract: "Аннотация",
+        introduction: "Введение",
+        mainPart: "Основная часть",
+        conclusion: "Заключение",
+        references: "Список литературы",
+        export: "Скачать DOCX",
+        createNew: "Создать новый проект",
+        editBlock: "Редактировать",
+        saveBlock: "Сохранить",
+        cancel: "Отмена",
+      },
+      errors: {
+        required: "Заполните все обязательные поля.",
+        auth: "Авторизуйтесь для генерации проекта.",
+        generic: "Произошла ошибка. Попробуйте ещё раз.",
+      },
+      loading: "Пишу научную работу (30-60 секунд)...",
+    },
     footer: {
       ctaTitle: "Присоединиться к запуску Sandu AI",
       ctaSubtitle:
@@ -1142,8 +1252,8 @@ export const translations: Record<Language, Translations> = {
     auth: {
       login: {
         title: "Аккаунтқа кіру",
-        subtitle: "Телефон мен парольді қолданып кіріңіз.",
-        phoneLabel: "Телефон",
+        subtitle: "Кіру үшін Email немесе телефон және парольді қолданыңыз.",
+        phoneLabel: "Email немесе телефон",
         passwordLabel: "Пароль",
         submit: "Кіру",
         switchText: "Аккаунт жоқ па? Тіркелу",
@@ -1151,7 +1261,7 @@ export const translations: Record<Language, Translations> = {
       register: {
         title: "Тіркелу",
         subtitle: "Sandu AI пайдалану үшін аккаунт жасаңыз.",
-        phoneLabel: "Телефон",
+        phoneLabel: "Телефон (міндетті емес)",
         emailLabel: "Email",
         passwordLabel: "Пароль",
         fullNameLabel: "Толық аты-жөні",
@@ -1215,7 +1325,6 @@ export const translations: Record<Language, Translations> = {
           kindergarten: "Балабақшаға сабақтар",
           tests: "ИИ тесттер",
           games: "Ойындар (Kahoot)",
-          voiceover: "ИИ дыбыстау",
           presentations: "ИИ презентациялар",
         },
         library: "Кітапхана",
@@ -1231,6 +1340,7 @@ export const translations: Record<Language, Translations> = {
           photo: "Фото генерациясы",
           video: "Видео генерациясы",
           avatar: "Цифрлық аватар",
+          voiceover: "ИИ дыбыстау",
         },
         profile: "Профиль",
         settings: "Баптаулар",
@@ -1557,6 +1667,61 @@ export const translations: Record<Language, Translations> = {
         generic: "Қате пайда болды. Қайта көріңіз.",
       },
       loading: "Тест жасалуда (20–50 секунд)...",
+    },
+    voiceover: {
+      title: "ИИ арқылы дыбыстау",
+      placeholder: "Дыбыстау үшін мәтінді енгізіңіз (қазақша немесе орысша)...",
+      voiceLabel: "Дауысты таңдаңыз",
+      voices: {
+        alloy: "Арайлым (Әйел)",
+        echo: "Арман (Ер)",
+        fable: "Данияр (Ер)",
+        onyx: "Олжас (Ер)",
+        nova: "Жанар (Әйел)",
+        shimmer: "Айгерім (Әйел)",
+      },
+      generate: "Генерациялау",
+      result: "Дыбыстау нәтижесі",
+      download: "MP3 жүктеу",
+      errors: {
+        required: "Дыбыстау үшін мәтін енгізіңіз.",
+        tooLong: "Мәтін тым ұзын (максимум 4096 таңба).",
+        auth: "Дыбыстауды қолдану үшін авторизациядан өтіңіз.",
+        generic: "Қате пайда болды. Қайта көріңіз.",
+      },
+      loading: "Аудио жасалуда...",
+    },
+    scientificProject: {
+      form: {
+        title: "Ғылыми жоба",
+        subject: "Пән",
+        topic: "Тақырып",
+        grade: "Сынып",
+        language: "Жоба тілі",
+        userComment: "Фактілер / Пікірлер (практикалық бөлім үшін)",
+        userCommentPlaceholder: "Мысалы: Біз зеңді 10 күн бойы қараңғы шкафта және күн сәулесінде өсірдік...",
+        generate: "Жобаны генерациялау",
+      },
+      results: {
+        title: "Генерация нәтижесі",
+        topic: "Жоба тақырыбы",
+        abstract: "Аннотация",
+        introduction: "Кіріспе",
+        mainPart: "Негізгі бөлім",
+        conclusion: "Қорытынды",
+        references: "Әдебиеттер тізімі",
+        export: "DOCX жүктеу",
+        createNew: "Жаңа жоба жасау",
+        editBlock: "Өңдеу",
+        saveBlock: "Сақтау",
+        cancel: "Болдырмау",
+      },
+      errors: {
+        required: "Барлық міндетті өрістерді толтырыңыз.",
+        auth: "Жоба генерациялау үшін авторизациядан өтіңіз.",
+        generic: "Қате пайда болды. Қайта көріңіз.",
+      },
+      loading: "Ғылыми жұмыс жазылуда (30-60 секунд)...",
     },
     footer: {
       ctaTitle: "Sandu AI іске қосылуына қосылыңыз",

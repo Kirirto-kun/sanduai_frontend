@@ -211,77 +211,94 @@ export default function ClassHoursPage() {
         {!lessonData ? (
           // Generation Form
           <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
-            <form onSubmit={handleGenerate} className="space-y-4">
+            <form onSubmit={handleGenerate} className="space-y-6">
               {/* Language Selection */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.classHour.form.language} *
                 </label>
                 <div className="flex gap-4">
-                  <label className="flex cursor-pointer items-center gap-2">
+                  <label
+                    className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
+                      formData.language === "kz"
+                        ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                        : "border-slate-200 bg-white hover:border-slate-300"
+                    }`}
+                  >
                     <input
                       type="radio"
                       name="language"
                       value="kz"
                       checked={formData.language === "kz"}
                       onChange={(e) => handleInputChange("language", e.target.value)}
-                      className="h-4 w-4 border-slate-300 text-orange-500 focus:ring-orange-400"
+                      className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
                     />
-                    <span className="text-sm text-slate-700">Қазақша</span>
+                    <span className="text-sm font-medium text-slate-700">Қазақша</span>
                   </label>
-                  <label className="flex cursor-pointer items-center gap-2">
+                  <label
+                    className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
+                      formData.language === "ru"
+                        ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                        : "border-slate-200 bg-white hover:border-slate-300"
+                    }`}
+                  >
                     <input
                       type="radio"
                       name="language"
                       value="ru"
                       checked={formData.language === "ru"}
                       onChange={(e) => handleInputChange("language", e.target.value)}
-                      className="h-4 w-4 border-slate-300 text-orange-500 focus:ring-orange-400"
+                      className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
                     />
-                    <span className="text-sm text-slate-700">Русский</span>
+                    <span className="text-sm font-medium text-slate-700">Русский</span>
                   </label>
                 </div>
               </div>
 
               {/* Topic */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.classHour.form.topic} *
                 </label>
                 <input
                   type="text"
                   value={formData.topic}
                   onChange={(e) => handleInputChange("topic", e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                   required
                 />
               </div>
 
               {/* Grade */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.classHour.form.grade} *
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.grade}
                   onChange={(e) => handleInputChange("grade", e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                  placeholder="5, 7-8"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                   required
-                />
+                >
+                  <option value="">--</option>
+                  {[...Array(11)].map((_, i) => (
+                    <option key={i} value={String(i + 1)}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Value */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.classHour.form.value} *
                 </label>
                 <input
                   type="text"
                   value={formData.value}
                   onChange={(e) => handleInputChange("value", e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                   placeholder={t.classHour.form.valuePlaceholder}
                   required
                 />
@@ -289,14 +306,14 @@ export default function ClassHoursPage() {
 
               {/* Format */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.classHour.form.format} *
                 </label>
                 <input
                   type="text"
                   value={formData.format}
                   onChange={(e) => handleInputChange("format", e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                   placeholder={t.classHour.form.formatPlaceholder}
                   required
                 />
@@ -304,13 +321,13 @@ export default function ClassHoursPage() {
 
               {/* Wishes (Optional) */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.classHour.form.wishes}
                 </label>
                 <textarea
                   value={formData.wishes}
                   onChange={(e) => handleInputChange("wishes", e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                   placeholder={t.classHour.form.wishesPlaceholder}
                   rows={3}
                 />
@@ -318,7 +335,7 @@ export default function ClassHoursPage() {
 
               {/* Error Message */}
               {error && (
-                <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
                   {error}
                 </div>
               )}
@@ -327,17 +344,24 @@ export default function ClassHoursPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full rounded-xl bg-gradient-to-r from-orange-500 to-green-500 px-6 py-3 font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-50"
+                className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
-                {isLoading ? t.classHour.loading : t.classHour.form.generate}
+                {isLoading ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                    {t.classHour.loading}
+                  </>
+                ) : (
+                  t.classHour.form.generate
+                )}
               </button>
             </form>
           </div>
         ) : (
           // Scenario Preview & Edit
-          <div className="space-y-6">
+          <div className="animate-fade-in space-y-6">
             {/* Title */}
-            <div className="glass-card rounded-3xl border border-white/60 px-6 py-4 shadow-md sm:px-8">
+            <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
               <h2 className="text-2xl font-bold text-slate-900">
                 {t.classHour.results.title}: {lessonData.topic}
               </h2>
@@ -357,26 +381,26 @@ export default function ClassHoursPage() {
                 {/* Block Content */}
                 {editingBlockId === block.id ? (
                   // Editing Mode
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <textarea
                       value={editingContent}
                       onChange={(e) => setEditingContent(e.target.value)}
                       onBlur={saveEditing}
                       onKeyDown={handleKeyDown}
-                      className="w-full rounded-xl border border-orange-300 px-4 py-3 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                       rows={10}
                       autoFocus
                     />
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                       <button
                         onClick={saveEditing}
-                        className="rounded-xl bg-green-500 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
+                        className="rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600"
                       >
                         {t.classHour.results.editBlock}
                       </button>
                       <button
                         onClick={cancelEditing}
-                        className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                        className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                       >
                         {t.classHour.results.cancel}
                       </button>
@@ -387,14 +411,14 @@ export default function ClassHoursPage() {
                   <div>
                     <div
                       onClick={() => startEditing(block.id, block.content)}
-                      className="mb-4 cursor-pointer rounded-xl bg-white/50 px-4 py-3 text-slate-700 transition hover:bg-white/80"
+                      className="mb-4 cursor-pointer rounded-2xl bg-white/50 px-6 py-4 text-slate-700 transition hover:bg-white/80"
                       style={{ whiteSpace: "pre-wrap" }}
                     >
                       <LatexRenderer text={block.content} />
                     </div>
                     <button
                       onClick={() => openRegenerateModal(block)}
-                      className="rounded-xl border border-orange-300 bg-white px-4 py-2 text-sm font-medium text-orange-600 hover:bg-orange-50"
+                      className="rounded-xl border border-[color:var(--primary)] bg-white px-4 py-2 text-sm font-semibold text-[color:var(--primary)] hover:bg-[color:var(--primary)]/5"
                     >
                       🔄 {t.classHour.results.regenerateBlock}
                     </button>
@@ -405,22 +429,22 @@ export default function ClassHoursPage() {
 
             {/* Error Message (if any during operations) */}
             {error && (
-              <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
                 {error}
               </div>
             )}
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row">
               <button
                 onClick={handleExport}
-                className="flex-1 rounded-xl bg-gradient-to-r from-orange-500 to-green-500 px-6 py-3 font-semibold text-white shadow-md transition hover:shadow-lg"
+                className="flex-1 rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
                 {t.classHour.results.export}
               </button>
               <button
                 onClick={handleCreateNew}
-                className="flex-1 rounded-xl border-2 border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 shadow-md transition hover:bg-slate-50 hover:shadow-lg"
+                className="flex-1 rounded-2xl bg-white px-6 py-4 font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50"
               >
                 {t.classHour.results.createNew}
               </button>
@@ -442,14 +466,14 @@ export default function ClassHoursPage() {
                 {t.classHour.results.regenerateBlock}: {regenerateModal.blockTitle}
               </h3>
 
-              <div className="mb-4">
-                <label className="mb-2 block text-sm font-medium text-slate-700">
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.classHour.results.instructionPlaceholder}
                 </label>
                 <textarea
                   value={regenerateInstruction}
                   onChange={(e) => setRegenerateInstruction(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                   placeholder={t.classHour.results.instructionPlaceholder}
                   rows={4}
                 />
@@ -459,7 +483,7 @@ export default function ClassHoursPage() {
                 <button
                   onClick={handleRegenerateBlock}
                   disabled={isRegenerating}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-orange-500 to-green-500 px-6 py-3 font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-50"
+                  className="flex-1 rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
                 >
                   {isRegenerating
                     ? t.classHour.regenerating
@@ -468,7 +492,7 @@ export default function ClassHoursPage() {
                 <button
                   onClick={closeRegenerateModal}
                   disabled={isRegenerating}
-                  className="flex-1 rounded-xl border-2 border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 shadow-md transition hover:bg-slate-50 hover:shadow-lg disabled:opacity-50"
+                  className="flex-1 rounded-2xl bg-white px-6 py-3 font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:opacity-50"
                 >
                   {t.classHour.results.cancel}
                 </button>

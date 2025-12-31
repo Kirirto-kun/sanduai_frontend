@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage, useTranslations } from "../../i18n/LanguageContext";
 
@@ -76,7 +77,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         { label: t.dashboard.menu.aiGenerationItems.kindergarten, href: "/dashboard/ai/kindergarten" },
         { label: t.dashboard.menu.aiGenerationItems.tests, href: "/dashboard/ai/tests" },
         { label: t.dashboard.menu.aiGenerationItems.games, href: "/dashboard/ai/games" },
-        { label: t.dashboard.menu.aiGenerationItems.voiceover, href: "/dashboard/ai/voiceover" },
         { label: t.dashboard.menu.aiGenerationItems.presentations, href: "/dashboard/ai/presentations" },
       ],
     },
@@ -98,6 +98,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         { label: t.dashboard.menu.mediaItems.photo, href: "/dashboard/media/photo" },
         { label: t.dashboard.menu.mediaItems.video, href: "/dashboard/media/video" },
         { label: t.dashboard.menu.mediaItems.avatar, href: "/dashboard/media/avatar" },
+        { label: t.dashboard.menu.mediaItems.voiceover, href: "/dashboard/media/voiceover" },
       ],
     },
   ];
@@ -201,9 +202,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         } fixed inset-y-0 left-0 z-30 w-72 transform overflow-y-auto bg-white/95 px-4 py-6 shadow-xl ring-1 ring-slate-200 transition-transform md:translate-x-0`}
       >
         <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold uppercase tracking-[0.24em] text-[color:var(--primary)]">
-            {t.common.brand}
-          </span>
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.jpeg"
+              alt="Sandu AI"
+              width={32}
+              height={32}
+              className="rounded-lg"
+            />
+            <span className="text-sm font-semibold uppercase tracking-[0.24em] text-[color:var(--primary)]">
+              {t.common.brand}
+            </span>
+          </div>
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
