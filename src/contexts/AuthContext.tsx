@@ -32,9 +32,13 @@ type AuthContextValue = {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (payload: { phone: string; password: string }) => Promise<void>;
+  login: (payload: {
+    phone?: string;
+    email?: string;
+    password: string;
+  }) => Promise<void>;
   register: (payload: {
-    phone: string;
+    phone?: string;
     email: string;
     password: string;
     full_name: string;
@@ -78,18 +82,22 @@ export function AuthProvider({ children }: ProviderProps) {
     setUser(userData);
   };
 
-  const login = async (payload: { phone: string; password: string }) => {
+  const login = async (payload: {
+    phone?: string;
+    email?: string;
+    password: string;
+  }) => {
     setLoading(true);
     try {
       const data = await apiLogin(payload);
-      handleAuthSuccess(data, { phone: payload.phone });
+      handleAuthSuccess(data, { phone: payload.phone, email: payload.email });
     } finally {
       setLoading(false);
     }
   };
 
   const register = async (payload: {
-    phone: string;
+    phone?: string;
     email: string;
     password: string;
     full_name: string;
