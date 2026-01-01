@@ -123,6 +123,7 @@ type Translations = {
         presentations: string;
         games: string;
         sketchHub: string;
+        simulations: string;
       };
       media: string;
       mediaItems: {
@@ -549,6 +550,20 @@ type Translations = {
     };
     loading: string;
   };
+    simulations: {
+      title: string;
+      subtitle: string;
+      categories: {
+        all: string;
+        physics: string;
+        chemistry: string;
+        biology: string;
+        math: string;
+      };
+      back: string;
+      open: string;
+      fullscreen: string;
+    };
   footer: {
     ctaTitle: string;
     ctaSubtitle: string;
@@ -765,6 +780,7 @@ export const translations: Record<Language, Translations> = {
           presentations: "Интерактивные презентации",
           games: "Интерактивные игры",
           sketchHub: "Скетч-Хаб",
+          simulations: "PhET Симуляции",
         },
         media: "Медиа",
         mediaItems: {
@@ -1191,6 +1207,20 @@ export const translations: Record<Language, Translations> = {
       },
       loading: "Создаю рабочий лист (20-40 секунд)...",
     },
+    simulations: {
+      title: "Интерактивные симуляции PhET",
+      subtitle: "Бесплатные интерактивные симуляции по физике, химии, биологии и математике.",
+      categories: {
+        all: "Все",
+        physics: "Физика",
+        chemistry: "Химия",
+        biology: "Биология",
+        math: "Математика",
+      },
+      back: "Назад к списку",
+      open: "Открыть симуляцию",
+      fullscreen: "На весь экран",
+    },
     footer: {
       ctaTitle: "Присоединиться к запуску Sandu AI",
       ctaSubtitle:
@@ -1408,6 +1438,7 @@ export const translations: Record<Language, Translations> = {
           presentations: "Интерактивті презентациялар",
           games: "Интерактивті ойындар",
           sketchHub: "Скетч-Хаб",
+          simulations: "PhET Симуляциялары",
         },
         media: "Медиа",
         mediaItems: {
@@ -1833,6 +1864,20 @@ export const translations: Record<Language, Translations> = {
         generic: "Қате пайда болды. Қайта көріңіз.",
       },
       loading: "Жұмыс парағы жасалуда (20-40 секунд)...",
+    },
+    simulations: {
+      title: "PhET Интерактивті симуляциялары",
+      subtitle: "Физика, химия, биология және математика пәндері бойынша тегін интерактивті симуляциялар.",
+      categories: {
+        all: "Барлығы",
+        physics: "Физика",
+        chemistry: "Химия",
+        biology: "Биология",
+        math: "Математика",
+      },
+      back: "Тізімге оралу",
+      open: "Симуляцияны ашу",
+      fullscreen: "Толық экран",
     },
     footer: {
       ctaTitle: "Sandu AI іске қосылуына қосылыңыз",
