@@ -9,11 +9,14 @@ import {
   type ClassHourGeneratePayload,
   type ClassHourResponse,
   type ClassHourBlock,
+  InsufficientTokensError,
 } from "../../../../lib/api";
 import { LatexRenderer } from "../../../../components/LatexRenderer";
+import { useTokens } from "../../../../hooks/useTokens";
 
 export default function ClassHoursPage() {
   const t = useTranslations();
+  const { refreshBalance, costs, balance, checkBalance } = useTokens();
 
   // Form state
   const [formData, setFormData] = useState<ClassHourGeneratePayload>({
@@ -76,8 +79,13 @@ export default function ClassHoursPage() {
     try {
       const response = await generateClassHour(formData);
       setLessonData(response);
+      refreshBalance();
     } catch (err: any) {
-      if (err.message?.includes("401") || err.message?.toLowerCase().includes("auth")) {
+      if (err instanceof InsufficientTokensError) {
+        setError(
+          `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
+        );
+      } else if (err.message?.includes("401") || err.message?.toLowerCase().includes("auth")) {
         setError(t.classHour.errors.auth);
       } else {
         setError(err.message || t.classHour.errors.generic);
@@ -158,8 +166,15 @@ export default function ClassHoursPage() {
 
       updateBlockContent(updatedBlock.id, updatedBlock.content);
       closeRegenerateModal();
+      refreshBalance();
     } catch (err: any) {
-      setError(err.message || t.classHour.errors.generic);
+      if (err instanceof InsufficientTokensError) {
+        setError(
+          `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
+        );
+      } else {
+        setError(err.message || t.classHour.errors.generic);
+      }
     } finally {
       setIsRegenerating(false);
     }
@@ -340,10 +355,40 @@ export default function ClassHoursPage() {
                 </div>
               )}
 
+              {/* Cost Info */}
+              {costs.class_hour_generate && (
+                <div className={`rounded-2xl border px-4 py-3 ${
+                  checkBalance("class_hour_generate")
+                    ? "border-green-200 bg-green-50"
+                    : "border-orange-200 bg-orange-50"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-700">
+                      {t.tokens?.cost || "Стоимость"}:
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {costs.class_hour_generate} {t.tokens?.balance || "токенов"}
+                    </span>
+                  </div>
+                  {balance !== null && (
+                    <div className="mt-1 flex items-center justify-between text-xs">
+                      <span className="text-slate-600">
+                        {t.tokens?.available || "Доступно"}: {balance}
+                      </span>
+                      {!checkBalance("class_hour_generate") && (
+                        <span className="font-semibold text-orange-600">
+                          {t.tokens?.insufficient || "Недостаточно токенов"}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || (balance !== null && !checkBalance("class_hour_generate"))}
                 className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
                 {isLoading ? (
@@ -479,10 +524,40 @@ export default function ClassHoursPage() {
                 />
               </div>
 
+              {/* Cost Info for Regenerate Block */}
+              {costs.class_hour_regenerate_block && (
+                <div className={`mb-4 rounded-2xl border px-4 py-3 ${
+                  checkBalance("class_hour_regenerate_block")
+                    ? "border-green-200 bg-green-50"
+                    : "border-orange-200 bg-orange-50"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-700">
+                      {t.tokens?.cost || "Стоимость"}:
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {costs.class_hour_regenerate_block} {t.tokens?.balance || "токенов"}
+                    </span>
+                  </div>
+                  {balance !== null && (
+                    <div className="mt-1 flex items-center justify-between text-xs">
+                      <span className="text-slate-600">
+                        {t.tokens?.available || "Доступно"}: {balance}
+                      </span>
+                      {!checkBalance("class_hour_regenerate_block") && (
+                        <span className="font-semibold text-orange-600">
+                          {t.tokens?.insufficient || "Недостаточно токенов"}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <button
                   onClick={handleRegenerateBlock}
-                  disabled={isRegenerating}
+                  disabled={isRegenerating || (balance !== null && !checkBalance("class_hour_regenerate_block"))}
                   className="flex-1 rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
                 >
                   {isRegenerating

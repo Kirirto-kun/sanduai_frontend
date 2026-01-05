@@ -57,6 +57,17 @@ type Translations = {
       fullNameLabel: string;
       submit: string;
       switchText: string;
+      phoneVerification: string;
+      sendCode: string;
+      verifyCode: string;
+      codeSent: string;
+      enterCode: string;
+      codePlaceholder: string;
+      invalidCode: string;
+      resendCode: string;
+      phoneRequired: string;
+      invalidPhoneFormat: string;
+      stepIndicator: string;
     };
     profile: {
       title: string;
@@ -73,6 +84,43 @@ type Translations = {
       generic: string;
     };
     loading: string;
+  };
+  tokens: {
+    balance: string;
+    cost: string;
+    insufficient: string;
+    required: string;
+    available: string;
+    loading: string;
+    refresh: string;
+    transactions: string;
+  };
+  admin: {
+    title: string;
+    subtitle: string;
+    usersList: string;
+    noUsers: string;
+    email: string;
+    fullName: string;
+    role: string;
+    balance: string;
+    createdAt: string;
+    actions: string;
+    addTokens: string;
+    viewTransactions: string;
+    previous: string;
+    next: string;
+    transactions: string;
+    close: string;
+    noTransactions: string;
+    date: string;
+    operation: string;
+    amount: string;
+    description: string;
+    addTokensTo: string;
+    adding: string;
+    add: string;
+    cancel: string;
   };
   kmzh: {
     title: string;
@@ -134,6 +182,7 @@ type Translations = {
       };
       profile: string;
       settings: string;
+      admin: string;
     };
     header: {
       title: string;
@@ -304,6 +353,29 @@ type Translations = {
       addObjective: string;
       date: string;
       generate: string;
+      lessonType: string;
+      lessonTypeOptions: {
+        new: string;
+        consolidation: string;
+        review: string;
+      };
+      textbookImages: string;
+      textbookText: string;
+      preferredPlatform: string;
+      platformOptions: {
+        kahoot: string;
+        bilimClass: string;
+        sanduAI: string;
+        mentimeter: string;
+        quizlet: string;
+        wordwall: string;
+        none: string;
+      };
+      language: string;
+      languageOptions: {
+        kazakh: string;
+        russian: string;
+      };
     };
     meta: {
       title: string;
@@ -707,12 +779,23 @@ export const translations: Record<Language, Translations> = {
       register: {
         title: "Регистрация",
         subtitle: "Создайте учётную запись, чтобы использовать Sandu AI.",
-        phoneLabel: "Телефон (необязательно)",
+        phoneLabel: "Телефон",
         emailLabel: "Email",
         passwordLabel: "Пароль",
         fullNameLabel: "Полное имя",
         submit: "Зарегистрироваться",
         switchText: "Уже есть аккаунт? Войти",
+        phoneVerification: "Верификация телефона",
+        sendCode: "Отправить код",
+        verifyCode: "Подтвердить код",
+        codeSent: "Код отправлен на {phone}",
+        enterCode: "Введите код из SMS",
+        codePlaceholder: "123456",
+        invalidCode: "Неверный код",
+        resendCode: "Отправить код повторно",
+        phoneRequired: "Телефон обязателен",
+        invalidPhoneFormat: "Неверный формат телефона. Используйте международный формат: +7...",
+        stepIndicator: "Шаг {current} из {total}",
       },
       profile: {
         title: "Личный кабинет",
@@ -729,6 +812,43 @@ export const translations: Record<Language, Translations> = {
         generic: "Произошла ошибка. Попробуйте ещё раз.",
       },
       loading: "Загрузка...",
+    },
+    tokens: {
+      balance: "Баланс токенов",
+      cost: "Стоимость",
+      insufficient: "Недостаточно токенов",
+      required: "Требуется",
+      available: "Доступно",
+      loading: "Загрузка...",
+      refresh: "Обновить",
+      transactions: "История транзакций",
+    },
+    admin: {
+      title: "Админ панель",
+      subtitle: "Управление пользователями и токенами",
+      usersList: "Список пользователей",
+      noUsers: "Пользователи не найдены",
+      email: "Email",
+      fullName: "Имя",
+      role: "Роль",
+      balance: "Баланс",
+      createdAt: "Дата регистрации",
+      actions: "Действия",
+      addTokens: "Добавить токены",
+      viewTransactions: "Транзакции",
+      previous: "Назад",
+      next: "Вперед",
+      transactions: "История транзакций",
+      close: "Закрыть",
+      noTransactions: "Транзакций нет",
+      date: "Дата",
+      operation: "Операция",
+      amount: "Сумма",
+      description: "Описание",
+      addTokensTo: "Добавить токены",
+      adding: "Добавление...",
+      add: "Добавить",
+      cancel: "Отмена",
     },
     kmzh: {
       title: "Генерация КМЖ",
@@ -791,6 +911,7 @@ export const translations: Record<Language, Translations> = {
         },
         profile: "Профиль",
         settings: "Настройки",
+        admin: "Админ панель",
       },
       header: {
         title: "Панель управления",
@@ -961,6 +1082,29 @@ export const translations: Record<Language, Translations> = {
         addObjective: "Добавить цель",
         date: "Дата",
         generate: "Сгенерировать план урока",
+        lessonType: "Тип урока",
+        lessonTypeOptions: {
+          new: "Жаңа сабақ",
+          consolidation: "Бекіту",
+          review: "Қайталау",
+        },
+        textbookImages: "Изображения учебника",
+        textbookText: "Текст из учебника",
+        preferredPlatform: "Предпочитаемая платформа",
+        platformOptions: {
+          kahoot: "Kahoot",
+          bilimClass: "BilimClass",
+          sanduAI: "SanduAI.kz",
+          mentimeter: "Mentimeter",
+          quizlet: "Quizlet",
+          wordwall: "Wordwall",
+          none: "Не указано",
+        },
+        language: "Язык ответа",
+        languageOptions: {
+          kazakh: "Қазақша",
+          russian: "Русский",
+        },
       },
       meta: {
         title: "Информация об уроке",
@@ -1365,12 +1509,23 @@ export const translations: Record<Language, Translations> = {
       register: {
         title: "Тіркелу",
         subtitle: "Sandu AI пайдалану үшін аккаунт жасаңыз.",
-        phoneLabel: "Телефон (міндетті емес)",
+        phoneLabel: "Телефон",
         emailLabel: "Email",
         passwordLabel: "Пароль",
         fullNameLabel: "Толық аты-жөні",
         submit: "Тіркелу",
         switchText: "Аккаунт бар ма? Кіру",
+        phoneVerification: "Телефон растау",
+        sendCode: "Код жіберу",
+        verifyCode: "Кодты растау",
+        codeSent: "Код {phone} нөміріне жіберілді",
+        enterCode: "SMS-тен келген кодты енгізіңіз",
+        codePlaceholder: "123456",
+        invalidCode: "Қате код",
+        resendCode: "Кодты қайта жіберу",
+        phoneRequired: "Телефон міндетті",
+        invalidPhoneFormat: "Телефон форматы қате. Халықаралық форматты қолданыңыз: +7...",
+        stepIndicator: "{current}/{total} қадам",
       },
       profile: {
         title: "Жеке кабинет",
@@ -1387,6 +1542,43 @@ export const translations: Record<Language, Translations> = {
         generic: "Қате пайда болды. Қайта көріңіз.",
       },
       loading: "Жүктелуде...",
+    },
+    tokens: {
+      balance: "Токен балансы",
+      cost: "Бағасы",
+      insufficient: "Токен жеткіліксіз",
+      required: "Қажет",
+      available: "Қолжетімді",
+      loading: "Жүктелуде...",
+      refresh: "Жаңарту",
+      transactions: "Транзакциялар тарихы",
+    },
+    admin: {
+      title: "Админ панелі",
+      subtitle: "Пайдаланушылар мен токендерді басқару",
+      usersList: "Пайдаланушылар тізімі",
+      noUsers: "Пайдаланушылар табылмады",
+      email: "Email",
+      fullName: "Аты-жөні",
+      role: "Рөлі",
+      balance: "Баланс",
+      createdAt: "Тіркелген күні",
+      actions: "Әрекеттер",
+      addTokens: "Токен қосу",
+      viewTransactions: "Транзакциялар",
+      previous: "Артқа",
+      next: "Алға",
+      transactions: "Транзакциялар тарихы",
+      close: "Жабу",
+      noTransactions: "Транзакциялар жоқ",
+      date: "Күні",
+      operation: "Операция",
+      amount: "Сома",
+      description: "Сипаттама",
+      addTokensTo: "Токен қосу",
+      adding: "Қосылуда...",
+      add: "Қосу",
+      cancel: "Болдырмау",
     },
     kmzh: {
       title: "КМЖ генерациясы",
@@ -1449,6 +1641,7 @@ export const translations: Record<Language, Translations> = {
         },
         profile: "Профиль",
         settings: "Баптаулар",
+        admin: "Админ панелі",
       },
       header: {
         title: "Басқару панелі",
@@ -1619,6 +1812,29 @@ export const translations: Record<Language, Translations> = {
         addObjective: "Мақсат қосу",
         date: "Күні",
         generate: "Сабақ жоспарын жасау",
+        lessonType: "Сабақ түрі",
+        lessonTypeOptions: {
+          new: "Жаңа сабақ",
+          consolidation: "Бекіту",
+          review: "Қайталау",
+        },
+        textbookImages: "Оқулық суреттері",
+        textbookText: "Оқулықтан мәтін",
+        preferredPlatform: "Қалаған платформа",
+        platformOptions: {
+          kahoot: "Kahoot",
+          bilimClass: "BilimClass",
+          sanduAI: "SanduAI.kz",
+          mentimeter: "Mentimeter",
+          quizlet: "Quizlet",
+          wordwall: "Wordwall",
+          none: "Көрсетілмеген",
+        },
+        language: "Жауап тілі",
+        languageOptions: {
+          kazakh: "Қазақша",
+          russian: "Орысша",
+        },
       },
       meta: {
         title: "Сабақ туралы ақпарат",

@@ -15,7 +15,7 @@ export type AuthResponse = {
 };
 
 type RegisterPayload = {
-  phone?: string;
+  phone: string; // Обязательное поле - телефон должен быть верифицирован через Firebase
   email: string;
   password: string;
   full_name: string;
@@ -127,7 +127,12 @@ export type LessonPlanRequest = {
   section_name: string;
   lesson_number: string;
   learning_objectives: string[];
-  date?: string | null;
+  lesson_type: string; // Обязательное: "Жаңа сабақ", "Бекіту", "Қайталау" и т.д.
+  date?: string | null; // Формат DD.MM.YYYY
+  language?: "kazakh" | "russian"; // Опциональное, по умолчанию "kazakh"
+  textbook_images?: string[]; // Опциональное, массив Base64 строк с префиксом data:image/...
+  textbook_text?: string | null; // Опциональное, текст упражнений из учебника
+  preferred_platform?: string | null; // Опциональное: "Kahoot", "BilimClass", "SanduAI.kz" и т.д.
 };
 
 export type LessonMeta = {
@@ -390,6 +395,38 @@ export type VoiceoverResponse = {
   duration?: any;
 };
 
+// Token types
+export type TokenBalance = {
+  balance: number;
+  user_id: string;
+};
+
+export type TokenCosts = {
+  costs: Record<string, number>;
+};
+
+export type TokenTransaction = {
+  id: string;
+  user_id: string;
+  amount: number;
+  operation_type: string;
+  description: string;
+  created_at: string;
+};
+
+// Custom error for insufficient tokens
+export class InsufficientTokensError extends Error {
+  required: number;
+  available: number;
+
+  constructor(message: string, required: number, available: number) {
+    super(message);
+    this.name = "InsufficientTokensError";
+    this.required = required;
+    this.available = available;
+  }
+}
+
 async function request<T>(
   path: string,
   options: RequestInit & { auth?: boolean } = {},
@@ -414,6 +451,16 @@ async function request<T>(
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    // Handle 402 Payment Required (insufficient tokens)
+    if (res.status === 402) {
+      const detail = data?.detail || "";
+      // Parse: "Insufficient tokens. Required: X, Available: Y"
+      const requiredMatch = detail.match(/Required:\s*(\d+)/i);
+      const availableMatch = detail.match(/Available:\s*(\d+)/i);
+      const required = requiredMatch ? parseInt(requiredMatch[1], 10) : 0;
+      const available = availableMatch ? parseInt(availableMatch[1], 10) : 0;
+      throw new InsufficientTokensError(detail, required, available);
+    }
     const message =
       (data && (data.error || data.message)) ||
       `Request failed with status ${res.status}`;
@@ -875,4 +922,102 @@ export function clearUser() {
   window.localStorage.removeItem(USER_KEY);
 }
 
+// Token API functions
+export async function getTokenBalance(): Promise<TokenBalance> {
+  return request<TokenBalance>("/api/tokens/balance", {
+    method: "GET",
+    auth: true,
+  });
+}
+
+export async function getTokenCosts(): Promise<TokenCosts> {
+  return request<TokenCosts>("/api/tokens/costs", {
+    method: "GET",
+    auth: false,
+  });
+}
+
+export async function getTokenTransactions(
+  limit: number = 50,
+  offset: number = 0,
+): Promise<TokenTransaction[]> {
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+    offset: offset.toString(),
+  });
+  return request<TokenTransaction[]>(`/api/tokens/transactions?${params}`, {
+    method: "GET",
+    auth: true,
+  });
+}
+
+// Admin types
+export type AdminUser = {
+  user_id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  balance: number;
+  created_at: string;
+};
+
+export type AdminUsersResponse = {
+  users: AdminUser[];
+  total: number;
+};
+
+export type AddTokensPayload = {
+  amount: number;
+  description: string;
+};
+
+export type AddTokensResponse = {
+  user_id: string;
+  balance: number;
+  message: string;
+};
+
+// Admin API functions
+export async function getAdminUsers(
+  limit: number = 50,
+  offset: number = 0,
+): Promise<AdminUsersResponse> {
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+    offset: offset.toString(),
+  });
+  return request<AdminUsersResponse>(`/api/admin/users?${params}`, {
+    method: "GET",
+    auth: true,
+  });
+}
+
+export async function addTokensToUser(
+  userId: string,
+  payload: AddTokensPayload,
+): Promise<AddTokensResponse> {
+  return request<AddTokensResponse>(`/api/admin/users/${userId}/tokens`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+export async function getAdminUserTransactions(
+  userId: string,
+  limit: number = 50,
+  offset: number = 0,
+): Promise<TokenTransaction[]> {
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+    offset: offset.toString(),
+  });
+  return request<TokenTransaction[]>(
+    `/api/admin/users/${userId}/transactions?${params}`,
+    {
+      method: "GET",
+      auth: true,
+    },
+  );
+}
 

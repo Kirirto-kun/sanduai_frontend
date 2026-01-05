@@ -7,8 +7,10 @@ import {
   exportEssayDocx,
   generateEssay,
   reviseEssay,
+  InsufficientTokensError,
 } from "../../../lib/api";
 import { useTranslations } from "../../../i18n/LanguageContext";
+import { useTokens } from "../../../hooks/useTokens";
 
 type PendingRevision = {
   id: string;
@@ -27,6 +29,7 @@ const initialPayload: EssayGeneratePayload = {
 
 export default function AiDocsPage() {
   const t = useTranslations();
+  const { refreshBalance, costs, balance, checkBalance } = useTokens();
   const [form, setForm] = useState<EssayGeneratePayload>(initialPayload);
   const [title, setTitle] = useState("");
   const [plan, setPlan] = useState<string[]>([]);
@@ -61,8 +64,15 @@ export default function AiDocsPage() {
       setPendingRevisions([]);
       setGeneralInstruction("");
       setBlocksEditMode({});
+      refreshBalance();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.essay.errors.generic);
+      if (err instanceof InsufficientTokensError) {
+        setError(
+          `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
+        );
+      } else {
+        setError(err instanceof Error ? err.message : t.essay.errors.generic);
+      }
     } finally {
       setLoading(false);
     }
@@ -92,8 +102,15 @@ export default function AiDocsPage() {
       setBlocks(data.content_blocks || []);
       setPendingRevisions([]);
       setGeneralInstruction("");
+      refreshBalance();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.essay.errors.generic);
+      if (err instanceof InsufficientTokensError) {
+        setError(
+          `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
+        );
+      } else {
+        setError(err instanceof Error ? err.message : t.essay.errors.generic);
+      }
     } finally {
       setLoading(false);
     }
@@ -236,10 +253,40 @@ export default function AiDocsPage() {
             </div>
           )}
 
+          {/* Cost Info */}
+          {costs.essay_generate && (
+            <div className={`sm:col-span-2 rounded-2xl border px-4 py-3 ${
+              checkBalance("essay_generate")
+                ? "border-green-200 bg-green-50"
+                : "border-orange-200 bg-orange-50"
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-700">
+                  {t.tokens?.cost || "Стоимость"}:
+                </span>
+                <span className="text-sm font-bold text-slate-900">
+                  {costs.essay_generate} {t.tokens?.balance || "токенов"}
+                </span>
+              </div>
+              {balance !== null && (
+                <div className="mt-1 flex items-center justify-between text-xs">
+                  <span className="text-slate-600">
+                    {t.tokens?.available || "Доступно"}: {balance}
+                  </span>
+                  {!checkBalance("essay_generate") && (
+                    <span className="font-semibold text-orange-600">
+                      {t.tokens?.insufficient || "Недостаточно токенов"}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="sm:col-span-2 flex justify-end">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (balance !== null && !checkBalance("essay_generate"))}
               className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {loading ? t.essay.loading : t.essay.form.generate}
@@ -384,22 +431,53 @@ export default function AiDocsPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={onExport}
-                disabled={loading}
-                className="rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
-              >
-                {t.essay.results.export}
-              </button>
-              {(pendingRevisions.length > 0 || generalInstruction) && (
+            <div className="mt-6 space-y-3">
+              {/* Cost Info for Revision */}
+              {(pendingRevisions.length > 0 || generalInstruction) && costs.essay_revise && (
+                <div className={`rounded-2xl border px-4 py-3 ${
+                  checkBalance("essay_revise")
+                    ? "border-green-200 bg-green-50"
+                    : "border-orange-200 bg-orange-50"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-700">
+                      {t.tokens?.cost || "Стоимость"} ({t.essay.results.applyAllRevisions || "Применить правки"}):
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {costs.essay_revise} {t.tokens?.balance || "токенов"}
+                    </span>
+                  </div>
+                  {balance !== null && (
+                    <div className="mt-1 flex items-center justify-between text-xs">
+                      <span className="text-slate-600">
+                        {t.tokens?.available || "Доступно"}: {balance}
+                      </span>
+                      {!checkBalance("essay_revise") && (
+                        <span className="font-semibold text-orange-600">
+                          {t.tokens?.insufficient || "Недостаточно токенов"}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <div className="flex flex-wrap items-center justify-end gap-3">
                 <button
                   type="button"
-                  onClick={onApplyAllRevisions}
+                  onClick={onExport}
                   disabled={loading}
-                  className="rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30 disabled:opacity-70"
+                  className="rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
                 >
+                  {t.essay.results.export}
+                </button>
+                {(pendingRevisions.length > 0 || generalInstruction) && (
+                  <button
+                    type="button"
+                    onClick={onApplyAllRevisions}
+                    disabled={loading || (balance !== null && !checkBalance("essay_revise"))}
+                    className="rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30 disabled:opacity-70"
+                  >
                   {loading
                     ? t.essay.loading
                     : `${t.essay.results.applyAllRevisions} (${pendingRevisions.length + (generalInstruction ? 1 : 0)})`}
@@ -408,6 +486,7 @@ export default function AiDocsPage() {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* Modal for adding revision */}

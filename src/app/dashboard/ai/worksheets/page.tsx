@@ -8,7 +8,9 @@ import {
   exportWorksheetDocx,
   WorksheetContent,
   WorksheetTaskType,
+  InsufficientTokensError,
 } from "../../../../lib/api";
+import { useTokens } from "../../../../hooks/useTokens";
 
 const GRADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 const LANGUAGES = [
@@ -27,6 +29,7 @@ const TASK_TYPES: { value: WorksheetTaskType; labelKey: "multiple_choice" | "fil
 export default function WorksheetsPage() {
   const { isAuthenticated } = useAuth();
   const t = useTranslations();
+  const { costs, balance, checkBalance, refreshBalance } = useTokens();
 
   // Form State
   const [subject, setSubject] = useState("");
@@ -83,8 +86,15 @@ export default function WorksheetsPage() {
         user_comment: userComment,
       });
       setWorksheetData(response.content);
+      refreshBalance();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.worksheet.errors.generic);
+      if (err instanceof InsufficientTokensError) {
+        setError(
+          `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
+        );
+      } else {
+        setError(err instanceof Error ? err.message : t.worksheet.errors.generic);
+      }
     } finally {
       setLoading(false);
     }
@@ -247,9 +257,39 @@ export default function WorksheetsPage() {
               </p>
             )}
 
+            {/* Cost Info */}
+            {costs.worksheet_generate && (
+              <div className={`rounded-2xl border px-4 py-3 ${
+                checkBalance("worksheet_generate")
+                  ? "border-green-200 bg-green-50"
+                  : "border-orange-200 bg-orange-50"
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-700">
+                    {t.tokens?.cost || "Стоимость"}:
+                  </span>
+                  <span className="text-sm font-bold text-slate-900">
+                    {costs.worksheet_generate} {t.tokens?.balance || "токенов"}
+                  </span>
+                </div>
+                {balance !== null && (
+                  <div className="mt-1 flex items-center justify-between text-xs">
+                    <span className="text-slate-600">
+                      {t.tokens?.available || "Доступно"}: {balance}
+                    </span>
+                    {!checkBalance("worksheet_generate") && (
+                      <span className="font-semibold text-orange-600">
+                        {t.tokens?.insufficient || "Недостаточно токенов"}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (balance !== null && !checkBalance("worksheet_generate"))}
               className="mt-2 flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition-all hover:shadow-xl hover:shadow-orange-500/40 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto sm:min-w-[200px]"
             >
               {loading ? (

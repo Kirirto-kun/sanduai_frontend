@@ -4,11 +4,13 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTranslations } from "../../i18n/LanguageContext";
+import { useTokens } from "../../hooks/useTokens";
 
 export default function ProfilePage() {
   const { user, isAuthenticated, loading, logout } = useAuth();
   const t = useTranslations();
   const router = useRouter();
+  const { balance } = useTokens();
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -36,6 +38,10 @@ export default function ProfilePage() {
               <InfoRow label={t.auth.profile.name} value={name} />
               <InfoRow label={t.auth.profile.email} value={email} />
               <InfoRow label={t.auth.profile.phone} value={phone} />
+              <InfoRow
+                label={t.tokens?.balance || "Баланс токенов"}
+                value={balance !== null ? balance.toString() : "—"}
+              />
             </div>
 
             <button

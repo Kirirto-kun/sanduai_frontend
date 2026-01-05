@@ -9,8 +9,10 @@ import {
   exportArticleDocx,
   generateArticle,
   reviseArticle,
+  InsufficientTokensError,
 } from "../../../../lib/api";
 import { useTranslations } from "../../../../i18n/LanguageContext";
+import { useTokens } from "../../../../hooks/useTokens";
 
 type PendingRevision = {
   id: string;
@@ -28,6 +30,7 @@ const initialPayload: ArticleGeneratePayload = {
 
 export default function ArticlePage() {
   const t = useTranslations();
+  const { refreshBalance, costs, balance, checkBalance } = useTokens();
   const [form, setForm] = useState<ArticleGeneratePayload>(initialPayload);
   const [meta, setMeta] = useState<ArticleMeta | null>(null);
   const [sections, setSections] = useState<ArticleSection[]>([]);
@@ -70,8 +73,15 @@ export default function ArticlePage() {
       setPendingRevisions([]);
       setGeneralInstruction("");
       setBlocksEditMode({});
+      refreshBalance();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.article.errors.generic);
+      if (err instanceof InsufficientTokensError) {
+        setError(
+          `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
+        );
+      } else {
+        setError(err instanceof Error ? err.message : t.article.errors.generic);
+      }
     } finally {
       setLoading(false);
     }
@@ -104,8 +114,15 @@ export default function ArticlePage() {
       setReferences(data.references || []);
       setPendingRevisions([]);
       setGeneralInstruction("");
+      refreshBalance();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.article.errors.generic);
+      if (err instanceof InsufficientTokensError) {
+        setError(
+          `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
+        );
+      } else {
+        setError(err instanceof Error ? err.message : t.article.errors.generic);
+      }
     } finally {
       setLoading(false);
     }
@@ -313,9 +330,39 @@ export default function ArticlePage() {
               </div>
             )}
 
+            {/* Cost Info */}
+            {costs.article_generate && (
+              <div className={`rounded-2xl border px-4 py-3 ${
+                checkBalance("article_generate")
+                  ? "border-green-200 bg-green-50"
+                  : "border-orange-200 bg-orange-50"
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-700">
+                    {t.tokens?.cost || "Стоимость"}:
+                  </span>
+                  <span className="text-sm font-bold text-slate-900">
+                    {costs.article_generate} {t.tokens?.balance || "токенов"}
+                  </span>
+                </div>
+                {balance !== null && (
+                  <div className="mt-1 flex items-center justify-between text-xs">
+                    <span className="text-slate-600">
+                      {t.tokens?.available || "Доступно"}: {balance}
+                    </span>
+                    {!checkBalance("article_generate") && (
+                      <span className="font-semibold text-orange-600">
+                        {t.tokens?.insufficient || "Недостаточно токенов"}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (balance !== null && !checkBalance("article_generate"))}
               className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
             >
               {loading ? (
@@ -491,6 +538,36 @@ export default function ArticlePage() {
                   <h4 className="text-sm font-semibold text-slate-800">
                     {t.article.results.pendingRevisions} ({pendingRevisions.length})
                   </h4>
+                  
+                  {/* Cost Info for Revision */}
+                  {costs.article_revise && (
+                    <div className={`rounded-2xl border px-4 py-3 ${
+                      checkBalance("article_revise")
+                        ? "border-green-200 bg-green-50"
+                        : "border-orange-200 bg-orange-50"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-700">
+                          {t.tokens?.cost || "Стоимость"} ({t.article.results.applyAllRevisions || "Применить правки"}):
+                        </span>
+                        <span className="text-sm font-bold text-slate-900">
+                          {costs.article_revise} {t.tokens?.balance || "токенов"}
+                        </span>
+                      </div>
+                      {balance !== null && (
+                        <div className="mt-1 flex items-center justify-between text-xs">
+                          <span className="text-slate-600">
+                            {t.tokens?.available || "Доступно"}: {balance}
+                          </span>
+                          {!checkBalance("article_revise") && (
+                            <span className="font-semibold text-orange-600">
+                              {t.tokens?.insufficient || "Недостаточно токенов"}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {pendingRevisions.map((rev, idx) => (
                     <div
                       key={rev.id}
@@ -552,7 +629,7 @@ export default function ArticlePage() {
                   <button
                     type="button"
                     onClick={onApplyAllRevisions}
-                    disabled={loading}
+                    disabled={loading || (balance !== null && !checkBalance("article_revise"))}
                     className="rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-70"
                   >
                     {loading

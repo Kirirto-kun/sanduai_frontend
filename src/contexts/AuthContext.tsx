@@ -38,7 +38,7 @@ type AuthContextValue = {
     password: string;
   }) => Promise<void>;
   register: (payload: {
-    phone?: string;
+    phone: string; // Обязательное поле - телефон должен быть верифицирован через Firebase
     email: string;
     password: string;
     full_name: string;
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: ProviderProps) {
   };
 
   const register = async (payload: {
-    phone?: string;
+    phone: string; // Обязательное поле - телефон должен быть верифицирован через Firebase
     email: string;
     password: string;
     full_name: string;

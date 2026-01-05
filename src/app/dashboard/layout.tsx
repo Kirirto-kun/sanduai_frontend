@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage, useTranslations } from "../../i18n/LanguageContext";
+import { TokenBalance } from "../../components/TokenBalance";
 
 type NavItem = {
   label: string;
@@ -191,6 +192,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       >
         <span>{t.dashboard.menu.settings}</span>
       </Link>
+      <Link
+        href="/dashboard/admin"
+        onClick={onNavigate}
+        className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition ${
+          pathname === "/dashboard/admin"
+            ? "bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] text-white shadow"
+            : "text-slate-700 hover:bg-white/80 hover:text-slate-900"
+        }`}
+      >
+        <span>{t.dashboard.menu.admin || "Админ панель"}</span>
+      </Link>
     </nav>
   );
 
@@ -285,6 +297,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <TokenBalance compact />
             <button
               type="button"
               onClick={() => setLanguage(language === "ru" ? "kk" : "ru")}

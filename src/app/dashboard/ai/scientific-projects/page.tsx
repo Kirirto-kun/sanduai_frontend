@@ -7,11 +7,14 @@ import {
   exportScientificProjectDocx,
   ScientificProjectGeneratePayload,
   ScientificProjectResponse,
+  InsufficientTokensError,
 } from "../../../../lib/api";
 import Markdown from "react-markdown";
+import { useTokens } from "../../../../hooks/useTokens";
 
 export default function ScientificProjectPage() {
   const t = useTranslations();
+  const { refreshBalance, costs, balance, checkBalance } = useTokens();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ScientificProjectResponse | null>(null);
@@ -48,9 +51,16 @@ export default function ScientificProjectPage() {
       };
       const res = await generateScientificProject(payload);
       setResult(res);
+      refreshBalance();
     } catch (err: any) {
       console.error(err);
-      setError(err.message || t.scientificProject.errors.generic);
+      if (err instanceof InsufficientTokensError) {
+        setError(
+          `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
+        );
+      } else {
+        setError(err.message || t.scientificProject.errors.generic);
+      }
     } finally {
       setLoading(false);
     }
@@ -268,10 +278,40 @@ export default function ScientificProjectPage() {
                 </div>
               )}
 
+              {/* Cost Info */}
+              {costs.sciproject_generate && (
+                <div className={`rounded-2xl border px-4 py-3 ${
+                  checkBalance("sciproject_generate")
+                    ? "border-green-200 bg-green-50"
+                    : "border-orange-200 bg-orange-50"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-700">
+                      {t.tokens?.cost || "Стоимость"}:
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {costs.sciproject_generate} {t.tokens?.balance || "токенов"}
+                    </span>
+                  </div>
+                  {balance !== null && (
+                    <div className="mt-1 flex items-center justify-between text-xs">
+                      <span className="text-slate-600">
+                        {t.tokens?.available || "Доступно"}: {balance}
+                      </span>
+                      {!checkBalance("sciproject_generate") && (
+                        <span className="font-semibold text-orange-600">
+                          {t.tokens?.insufficient || "Недостаточно токенов"}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Generate Button */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (balance !== null && !checkBalance("sciproject_generate"))}
                 className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
                 {loading ? (

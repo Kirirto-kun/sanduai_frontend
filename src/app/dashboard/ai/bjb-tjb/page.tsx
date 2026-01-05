@@ -9,11 +9,14 @@ import {
   type ExamGenerateResponse,
   type ExamTask,
   type WidgetType,
+  InsufficientTokensError,
 } from "../../../../lib/api";
 import { LatexRenderer } from "../../../../components/LatexRenderer";
+import { useTokens } from "../../../../hooks/useTokens";
 
 export default function ExamPage() {
   const t = useTranslations();
+  const { refreshBalance, costs, balance, checkBalance } = useTokens();
   
   // BJB/TJB exam generation page
 
@@ -62,8 +65,15 @@ export default function ExamPage() {
       });
       setExamProject(response);
       setTasks(response.tasks);
+      refreshBalance();
     } catch (err: any) {
-      setError(err.message || t.exam.errors.generic);
+      if (err instanceof InsufficientTokensError) {
+        setError(
+          `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
+        );
+      } else {
+        setError(err.message || t.exam.errors.generic);
+      }
     } finally {
       setLoading(false);
     }
@@ -336,10 +346,40 @@ export default function ExamPage() {
               <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
             )}
 
+            {/* Cost Info */}
+            {costs.bjb_generate && (
+              <div className={`rounded-2xl border px-4 py-3 ${
+                checkBalance("bjb_generate")
+                  ? "border-green-200 bg-green-50"
+                  : "border-orange-200 bg-orange-50"
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-700">
+                    {t.tokens?.cost || "Стоимость"}:
+                  </span>
+                  <span className="text-sm font-bold text-slate-900">
+                    {costs.bjb_generate} {t.tokens?.balance || "токенов"}
+                  </span>
+                </div>
+                {balance !== null && (
+                  <div className="mt-1 flex items-center justify-between text-xs">
+                    <span className="text-slate-600">
+                      {t.tokens?.available || "Доступно"}: {balance}
+                    </span>
+                    {!checkBalance("bjb_generate") && (
+                      <span className="font-semibold text-orange-600">
+                        {t.tokens?.insufficient || "Недостаточно токенов"}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (balance !== null && !checkBalance("bjb_generate"))}
               className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
             >
               {loading ? (

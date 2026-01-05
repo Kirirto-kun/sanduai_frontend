@@ -10,10 +10,13 @@ import {
   type LessonMeta,
   type LessonStage,
   type LessonTask,
+  InsufficientTokensError,
 } from "../../../../lib/api";
+import { useTokens } from "../../../../hooks/useTokens";
 
 export default function LessonPlanPage() {
   const t = useTranslations();
+  const { costs, balance, checkBalance, refreshBalance } = useTokens();
 
   // Helper function to safely render neuro_exercise
   const renderNeuroExercise = (neuroExercise: any): string => {
@@ -49,13 +52,62 @@ export default function LessonPlanPage() {
     section_name: "",
     lesson_number: "1",
     learning_objectives: [""],
+    lesson_type: "",
     date: "",
+    language: "kazakh",
+    textbook_images: [],
+    textbook_text: "",
+    preferred_platform: null,
   });
 
   // Lesson plan state
   const [lessonPlan, setLessonPlan] = useState<LessonPlanResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
+
+  // Convert image to Base64
+  const convertImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // FileReader.readAsDataURL already includes data:image/{type};base64, prefix
+        resolve(result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Handle image upload
+  const handleImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const imagePromises = Array.from(files).map((file) => {
+      if (!file.type.startsWith("image/")) {
+        throw new Error(`Файл ${file.name} не является изображением`);
+      }
+      return convertImageToBase64(file);
+    });
+
+    try {
+      const base64Images = await Promise.all(imagePromises);
+      setFormData((prev) => ({
+        ...prev,
+        textbook_images: [...(prev.textbook_images || []), ...base64Images],
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка загрузки изображений");
+    }
+  };
+
+  // Remove image
+  const removeImage = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      textbook_images: (prev.textbook_images || []).filter((_, i) => i !== index),
+    }));
+  };
 
   // Handle form input changes
   const handleInputChange = (field: keyof LessonPlanRequest, value: any) => {
@@ -95,7 +147,8 @@ export default function LessonPlanPage() {
       !formData.topic ||
       !formData.teacher_name ||
       !formData.section_name ||
-      !formData.lesson_number.trim()
+      !formData.lesson_number.trim() ||
+      !formData.lesson_type
     ) {
       setError(t.lessonPlan.errors.required);
       return false;
@@ -105,6 +158,15 @@ export default function LessonPlanPage() {
     if (nonEmptyObjectives.length === 0) {
       setError(t.lessonPlan.errors.objectivesMin);
       return false;
+    }
+
+    // Validate date format if provided (DD.MM.YYYY)
+    if (formData.date && formData.date.trim()) {
+      const datePattern = /^\d{2}\.\d{2}\.\d{4}$/;
+      if (!datePattern.test(formData.date.trim())) {
+        setError("Неверный формат даты. Используйте формат DD.MM.YYYY (например, 15.01.2026)");
+        return false;
+      }
     }
 
     return true;
@@ -119,16 +181,26 @@ export default function LessonPlanPage() {
 
     setIsLoading(true);
     try {
-      // Filter out empty objectives
-      const cleanedData = {
+      // Filter out empty objectives and prepare data
+      const cleanedData: LessonPlanRequest = {
         ...formData,
         learning_objectives: formData.learning_objectives.filter((obj) => obj.trim()),
+        date: formData.date && formData.date.trim() ? formData.date.trim() : null,
+        textbook_text: formData.textbook_text && formData.textbook_text.trim() ? formData.textbook_text.trim() : null,
+        preferred_platform: formData.preferred_platform || null,
+        textbook_images: formData.textbook_images && formData.textbook_images.length > 0 ? formData.textbook_images : [],
+        language: formData.language || "kazakh",
       };
 
       const response = await generateLessonPlan(cleanedData);
       setLessonPlan(response);
+      refreshBalance();
     } catch (err: any) {
-      if (err.message?.includes("401") || err.message?.toLowerCase().includes("auth")) {
+      if (err instanceof InsufficientTokensError) {
+        setError(
+          `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
+        );
+      } else if (err.message?.includes("401") || err.message?.toLowerCase().includes("auth")) {
         setError(t.lessonPlan.errors.auth);
       } else {
         setError(err.message || t.lessonPlan.errors.generic);
@@ -296,7 +368,12 @@ export default function LessonPlanPage() {
       section_name: "",
       lesson_number: "1",
       learning_objectives: [""],
+      lesson_type: "",
       date: "",
+      language: "kazakh",
+      textbook_images: [],
+      textbook_text: "",
+      preferred_platform: null,
     });
     setError("");
   };
@@ -401,17 +478,84 @@ export default function LessonPlanPage() {
                   />
                 </div>
 
-                {/* Date (optional) */}
+                {/* Lesson Type (required) */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    {t.lessonPlan.form.date}
+                    {t.lessonPlan.form.lessonType} *
+                  </label>
+                  <select
+                    value={formData.lesson_type}
+                    onChange={(e) => handleInputChange("lesson_type", e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                    required
+                  >
+                    <option value="">-- {t.lessonPlan.form.lessonType} --</option>
+                    <option value="Жаңа сабақ">{t.lessonPlan.form.lessonTypeOptions.new}</option>
+                    <option value="Бекіту">{t.lessonPlan.form.lessonTypeOptions.consolidation}</option>
+                    <option value="Қайталау">{t.lessonPlan.form.lessonTypeOptions.review}</option>
+                  </select>
+                </div>
+
+                {/* Date (optional) - Format DD.MM.YYYY */}
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    {t.lessonPlan.form.date} (DD.MM.YYYY)
                   </label>
                   <input
-                    type="date"
+                    type="text"
                     value={formData.date || ""}
                     onChange={(e) => handleInputChange("date", e.target.value)}
+                    placeholder="15.01.2026"
+                    pattern="\d{2}\.\d{2}\.\d{4}"
                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                   />
+                </div>
+
+                {/* Language */}
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    {t.lessonPlan.form.language}
+                  </label>
+                  <div className="flex gap-4">
+                    <label
+                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
+                        formData.language === "kazakh"
+                          ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                          : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="language"
+                        value="kazakh"
+                        checked={formData.language === "kazakh"}
+                        onChange={(e) => handleInputChange("language", e.target.value)}
+                        className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
+                      />
+                      <span className="text-sm font-medium text-slate-900">
+                        {t.lessonPlan.form.languageOptions.kazakh}
+                      </span>
+                    </label>
+                    <label
+                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
+                        formData.language === "russian"
+                          ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                          : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="language"
+                        value="russian"
+                        checked={formData.language === "russian"}
+                        onChange={(e) => handleInputChange("language", e.target.value)}
+                        className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
+                      />
+                      <span className="text-sm font-medium text-slate-900">
+                        {t.lessonPlan.form.languageOptions.russian}
+                      </span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -451,6 +595,77 @@ export default function LessonPlanPage() {
                 </div>
               </div>
 
+              {/* Textbook Images */}
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {t.lessonPlan.form.textbookImages}
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => handleImageUpload(e.target.files)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                />
+                {formData.textbook_images && formData.textbook_images.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {formData.textbook_images.map((img, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2"
+                      >
+                        <span className="text-sm text-slate-600">
+                          Изображение {index + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="rounded-lg bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-100"
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Textbook Text */}
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {t.lessonPlan.form.textbookText}
+                </label>
+                <textarea
+                  value={formData.textbook_text || ""}
+                  onChange={(e) => handleInputChange("textbook_text", e.target.value)}
+                  rows={4}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                  placeholder="Введите текст упражнений из учебника..."
+                />
+              </div>
+
+              {/* Preferred Platform */}
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {t.lessonPlan.form.preferredPlatform}
+                </label>
+                <select
+                  value={formData.preferred_platform || ""}
+                  onChange={(e) =>
+                    handleInputChange("preferred_platform", e.target.value || null)
+                  }
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                >
+                  <option value="">{t.lessonPlan.form.platformOptions.none}</option>
+                  <option value="Kahoot">{t.lessonPlan.form.platformOptions.kahoot}</option>
+                  <option value="BilimClass">{t.lessonPlan.form.platformOptions.bilimClass}</option>
+                  <option value="SanduAI.kz">{t.lessonPlan.form.platformOptions.sanduAI}</option>
+                  <option value="Mentimeter">{t.lessonPlan.form.platformOptions.mentimeter}</option>
+                  <option value="Quizlet">{t.lessonPlan.form.platformOptions.quizlet}</option>
+                  <option value="Wordwall">{t.lessonPlan.form.platformOptions.wordwall}</option>
+                </select>
+              </div>
+
               {/* Error Message */}
               {error && (
                 <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
@@ -458,10 +673,40 @@ export default function LessonPlanPage() {
                 </div>
               )}
 
+              {/* Cost Info */}
+              {costs.kmzh_generate && (
+                <div className={`rounded-2xl border px-4 py-3 ${
+                  checkBalance("kmzh_generate")
+                    ? "border-green-200 bg-green-50"
+                    : "border-orange-200 bg-orange-50"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-700">
+                      {t.tokens?.cost || "Стоимость"}:
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {costs.kmzh_generate} {t.tokens?.balance || "токенов"}
+                    </span>
+                  </div>
+                  {balance !== null && (
+                    <div className="mt-1 flex items-center justify-between text-xs">
+                      <span className="text-slate-600">
+                        {t.tokens?.available || "Доступно"}: {balance}
+                      </span>
+                      {!checkBalance("kmzh_generate") && (
+                        <span className="font-semibold text-orange-600">
+                          {t.tokens?.insufficient || "Недостаточно токенов"}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || (balance !== null && !checkBalance("kmzh_generate"))}
                 className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
                 {isLoading ? (
