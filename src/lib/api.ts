@@ -1154,9 +1154,19 @@ export async function uploadVideoToBunny(
     // Use PUT method as required by Bunny CDN for direct uploads
     xhr.open("PUT", url);
     
-    // Authorization header already contains "AccessKey" prefix from backend
-    // Use it exactly as provided - do NOT modify it
-    xhr.setRequestHeader("Authorization", authHeader);
+    // Bunny CDN requires header name "AccessKey", not "Authorization"
+    // Backend sends "AccessKey <key>", we need to extract just the key
+    let accessKey: string;
+    if (authHeader.startsWith("AccessKey ")) {
+      // Extract the key after "AccessKey " prefix
+      accessKey = authHeader.substring("AccessKey ".length).trim();
+    } else {
+      // If no prefix, use as-is (shouldn't happen, but just in case)
+      accessKey = authHeader.trim();
+    }
+    
+    // Set header with name "AccessKey" (not "Authorization")
+    xhr.setRequestHeader("AccessKey", accessKey);
     
     // Do NOT set Content-Type - let the browser set it automatically
     // Bunny CDN will handle the file content type automatically
@@ -1173,9 +1183,8 @@ export async function uploadVideoToBunny(
       fileSize: file.size,
       fileName: file.name,
       fileType: file.type,
-      authHeaderPreview: authHeader.substring(0, 25) + "...",
-      authHeaderLength: authHeader.length,
-      authHeaderStartsWithAccessKey: authHeader.startsWith("AccessKey "),
+      originalAuthHeader: authHeader.substring(0, 25) + "...",
+      extractedAccessKey: accessKey.substring(0, 10) + "...",
     });
     
     xhr.send(file);
