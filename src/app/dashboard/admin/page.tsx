@@ -187,11 +187,21 @@ export default function AdminPage() {
       };
       const tokenData = await uploadVideoToken(payload);
 
+      // Parse URL to check if it contains auth token in query params
+      const urlObj = new URL(tokenData.presigned_upload_url);
+      const hasTokenInUrl = urlObj.searchParams.has("token") || 
+                           urlObj.searchParams.has("access_key") ||
+                           urlObj.searchParams.has("auth");
+      
       console.log("Upload token received:", {
         bunny_video_id: tokenData.bunny_video_id,
         video_db_id: tokenData.video_db_id,
-        url: tokenData.presigned_upload_url.substring(0, 50) + "...",
+        url: tokenData.presigned_upload_url.substring(0, 80) + "...",
+        urlHasQueryParams: urlObj.search.length > 0,
+        urlHasTokenInQuery: hasTokenInUrl,
+        authHeaderPreview: tokenData.authorization_header.substring(0, 25) + "...",
         authHeaderLength: tokenData.authorization_header.length,
+        authHeaderStartsWithAccessKey: tokenData.authorization_header.startsWith("AccessKey "),
       });
 
       // Step 2: Upload file to Bunny CDN

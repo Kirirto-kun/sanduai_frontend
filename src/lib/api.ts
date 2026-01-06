@@ -1113,23 +1113,37 @@ export async function uploadVideoToBunny(
 
     xhr.addEventListener("load", () => {
       if (xhr.status >= 200 && xhr.status < 300) {
+        console.log("Video uploaded successfully to Bunny CDN");
         resolve();
       } else {
         let errorText = `Upload failed with status ${xhr.status}`;
+        let errorDetails: any = {};
+        
         try {
           const responseText = xhr.responseText;
           if (responseText) {
             const parsed = JSON.parse(responseText);
             errorText = parsed.Message || parsed.message || parsed.error || responseText;
+            errorDetails = parsed;
           }
         } catch {
           errorText = xhr.responseText || xhr.statusText || errorText;
         }
+        
+        console.error("Bunny CDN upload error:", {
+          status: xhr.status,
+          statusText: xhr.statusText,
+          errorText,
+          errorDetails,
+          responseHeaders: xhr.getAllResponseHeaders(),
+        });
+        
         reject(new Error(errorText));
       }
     });
 
-    xhr.addEventListener("error", () => {
+    xhr.addEventListener("error", (e) => {
+      console.error("Network error during upload:", e);
       reject(new Error("Upload failed - network error"));
     });
 
@@ -1146,13 +1160,20 @@ export async function uploadVideoToBunny(
     
     // Do NOT set Content-Type - let the browser set it automatically
     // Bunny CDN will handle the file content type automatically
+    // Do NOT set any other headers unless explicitly required by Bunny CDN
     
+    // Log upload details for debugging
+    const urlObj = new URL(url);
     console.log("Uploading to Bunny CDN:", {
       method: "PUT",
-      url: url.substring(0, 80) + "...",
+      url: url.substring(0, 100) + "...",
+      urlHost: urlObj.hostname,
+      urlPath: urlObj.pathname,
+      urlHasQuery: urlObj.search.length > 0,
       fileSize: file.size,
       fileName: file.name,
-      authHeaderPreview: authHeader.substring(0, 20) + "...",
+      fileType: file.type,
+      authHeaderPreview: authHeader.substring(0, 25) + "...",
       authHeaderLength: authHeader.length,
       authHeaderStartsWithAccessKey: authHeader.startsWith("AccessKey "),
     });
