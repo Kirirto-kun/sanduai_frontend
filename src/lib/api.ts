@@ -1115,12 +1115,13 @@ export async function uploadVideoToBunny(
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve();
       } else {
-        reject(new Error(`Upload failed with status ${xhr.status}`));
+        const errorText = xhr.responseText || xhr.statusText || `Upload failed with status ${xhr.status}`;
+        reject(new Error(errorText));
       }
     });
 
     xhr.addEventListener("error", () => {
-      reject(new Error("Upload failed"));
+      reject(new Error("Upload failed - network error"));
     });
 
     xhr.addEventListener("abort", () => {
@@ -1128,7 +1129,14 @@ export async function uploadVideoToBunny(
     });
 
     xhr.open("PUT", url);
+    
+    // Set Authorization header - Bunny CDN expects the exact value from authorization_header
+    // Do NOT add "Bearer" prefix - the value from API is already in the correct format
     xhr.setRequestHeader("Authorization", authHeader);
+    
+    // Do NOT set Content-Type - let the browser set it automatically with boundary for multipart
+    // Bunny CDN will handle the file content type automatically
+    
     xhr.send(file);
   });
 }

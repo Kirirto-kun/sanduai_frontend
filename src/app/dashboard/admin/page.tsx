@@ -187,6 +187,13 @@ export default function AdminPage() {
       };
       const tokenData = await uploadVideoToken(payload);
 
+      console.log("Upload token received:", {
+        bunny_video_id: tokenData.bunny_video_id,
+        video_db_id: tokenData.video_db_id,
+        url: tokenData.presigned_upload_url.substring(0, 50) + "...",
+        authHeaderLength: tokenData.authorization_header.length,
+      });
+
       // Step 2: Upload file to Bunny CDN
       await uploadVideoToBunny(
         tokenData.presigned_upload_url,
@@ -203,7 +210,17 @@ export default function AdminPage() {
       setUploadProgress(0);
       fetchVideos();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка загрузки видео");
+      console.error("Video upload error:", err);
+      const errorMessage = err instanceof Error ? err.message : "Ошибка загрузки видео";
+      
+      // Provide more specific error messages
+      if (errorMessage.includes("401") || errorMessage.includes("Unauthorized")) {
+        setError("Ошибка авторизации при загрузке. Проверьте настройки Bunny CDN на сервере.");
+      } else if (errorMessage.includes("403")) {
+        setError("Доступ запрещен. Убедитесь, что у вас есть права администратора.");
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setUploading(false);
     }
