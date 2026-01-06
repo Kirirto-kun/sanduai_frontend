@@ -129,6 +129,44 @@ type Translations = {
     adding: string;
     add: string;
     cancel: string;
+    subscription: string;
+    addSubscription: string;
+    subscriptionDays: string;
+    subscriptionDaysPlaceholder: string;
+    subscriptionActive: string;
+    subscriptionInactive: string;
+    subscriptionEnd: string;
+    subscriptionPlan: string;
+    videos: {
+      title: string;
+      uploadVideo: string;
+      videoTitle: string;
+      videoTitlePlaceholder: string;
+      selectFile: string;
+      uploading: string;
+      processing: string;
+      ready: string;
+      error: string;
+      uploadProgress: string;
+      status: string;
+      upload: string;
+      cancel: string;
+      videosList: string;
+      noVideos: string;
+      refresh: string;
+    };
+  };
+  videos: {
+    title: string;
+    subtitle: string;
+    noVideos: string;
+    watch: string;
+    duration: string;
+    uploaded: string;
+    subscriptionRequired: string;
+    subscriptionRequiredMessage: string;
+    loading: string;
+    error: string;
   };
   kmzh: {
     title: string;
@@ -830,6 +868,14 @@ export const translations: Record<Language, Translations> = {
       loading: "Загрузка...",
       refresh: "Обновить",
       transactions: "История транзакций",
+      subscription: "Подписка",
+      subscriptionStatus: "Статус подписки",
+      subscriptionActive: "Активна",
+      subscriptionInactive: "Неактивна",
+      subscriptionEnd: "Окончание подписки",
+      subscriptionPlan: "Тип подписки",
+      free: "Бесплатная",
+      premium: "Премиум",
     },
     admin: {
       title: "Админ панель",
@@ -1671,33 +1717,6 @@ export const translations: Record<Language, Translations> = {
       subscriptionRequiredMessage: "Бейнелерді көру үшін белсенді жазылым қажет. Жазылымды рәсімдеу үшін әкімшіге хабарласыңыз.",
       loading: "Жүктелуде...",
       error: "Қате",
-    },
-    admin: {
-      title: "Админ панелі",
-      subtitle: "Пайдаланушылар мен токендерді басқару",
-      usersList: "Пайдаланушылар тізімі",
-      noUsers: "Пайдаланушылар табылмады",
-      email: "Email",
-      fullName: "Аты-жөні",
-      role: "Рөлі",
-      balance: "Баланс",
-      createdAt: "Тіркелген күні",
-      actions: "Әрекеттер",
-      addTokens: "Токен қосу",
-      viewTransactions: "Транзакциялар",
-      previous: "Артқа",
-      next: "Алға",
-      transactions: "Транзакциялар тарихы",
-      close: "Жабу",
-      noTransactions: "Транзакциялар жоқ",
-      date: "Күні",
-      operation: "Операция",
-      amount: "Сома",
-      description: "Сипаттама",
-      addTokensTo: "Токен қосу",
-      adding: "Қосылуда...",
-      add: "Қосу",
-      cancel: "Болдырмау",
     },
     kmzh: {
       title: "КМЖ генерациясы",
