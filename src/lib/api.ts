@@ -1115,7 +1115,16 @@ export async function uploadVideoToBunny(
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve();
       } else {
-        const errorText = xhr.responseText || xhr.statusText || `Upload failed with status ${xhr.status}`;
+        let errorText = `Upload failed with status ${xhr.status}`;
+        try {
+          const responseText = xhr.responseText;
+          if (responseText) {
+            const parsed = JSON.parse(responseText);
+            errorText = parsed.Message || parsed.message || parsed.error || responseText;
+          }
+        } catch {
+          errorText = xhr.responseText || xhr.statusText || errorText;
+        }
         reject(new Error(errorText));
       }
     });
@@ -1128,14 +1137,25 @@ export async function uploadVideoToBunny(
       reject(new Error("Upload aborted"));
     });
 
+    // Use PUT method as required by Bunny CDN for direct uploads
     xhr.open("PUT", url);
     
-    // Set Authorization header - Bunny CDN expects the exact value from authorization_header
-    // Do NOT add "Bearer" prefix - the value from API is already in the correct format
+    // Authorization header already contains "AccessKey" prefix from backend
+    // Use it exactly as provided - do NOT modify it
     xhr.setRequestHeader("Authorization", authHeader);
     
-    // Do NOT set Content-Type - let the browser set it automatically with boundary for multipart
+    // Do NOT set Content-Type - let the browser set it automatically
     // Bunny CDN will handle the file content type automatically
+    
+    console.log("Uploading to Bunny CDN:", {
+      method: "PUT",
+      url: url.substring(0, 80) + "...",
+      fileSize: file.size,
+      fileName: file.name,
+      authHeaderPreview: authHeader.substring(0, 20) + "...",
+      authHeaderLength: authHeader.length,
+      authHeaderStartsWithAccessKey: authHeader.startsWith("AccessKey "),
+    });
     
     xhr.send(file);
   });
