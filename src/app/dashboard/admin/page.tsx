@@ -9,7 +9,8 @@ import {
   addSubscriptionToUser,
   uploadVideoToken,
   uploadVideoToBunny,
-  getVideos,
+  getAllVideos,
+  syncAllVideoStatuses,
   type AdminUser,
   type AddTokensPayload,
   type AddSubscriptionPayload,
@@ -54,6 +55,7 @@ export default function AdminPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedVideos, setUploadedVideos] = useState<Video[]>([]);
   const [loadingVideos, setLoadingVideos] = useState(false);
+  const [syncingStatuses, setSyncingStatuses] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -240,12 +242,27 @@ export default function AdminPage() {
     setLoadingVideos(true);
     setError(null);
     try {
-      const data = await getVideos(100, 0); // Get all videos for admin
+      const data = await getAllVideos(); // Get all videos for admin (regardless of status)
       setUploadedVideos(data.videos);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка загрузки списка видео");
     } finally {
       setLoadingVideos(false);
+    }
+  };
+
+  const handleSyncStatuses = async () => {
+    setSyncingStatuses(true);
+    setError(null);
+    try {
+      const result = await syncAllVideoStatuses();
+      console.log(`Синхронизировано статусов: ${result.updated}`);
+      // Refresh videos list after sync
+      await fetchVideos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка синхронизации статусов");
+    } finally {
+      setSyncingStatuses(false);
     }
   };
 
@@ -729,14 +746,26 @@ export default function AdminPage() {
               <h2 className="text-lg font-semibold text-slate-900">
                 {t.admin?.videos?.videosList || "Список видео"}
               </h2>
-              <button
-                type="button"
-                onClick={fetchVideos}
-                disabled={loadingVideos}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-              >
-                {t.admin?.videos?.refresh || "Обновить"}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSyncStatuses}
+                  disabled={syncingStatuses || loadingVideos}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {syncingStatuses
+                    ? t.admin?.videos?.syncing || "Синхронизация..."
+                    : t.admin?.videos?.syncStatuses || "Синхронизировать статусы"}
+                </button>
+                <button
+                  type="button"
+                  onClick={fetchVideos}
+                  disabled={loadingVideos || syncingStatuses}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {t.admin?.videos?.refresh || "Обновить"}
+                </button>
+              </div>
             </div>
 
             {loadingVideos ? (

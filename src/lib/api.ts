@@ -1205,6 +1205,22 @@ export async function getVideos(
   });
 }
 
+// Admin function to get all videos regardless of status
+export async function getAllVideos(): Promise<VideosResponse> {
+  return request<VideosResponse>("/api/admin/videos/all", {
+    method: "GET",
+    auth: true,
+  });
+}
+
+// Admin function to sync all video statuses
+export async function syncAllVideoStatuses(): Promise<{ message: string; updated: number }> {
+  return request<{ message: string; updated: number }>("/api/admin/videos/sync-all-statuses", {
+    method: "POST",
+    auth: true,
+  });
+}
+
 export async function getVideoWatchToken(
   videoId: string,
 ): Promise<VideoWatchTokenResponse> {

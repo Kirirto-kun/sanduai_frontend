@@ -154,6 +154,8 @@ type Translations = {
       videosList: string;
       noVideos: string;
       refresh: string;
+      syncStatuses: string;
+      syncing: string;
     };
   };
   videos: {
@@ -928,6 +930,8 @@ export const translations: Record<Language, Translations> = {
         videosList: "Список видео",
         noVideos: "Видео не найдены",
         refresh: "Обновить",
+        syncStatuses: "Синхронизировать статусы",
+        syncing: "Синхронизация...",
       },
     },
     videos: {
@@ -1704,6 +1708,8 @@ export const translations: Record<Language, Translations> = {
         videosList: "Бейнелер тізімі",
         noVideos: "Бейнелер табылмады",
         refresh: "Жаңарту",
+        syncStatuses: "Мәртебелерді синхрондау",
+        syncing: "Синхрондау...",
       },
     },
     videos: {
