@@ -9,7 +9,7 @@ type TokenBalanceProps = {
 };
 
 export function TokenBalance({ showCost, compact = false }: TokenBalanceProps) {
-  const { balance, costs, loading } = useTokens();
+  const { balance, costs, loading, hasSubscription, subscriptionPlan } = useTokens();
   const t = useTranslations();
 
   if (compact) {
@@ -18,13 +18,20 @@ export function TokenBalance({ showCost, compact = false }: TokenBalanceProps) {
         {loading ? (
           <div className="h-5 w-16 animate-pulse rounded-full bg-slate-200"></div>
         ) : (
-          <div className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200">
-            <span className="text-[color:var(--primary)]">
-              {t.tokens?.balance || "Баланс"}
-            </span>
-            <span className="font-bold">
-              {balance !== null ? balance : "—"}
-            </span>
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200">
+              <span className="text-[color:var(--primary)]">
+                {t.tokens?.balance || "Баланс"}
+              </span>
+              <span className="font-bold">
+                {balance !== null ? balance : "—"}
+              </span>
+            </div>
+            {hasSubscription && subscriptionPlan === "premium" && (
+              <span className="rounded-full bg-gradient-to-r from-green-500 to-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                {t.tokens?.premium || "PREMIUM"}
+              </span>
+            )}
           </div>
         )}
         {showCost && costs[showCost] && (

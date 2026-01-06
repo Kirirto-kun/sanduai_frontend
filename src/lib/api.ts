@@ -399,6 +399,9 @@ export type VoiceoverResponse = {
 export type TokenBalance = {
   balance: number;
   user_id: string;
+  has_subscription: boolean;
+  subscription_end: string | null; // ISO format: "2026-02-15T00:00:00"
+  subscription_plan: "free" | "premium";
 };
 
 export type TokenCosts = {
@@ -959,6 +962,9 @@ export type AdminUser = {
   role: string;
   balance: number;
   created_at: string;
+  has_subscription: boolean;
+  subscription_end: string | null; // ISO format: "2026-02-15T00:00:00"
+  subscription_plan: "free" | "premium";
 };
 
 export type AdminUsersResponse = {
@@ -974,6 +980,18 @@ export type AddTokensPayload = {
 export type AddTokensResponse = {
   user_id: string;
   balance: number;
+  message: string;
+};
+
+export type AddSubscriptionPayload = {
+  days: number; // Must be > 0
+};
+
+export type AddSubscriptionResponse = {
+  user_id: string;
+  subscription_plan: "premium";
+  subscription_end: string; // ISO format: "2026-02-15T00:00:00"
+  has_subscription: boolean;
   message: string;
 };
 
@@ -1019,5 +1037,122 @@ export async function getAdminUserTransactions(
       auth: true,
     },
   );
+}
+
+export async function addSubscriptionToUser(
+  userId: string,
+  payload: AddSubscriptionPayload,
+): Promise<AddSubscriptionResponse> {
+  return request<AddSubscriptionResponse>(`/api/admin/users/${userId}/subscription`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+// Video types
+export type UploadVideoTokenPayload = {
+  title: string; // Max 255 characters
+};
+
+export type UploadVideoTokenResponse = {
+  bunny_video_id: string;
+  presigned_upload_url: string;
+  authorization_header: string;
+  video_db_id: string; // UUID
+};
+
+export type Video = {
+  id: string; // UUID
+  title: string;
+  duration: number | null; // seconds
+  thumbnail_url: string | null;
+  status: "uploading" | "processing" | "ready" | "error";
+  created_at: string; // ISO format
+};
+
+export type VideosResponse = {
+  videos: Video[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type VideoWatchTokenResponse = {
+  bunny_video_id: string;
+  watch_token: string; // SHA256 hash
+  expiration_time: number; // Unix timestamp in milliseconds
+};
+
+// Video API functions
+export async function uploadVideoToken(
+  payload: UploadVideoTokenPayload,
+): Promise<UploadVideoTokenResponse> {
+  return request<UploadVideoTokenResponse>("/api/admin/videos/upload-token", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+export async function uploadVideoToBunny(
+  url: string,
+  file: File,
+  authHeader: string,
+  onProgress?: (progress: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable && onProgress) {
+        const progress = (e.loaded / e.total) * 100;
+        onProgress(progress);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`Upload failed with status ${xhr.status}`));
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      reject(new Error("Upload failed"));
+    });
+
+    xhr.addEventListener("abort", () => {
+      reject(new Error("Upload aborted"));
+    });
+
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Authorization", authHeader);
+    xhr.send(file);
+  });
+}
+
+export async function getVideos(
+  limit: number = 50,
+  offset: number = 0,
+): Promise<VideosResponse> {
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+    offset: offset.toString(),
+  });
+  return request<VideosResponse>(`/api/courses/videos?${params}`, {
+    method: "GET",
+    auth: true,
+  });
+}
+
+export async function getVideoWatchToken(
+  videoId: string,
+): Promise<VideoWatchTokenResponse> {
+  return request<VideoWatchTokenResponse>(`/api/courses/video/${videoId}`, {
+    method: "GET",
+    auth: true,
+  });
 }
 

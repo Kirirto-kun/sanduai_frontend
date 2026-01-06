@@ -14,6 +14,9 @@ export function useTokens() {
   const [costs, setCosts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
+  const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
+  const [subscriptionPlan, setSubscriptionPlan] = useState<"free" | "premium" | null>(null);
 
   const fetchBalance = useCallback(async () => {
     const token = getToken();
@@ -27,9 +30,15 @@ export function useTokens() {
       setError(null);
       const data: TokenBalance = await getTokenBalance();
       setBalance(data.balance);
+      setHasSubscription(data.has_subscription);
+      setSubscriptionEnd(data.subscription_end);
+      setSubscriptionPlan(data.subscription_plan);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch balance");
       setBalance(null);
+      setHasSubscription(null);
+      setSubscriptionEnd(null);
+      setSubscriptionPlan(null);
     } finally {
       setLoading(false);
     }
@@ -77,6 +86,9 @@ export function useTokens() {
     error,
     refreshBalance,
     checkBalance,
+    hasSubscription,
+    subscriptionEnd,
+    subscriptionPlan,
   };
 }
 

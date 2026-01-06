@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "../../i18n/LanguageContext";
 
 const cards: { href: string; key: keyof typeof labels }[] = [
-  { href: "/dashboard/kmzh", key: "kmzh" },
+  { href: "/dashboard/ai/lesson-plan", key: "kmzh" },
   { href: "/dashboard/ai-docs", key: "aiDocs" },
   { href: "/dashboard/library", key: "library" },
   { href: "/dashboard/media", key: "media" },
