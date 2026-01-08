@@ -9,7 +9,7 @@ import { VideoPlayer } from "../../../../components/VideoPlayer";
 
 export default function CoursesPage() {
   const t = useTranslations();
-  const { hasSubscription } = useTokens();
+  const { hasSubscription, loading: tokensLoading } = useTokens();
   const [videos, setVideos] = useState<Video[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -24,10 +24,12 @@ export default function CoursesPage() {
   const [tokenError, setTokenError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (hasSubscription) {
-      fetchVideos();
-    } else {
-      setLoading(false);
+    if (hasSubscription !== null) {
+      if (hasSubscription) {
+        fetchVideos();
+      } else {
+        setLoading(false);
+      }
     }
   }, [hasSubscription, offset]);
 
@@ -139,12 +141,12 @@ export default function CoursesPage() {
         </div>
       )}
 
-      {loading ? (
+      {tokensLoading || loading ? (
         <div className="text-center py-12">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[color:var(--primary)] border-r-transparent"></div>
           <p className="mt-2 text-sm text-slate-600">{t.videos?.loading || "Загрузка..."}</p>
         </div>
-      ) : videos.length === 0 ? (
+      ) : !tokensLoading && !loading && hasSubscription !== null && videos.length === 0 ? (
         <div className="glass-card rounded-3xl border border-white/60 px-6 py-12 shadow-md sm:px-8">
           <div className="text-center">
             <p className="text-slate-500">{t.videos?.noVideos || "Видео не найдены"}</p>
