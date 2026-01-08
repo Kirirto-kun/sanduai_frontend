@@ -59,10 +59,10 @@ export default function CoursesPage() {
       const tokenData = await getVideoWatchToken(video.id);
       console.log("Video watch token received:", {
         bunny_video_id: tokenData.bunny_video_id,
-        playback_url: tokenData.playback_url?.substring(0, 100) + "...",
-        playback_url_length: tokenData.playback_url?.length,
-        expiration_time: new Date(tokenData.expiration_time).toISOString(),
-        has_playback_url: !!tokenData.playback_url,
+        embed_url: tokenData.embed_url?.substring(0, 100) + "...",
+        embed_url_length: tokenData.embed_url?.length,
+        expiration_time: new Date(tokenData.expiration_time * 1000).toISOString(), // Convert seconds to milliseconds
+        has_embed_url: !!tokenData.embed_url,
       });
       setWatchToken(tokenData);
     } catch (err: any) {
@@ -266,9 +266,9 @@ export default function CoursesPage() {
                   </p>
                 </div>
               ) : watchToken ? (
-                watchToken.playback_url ? (
+                watchToken.embed_url ? (
                   <VideoPlayer
-                    playbackUrl={watchToken.playback_url}
+                    embedUrl={watchToken.embed_url}
                     expirationTime={watchToken.expiration_time}
                     onTokenExpired={handleTokenExpired}
                     className="w-full"
@@ -276,10 +276,10 @@ export default function CoursesPage() {
                 ) : (
                   <div className="rounded-2xl bg-yellow-50 border border-yellow-200 px-4 py-8 text-center">
                     <p className="text-sm font-semibold text-yellow-700">
-                      URL для воспроизведения видео не получен от сервера
+                      URL для встраивания видео не получен от сервера
                     </p>
                     <p className="mt-2 text-xs text-yellow-600">
-                      Проверьте, что API возвращает поле playback_url. Получены данные: {JSON.stringify({ bunny_video_id: watchToken.bunny_video_id, has_playback_url: !!watchToken.playback_url })}
+                      Проверьте, что API возвращает поле embed_url. Получены данные: {JSON.stringify({ bunny_video_id: watchToken.bunny_video_id, has_embed_url: !!watchToken.embed_url })}
                     </p>
                   </div>
                 )

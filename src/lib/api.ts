@@ -1081,8 +1081,8 @@ export type VideosResponse = {
 export type VideoWatchTokenResponse = {
   bunny_video_id: string;
   watch_token: string; // SHA256 hash
-  expiration_time: number; // Unix timestamp in milliseconds
-  playback_url: string; // Full URL for video playback (ready to use in HTML5 video element)
+  expiration_time: number; // Unix timestamp in seconds
+  embed_url: string; // Full URL for iframe embed (ready to use in iframe element)
 };
 
 // Video API functions
