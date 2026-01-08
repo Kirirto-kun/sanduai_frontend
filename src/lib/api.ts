@@ -1082,6 +1082,7 @@ export type VideoWatchTokenResponse = {
   bunny_video_id: string;
   watch_token: string; // SHA256 hash
   expiration_time: number; // Unix timestamp in milliseconds
+  playback_url: string; // Full URL for video playback (ready to use in HTML5 video element)
 };
 
 // Video API functions
@@ -1168,9 +1169,9 @@ export async function uploadVideoToBunny(
     // Set header with name "AccessKey" (not "Authorization")
     xhr.setRequestHeader("AccessKey", accessKey);
     
-    // Do NOT set Content-Type - let the browser set it automatically
-    // Bunny CDN will handle the file content type automatically
-    // Do NOT set any other headers unless explicitly required by Bunny CDN
+    // Set Content-Type to application/octet-stream to ensure Bunny recognizes the upload
+    // Without this header, Bunny may accept the file but won't trigger encoding process
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
     
     // Log upload details for debugging
     const urlObj = new URL(url);
@@ -1185,6 +1186,7 @@ export async function uploadVideoToBunny(
       fileType: file.type,
       originalAuthHeader: authHeader.substring(0, 25) + "...",
       extractedAccessKey: accessKey.substring(0, 10) + "...",
+      contentType: "application/octet-stream",
     });
     
     xhr.send(file);
@@ -1214,8 +1216,20 @@ export async function getAllVideos(): Promise<VideosResponse> {
 }
 
 // Admin function to sync all video statuses
-export async function syncAllVideoStatuses(): Promise<{ message: string; updated: number }> {
-  return request<{ message: string; updated: number }>("/api/admin/videos/sync-all-statuses", {
+export async function syncAllVideoStatuses(): Promise<{ 
+  message: string; 
+  updated: number; 
+  deleted: number; 
+  errors: string[]; 
+  total_processed: number;
+}> {
+  return request<{ 
+    message: string; 
+    updated: number; 
+    deleted: number; 
+    errors: string[]; 
+    total_processed: number;
+  }>("/api/admin/videos/sync-all-statuses", {
     method: "POST",
     auth: true,
   });

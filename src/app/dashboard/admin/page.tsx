@@ -256,7 +256,15 @@ export default function AdminPage() {
     setError(null);
     try {
       const result = await syncAllVideoStatuses();
-      console.log(`Синхронизировано статусов: ${result.updated}`);
+      console.log(`Синхронизация завершена:`, {
+        обновлено: result.updated,
+        удалено: result.deleted,
+        обработано: result.total_processed,
+        ошибок: result.errors.length,
+      });
+      if (result.errors.length > 0) {
+        console.warn("Ошибки при синхронизации:", result.errors);
+      }
       // Refresh videos list after sync
       await fetchVideos();
     } catch (err) {

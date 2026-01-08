@@ -57,6 +57,13 @@ export default function CoursesPage() {
 
     try {
       const tokenData = await getVideoWatchToken(video.id);
+      console.log("Video watch token received:", {
+        bunny_video_id: tokenData.bunny_video_id,
+        playback_url: tokenData.playback_url?.substring(0, 100) + "...",
+        playback_url_length: tokenData.playback_url?.length,
+        expiration_time: new Date(tokenData.expiration_time).toISOString(),
+        has_playback_url: !!tokenData.playback_url,
+      });
       setWatchToken(tokenData);
     } catch (err: any) {
       if (err.response?.status === 403) {
@@ -259,13 +266,23 @@ export default function CoursesPage() {
                   </p>
                 </div>
               ) : watchToken ? (
-                <VideoPlayer
-                  bunnyVideoId={watchToken.bunny_video_id}
-                  watchToken={watchToken.watch_token}
-                  expirationTime={watchToken.expiration_time}
-                  onTokenExpired={handleTokenExpired}
-                  className="w-full"
-                />
+                watchToken.playback_url ? (
+                  <VideoPlayer
+                    playbackUrl={watchToken.playback_url}
+                    expirationTime={watchToken.expiration_time}
+                    onTokenExpired={handleTokenExpired}
+                    className="w-full"
+                  />
+                ) : (
+                  <div className="rounded-2xl bg-yellow-50 border border-yellow-200 px-4 py-8 text-center">
+                    <p className="text-sm font-semibold text-yellow-700">
+                      URL для воспроизведения видео не получен от сервера
+                    </p>
+                    <p className="mt-2 text-xs text-yellow-600">
+                      Проверьте, что API возвращает поле playback_url. Получены данные: {JSON.stringify({ bunny_video_id: watchToken.bunny_video_id, has_playback_url: !!watchToken.playback_url })}
+                    </p>
+                  </div>
+                )
               ) : null}
             </div>
           </div>
