@@ -14,6 +14,17 @@ import {
 import { LatexRenderer } from "../../../../components/LatexRenderer";
 import { useTokens } from "../../../../hooks/useTokens";
 
+const TASK_TYPES_OPTIONS = [
+  { id: "multiple_choice", label: "Тест (один/несколько ответов)" },
+  { id: "matching", label: "Соотнесение" },
+  { id: "fill_in_blank", label: "Заполнение пропусков" },
+  { id: "true_false", label: "Истина/Ложь" },
+  { id: "text_open", label: "Открытый вопрос / Задача" },
+  // { id: "practical", label: "Тәжірибелік тапсырма (Практическая)" },
+  // { id: "creative", label: "Шығармашылық тапсырма (Творческая)" },
+  // { id: "critical", label: "Сыни ойлау (Критическое мышление)" },
+];
+
 export default function ExamPage() {
   const t = useTranslations();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
@@ -29,6 +40,13 @@ export default function ExamPage() {
     learning_objectives: [""],
     total_score: 20,
     lang: "rus",
+    // New fields
+    quarter: 1,
+    ktp_topic: "",
+    task_count: 5,
+    complexity: "medium",
+    allowed_task_types: [], // Empty means "all allowed" by default logic in backend, or we can pre-fill
+    special_instructions: "",
   });
 
   // Results state
@@ -140,6 +158,17 @@ export default function ExamPage() {
     }
   };
 
+  const toggleTaskType = (typeId: string) => {
+    setForm(prev => {
+      const current = prev.allowed_task_types || [];
+      if (current.includes(typeId)) {
+        return { ...prev, allowed_task_types: current.filter(t => t !== typeId) };
+      } else {
+        return { ...prev, allowed_task_types: [...current, typeId] };
+      }
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-beige to-green-50 p-4 sm:p-6">
       <div className="mx-auto max-w-5xl">
@@ -199,7 +228,7 @@ export default function ExamPage() {
               </div>
             </div>
 
-            {/* Subject, Grade, Topic, Total Score */}
+            {/* Subject, Grade, Topic */}
             <div className="grid gap-6 sm:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -213,23 +242,43 @@ export default function ExamPage() {
                   placeholder={t.exam.form.subject}
                 />
               </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  {t.exam.form.grade}
-                </label>
-                <select
-                  value={form.grade}
-                  onChange={(e) => setForm((prev) => ({ ...prev, grade: e.target.value }))}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
-                >
-                  <option value="">--</option>
-                  {[...Array(12)].map((_, i) => (
-                    <option key={i} value={String(i + 1)}>
-                      {i + 1}
-                    </option>
-                  ))}
-                </select>
+              
+              <div className="grid grid-cols-2 gap-3">
+                 <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      {t.exam.form.grade}
+                    </label>
+                    <select
+                      value={form.grade}
+                      onChange={(e) => setForm((prev) => ({ ...prev, grade: e.target.value }))}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                    >
+                      <option value="">--</option>
+                      {[...Array(12)].map((_, i) => (
+                        <option key={i} value={String(i + 1)}>
+                          {i + 1}
+                        </option>
+                      ))}
+                    </select>
+                 </div>
+                 <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Тоқсан
+                    </label>
+                    <select
+                      value={form.quarter || 1}
+                      onChange={(e) => setForm((prev) => ({ ...prev, quarter: parseInt(e.target.value) }))}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                    >
+                      {[1, 2, 3, 4].map((q) => (
+                        <option key={q} value={q}>
+                          {q} тоқсан
+                        </option>
+                      ))}
+                    </select>
+                 </div>
               </div>
+
               <div className="sm:col-span-2">
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.exam.form.topic}
@@ -242,20 +291,93 @@ export default function ExamPage() {
                   placeholder={t.exam.form.topic}
                 />
               </div>
-              <div className="sm:col-span-2">
+              
+               <div className="sm:col-span-2">
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  {t.exam.form.totalScore}
+                  КТЖ тақырыбы (міндетті емес)
                 </label>
                 <input
-                  type="number"
-                  value={form.total_score}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, total_score: parseInt(e.target.value) || 0 }))
-                  }
+                  type="text"
+                  value={form.ktp_topic || ""}
+                  onChange={(e) => setForm((prev) => ({ ...prev, ktp_topic: e.target.value }))}
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
-                  min="1"
+                  placeholder="Мысалы: Квадрат теңдеулер"
                 />
               </div>
+
+            </div>
+
+            {/* Task Parameters */}
+            <div className="rounded-2xl bg-slate-50 p-5 border border-slate-200">
+                <h3 className="mb-4 text-base font-bold text-slate-800">Параметры заданий</h3>
+                <div className="grid gap-6 sm:grid-cols-3">
+                   <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Тапсырмалар саны
+                    </label>
+                    <input
+                      type="number"
+                      value={form.task_count || 5}
+                      onChange={(e) => setForm((prev) => ({ ...prev, task_count: parseInt(e.target.value) || 5 }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none"
+                      min="1"
+                      max="20"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Күрделілік
+                    </label>
+                    <select
+                      value={form.complexity || "medium"}
+                      onChange={(e) => setForm((prev) => ({ ...prev, complexity: e.target.value as any }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none"
+                    >
+                      <option value="low">⭐ Оңай</option>
+                      <option value="medium">⭐⭐ Орташа</option>
+                      <option value="high">⭐⭐⭐ Қиын</option>
+                    </select>
+                  </div>
+
+                   <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      {t.exam.form.totalScore}
+                    </label>
+                    <input
+                      type="number"
+                      value={form.total_score}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, total_score: parseInt(e.target.value) || 0 }))
+                      }
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none"
+                      min="1"
+                    />
+                  </div>
+                </div>
+            </div>
+
+            {/* Task Types */}
+            <div>
+               <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Тапсырма түрлері (бос қалдырсаңыз - автоматты түрде таңдалады)
+               </label>
+               <div className="flex flex-wrap gap-2">
+                 {TASK_TYPES_OPTIONS.map((type) => (
+                    <button
+                       key={type.id}
+                       type="button"
+                       onClick={() => toggleTaskType(type.id)}
+                       className={`rounded-full px-4 py-2 text-xs font-medium transition-all ${
+                          (form.allowed_task_types || []).includes(type.id)
+                             ? "bg-[color:var(--primary)] text-white shadow-md"
+                             : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                       }`}
+                    >
+                       {type.label}
+                    </button>
+                 ))}
+               </div>
             </div>
 
             {/* Learning Objectives */}
@@ -292,6 +414,20 @@ export default function ExamPage() {
                   + {t.exam.form.addObjective}
                 </button>
               </div>
+            </div>
+
+            {/* Special Instructions */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Арнайы нұсқаулар (міндетті емес)
+              </label>
+              <textarea
+                value={form.special_instructions || ""}
+                onChange={(e) => setForm((prev) => ({ ...prev, special_instructions: e.target.value }))}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                placeholder="Мысалы: График салатын тапсырманы қос..."
+                rows={3}
+              />
             </div>
 
             {/* Language */}
@@ -474,7 +610,8 @@ function TaskCard({ task, index, t, onScoreChange, onDescriptorChange }: TaskCar
     matching: t.exam.widgets.matching,
     true_false: t.exam.widgets.trueFalse,
     text_open: t.exam.widgets.textOpen,
-  }[task.widget_type];
+    fill_in_blank: "Заполнение пропусков",
+  }[task.widget_type] || task.widget_type;
 
   return (
     <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md">
@@ -613,6 +750,33 @@ function TaskContent({ task, t }: TaskContentProps) {
           </div>
         )}
         <div className="mt-2 text-sm italic text-slate-600">Верно / Неверно</div>
+      </>
+    );
+  }
+  
+  if (widget_type === "fill_in_blank") {
+    const parts = content.text_with_gaps?.split("[gap]") || [];
+    return (
+      <>
+        <div className="font-semibold text-slate-700">Заполните пропуски:</div>
+        <div className="mt-2 leading-loose">
+           {parts.map((part, i) => (
+              <span key={i}>
+                <LatexRenderer text={part} />
+                {i < parts.length - 1 && (
+                  <span className="mx-1 inline-block w-24 border-b-2 border-slate-300 bg-slate-50 text-center font-medium text-slate-800">
+                    &nbsp;
+                  </span>
+                )}
+              </span>
+           ))}
+        </div>
+        {content.correct_answers && (
+           <div className="mt-4 text-sm text-green-700">
+              <span className="font-bold">Ответы: </span>
+              {content.correct_answers.join(", ")}
+           </div>
+        )}
       </>
     );
   }

@@ -156,6 +156,7 @@ type Translations = {
       refresh: string;
       syncStatuses: string;
       syncing: string;
+      selectThumbnail: string;
     };
   };
   videos: {
@@ -169,6 +170,45 @@ type Translations = {
     subscriptionRequiredMessage: string;
     loading: string;
     error: string;
+  };
+  atZharys: {
+    setup: {
+      title: string;
+      subtitle: string;
+      topic: string;
+      topicPlaceholder: string;
+      grade: string;
+      gradePlaceholder: string;
+      additionalInfo: string;
+      additionalInfoPlaceholder: string;
+      teamsCount: string;
+      victoryCondition: string;
+      victoryConditionDescription: string;
+      questionsCount: string;
+      language: string;
+      generate: string;
+      generating: string;
+      cost: string;
+    };
+    game: {
+      blocked: string;
+      questionsEnded: string;
+      progress: string;
+      finish: string;
+    };
+    victory: {
+      title: string;
+      winner: string;
+      playAgain: string;
+      goToLibrary: string;
+    };
+    errors: {
+      required: string;
+      insufficientTokens: string;
+      invalidData: string;
+      generationError: string;
+      auth: string;
+    };
   };
   kmzh: {
     title: string;
@@ -932,6 +972,7 @@ export const translations: Record<Language, Translations> = {
         refresh: "Обновить",
         syncStatuses: "Синхронизировать статусы",
         syncing: "Синхронизация...",
+        selectThumbnail: "Выберите обложку (необязательно)",
       },
     },
     videos: {
@@ -945,6 +986,45 @@ export const translations: Record<Language, Translations> = {
       subscriptionRequiredMessage: "Для просмотра видео необходима активная подписка. Обратитесь к администратору для оформления подписки.",
       loading: "Загрузка...",
       error: "Ошибка",
+    },
+    atZharys: {
+      setup: {
+        title: "Ат Жарыс",
+        subtitle: "Интерактивная игра-викторина",
+        topic: "Тема урока",
+        topicPlaceholder: "Биография Абая Кунанбаева",
+        grade: "Класс",
+        gradePlaceholder: "7 класс",
+        additionalInfo: "Дополнительная информация",
+        additionalInfoPlaceholder: "Упор на 'Слова назидания'",
+        teamsCount: "Количество команд",
+        victoryCondition: "Условие победы",
+        victoryConditionDescription: "Сколько правильных ответов нужно для финиша?",
+        questionsCount: "Количество вопросов",
+        language: "Язык",
+        generate: "Сгенерировать игру",
+        generating: "Генерация...",
+        cost: "Стоимость: 10 токенов",
+      },
+      game: {
+        blocked: "Заблокировано",
+        questionsEnded: "Вопросы закончились",
+        progress: "Прогресс",
+        finish: "Финиш!",
+      },
+      victory: {
+        title: "Победа!",
+        winner: "Победитель:",
+        playAgain: "Играть заново",
+        goToLibrary: "В библиотеку",
+      },
+      errors: {
+        required: "Заполните все обязательные поля",
+        insufficientTokens: "Недостаточно токенов. Нужно 10 токенов.",
+        invalidData: "Невалидные данные",
+        generationError: "Ошибка генерации игры",
+        auth: "Авторизуйтесь для создания игры",
+      },
     },
     kmzh: {
       title: "Генерация КМЖ",
@@ -1710,6 +1790,7 @@ export const translations: Record<Language, Translations> = {
         refresh: "Жаңарту",
         syncStatuses: "Мәртебелерді синхрондау",
         syncing: "Синхрондау...",
+        selectThumbnail: "Қаптаманы таңдаңыз (міндетті емес)",
       },
     },
     videos: {
@@ -1723,6 +1804,45 @@ export const translations: Record<Language, Translations> = {
       subscriptionRequiredMessage: "Бейнелерді көру үшін белсенді жазылым қажет. Жазылымды рәсімдеу үшін әкімшіге хабарласыңыз.",
       loading: "Жүктелуде...",
       error: "Қате",
+    },
+    atZharys: {
+      setup: {
+        title: "Ат Жарыс",
+        subtitle: "Интерактивті викторина ойыны",
+        topic: "Сабақ тақырыбы",
+        topicPlaceholder: "Абай Құнанбаевтың өмірбаяны",
+        grade: "Сынып",
+        gradePlaceholder: "7 сынып",
+        additionalInfo: "Қосымша ақпарат",
+        additionalInfoPlaceholder: "'Қара сөздер' бөліміне назар аудару",
+        teamsCount: "Командалар саны",
+        victoryCondition: "Жеңіс шарты",
+        victoryConditionDescription: "Финишке жету үшін қанша дұрыс жауап керек?",
+        questionsCount: "Сұрақтар саны",
+        language: "Тіл",
+        generate: "Ойынды генерациялау",
+        generating: "Генерациялау...",
+        cost: "Бағасы: 10 токен",
+      },
+      game: {
+        blocked: "Бұғатталған",
+        questionsEnded: "Сұрақтар аяқталды",
+        progress: "Прогресс",
+        finish: "Финиш!",
+      },
+      victory: {
+        title: "Жеңіс!",
+        winner: "Жеңімпаз:",
+        playAgain: "Қайта ойнау",
+        goToLibrary: "Кітапханаға",
+      },
+      errors: {
+        required: "Барлық міндетті өрістерді толтырыңыз",
+        insufficientTokens: "Токендер жеткіліксіз. 10 токен қажет.",
+        invalidData: "Жарамсыз деректер",
+        generationError: "Ойын генерациялау қатесі",
+        auth: "Ойын жасау үшін авторизациядан өтіңіз",
+      },
     },
     kmzh: {
       title: "КМЖ генерациясы",

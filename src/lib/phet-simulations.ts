@@ -169,7 +169,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Молекула құрастыру",
     },
     subject: "chemistry",
-    urlPattern: "https://phet.colorado.edu/sims/html/build-a-molecule/latest/build-a-molecule_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/build-a-molecule/latest/build-a-molecule_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/build-a-molecule/latest/build-a-molecule-600.png",
   },
   {
@@ -199,7 +199,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Жүзу қабілеті",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/buoyancy/latest/buoyancy_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/buoyancy/latest/buoyancy_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/buoyancy/latest/buoyancy-600.png",
   },
   {
@@ -209,7 +209,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Жүзу қабілеті: Негіздер",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/buoyancy-basics/latest/buoyancy-basics_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/buoyancy-basics/latest/buoyancy-basics_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/buoyancy-basics/latest/buoyancy-basics-600.png",
   },
   {
@@ -219,7 +219,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Туынды графигі",
     },
     subject: "math",
-    urlPattern: "https://phet.colorado.edu/sims/html/calculus-grapher/latest/calculus-grapher_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/calculus-grapher/latest/calculus-grapher_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/calculus-grapher/latest/calculus-grapher-600.png",
   },
   {
@@ -239,7 +239,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Орталық және өзгергіштік",
     },
     subject: "math",
-    urlPattern: "https://phet.colorado.edu/sims/html/center-and-variability/latest/center-and-variability_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/center-and-variability/latest/center-and-variability_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/center-and-variability/latest/center-and-variability-600.png",
   },
   {
@@ -439,7 +439,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Фарадейдің электромагниттік зертханасы",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/faradays-electromagnetic-lab/latest/faradays-electromagnetic-lab_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/faradays-electromagnetic-lab/latest/faradays-electromagnetic-lab_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/faradays-electromagnetic-lab/latest/faradays-electromagnetic-lab-600.png",
   },
   {
@@ -579,7 +579,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Генератор",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/generator/latest/generator_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/generator/latest/generator_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/generator/latest/generator-600.png",
   },
   {
@@ -599,7 +599,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Геометриялық оптика: Негіздері",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/geometric-optics-basics/latest/geometric-optics-basics_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/geometric-optics-basics/latest/geometric-optics-basics_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/geometric-optics-basics/latest/geometric-optics-basics-600.png",
   },
   {
@@ -669,7 +669,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Парниктік эффект",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/greenhouse-effect/latest/greenhouse-effect_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/greenhouse-effect/latest/greenhouse-effect_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/greenhouse-effect/latest/greenhouse-effect-600.png",
   },
   {
@@ -709,7 +709,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Кеплер заңдары",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/keplers-laws/latest/keplers-laws_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/keplers-laws/latest/keplers-laws_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/keplers-laws/latest/keplers-laws-600.png",
   },
   {
@@ -729,7 +729,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Магнит және компас",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/magnet-and-compass/latest/magnet-and-compass_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/magnet-and-compass/latest/magnet-and-compass_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/magnet-and-compass/latest/magnet-and-compass-600.png",
   },
   {
@@ -739,7 +739,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Магниттер және электромагниттер",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/magnets-and-electromagnets/latest/magnets-and-electromagnets_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/magnets-and-electromagnets/latest/magnets-and-electromagnets_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/magnets-and-electromagnets/latest/magnets-and-electromagnets-600.png",
   },
   {
@@ -779,7 +779,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Орташа мән: Бөліс және теңгер",
     },
     subject: "math",
-    urlPattern: "https://phet.colorado.edu/sims/html/mean-share-and-balance/latest/mean-share-and-balance_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/mean-share-and-balance/latest/mean-share-and-balance_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/mean-share-and-balance/latest/mean-share-and-balance-600.png",
   },
   {
@@ -789,7 +789,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Мембраналық тасымал",
     },
     subject: "biology",
-    urlPattern: "https://phet.colorado.edu/sims/html/membrane-transport/latest/membrane-transport_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/membrane-transport/latest/membrane-transport_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/membrane-transport/latest/membrane-transport-600.png",
   },
   {
@@ -799,7 +799,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Сутегі атомының модельдері",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/models-of-the-hydrogen-atom/latest/models-of-the-hydrogen-atom_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/models-of-the-hydrogen-atom/latest/models-of-the-hydrogen-atom_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/models-of-the-hydrogen-atom/latest/models-of-the-hydrogen-atom-600.png",
   },
   {
@@ -859,7 +859,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Менің Күн жүйем",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/my-solar-system/latest/my-solar-system_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/my-solar-system/latest/my-solar-system_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/my-solar-system/latest/my-solar-system-600.png",
   },
   {
@@ -869,7 +869,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Табиғи сұрыпталу",
     },
     subject: "biology",
-    urlPattern: "https://phet.colorado.edu/sims/html/natural-selection/latest/natural-selection_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/natural-selection/latest/natural-selection_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/natural-selection/latest/natural-selection-600.png",
   },
   {
@@ -889,7 +889,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Сандарды салыстыру",
     },
     subject: "math",
-    urlPattern: "https://phet.colorado.edu/sims/html/number-compare/latest/number-compare_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/number-compare/latest/number-compare_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/number-compare/latest/number-compare-600.png",
   },
   {
@@ -899,7 +899,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Сандық түзу: Қашықтық",
     },
     subject: "math",
-    urlPattern: "https://phet.colorado.edu/sims/html/number-line-distance/latest/number-line-distance_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/number-line-distance/latest/number-line-distance_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/number-line-distance/latest/number-line-distance-600.png",
   },
   {
@@ -929,7 +929,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Жұп сандар",
     },
     subject: "math",
-    urlPattern: "https://phet.colorado.edu/sims/html/number-pairs/latest/number-pairs_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/number-pairs/latest/number-pairs_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/number-pairs/latest/number-pairs-600.png",
   },
   {
@@ -939,7 +939,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Сандармен ойын",
     },
     subject: "math",
-    urlPattern: "https://phet.colorado.edu/sims/html/number-play/latest/number-play_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/number-play/latest/number-play_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/number-play/latest/number-play-600.png",
   },
   {
@@ -999,7 +999,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Снаряд қозғалысы зертханасы: Деректер",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/projectile-data-lab/latest/projectile-data-lab_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/projectile-data-lab/latest/projectile-data-lab_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/projectile-data-lab/latest/projectile-data-lab-600.png",
   },
   {
@@ -1019,7 +1019,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Іріктемелік үлестірімдер (Снаряд)",
     },
     subject: "math",
-    urlPattern: "https://phet.colorado.edu/sims/html/projectile-sampling-distributions/latest/projectile-sampling-distributions_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/projectile-sampling-distributions/latest/projectile-sampling-distributions_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/projectile-sampling-distributions/latest/projectile-sampling-distributions-600.png",
   },
   {
@@ -1039,7 +1039,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Төртбұрыштар",
     },
     subject: "math",
-    urlPattern: "https://phet.colorado.edu/sims/html/quadrilateral/latest/quadrilateral_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/quadrilateral/latest/quadrilateral_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/quadrilateral/latest/quadrilateral-600.png",
   },
   {
@@ -1049,7 +1049,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Кванттық тиын лақтыру",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/quantum-coin-toss/latest/quantum-coin-toss_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/quantum-coin-toss/latest/quantum-coin-toss_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/quantum-coin-toss/latest/quantum-coin-toss-600.png",
   },
   {
@@ -1059,7 +1059,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Кванттық өлшеу",
     },
     subject: "physics",
-    urlPattern: "https://phet.colorado.edu/sims/html/quantum-measurement/latest/quantum-measurement_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/quantum-measurement/latest/quantum-measurement_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/quantum-measurement/latest/quantum-measurement-600.png",
   },
   {
@@ -1069,7 +1069,7 @@ export const PHET_SIMULATIONS: PhetSimulation[] = [
       kk: "Қатынас және пропорция",
     },
     subject: "math",
-    urlPattern: "https://phet.colorado.edu/sims/html/ratio-and-proportion/latest/ratio-and-proportion_{{lang}}.html",
+    urlPattern: "https://phet.colorado.edu/sims/html/ratio-and-proportion/latest/ratio-and-proportion_en.html",
     thumbnail: "https://phet.colorado.edu/sims/html/ratio-and-proportion/latest/ratio-and-proportion-600.png",
   },
   {

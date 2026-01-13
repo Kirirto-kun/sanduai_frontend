@@ -9,6 +9,7 @@ import {
   addSubscriptionToUser,
   uploadVideoToken,
   uploadVideoToBunny,
+  uploadVideoThumbnail,
   getAllVideos,
   syncAllVideoStatuses,
   type AdminUser,
@@ -51,6 +52,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<"users" | "videos">("users");
   const [videoTitle, setVideoTitle] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedThumbnail, setSelectedThumbnail] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedVideos, setUploadedVideos] = useState<Video[]>([]);
@@ -216,9 +218,21 @@ export default function AdminPage() {
         }
       );
 
-      // Step 3: Reset form and refresh videos list
+      // Step 3: Upload custom thumbnail if provided
+      if (selectedThumbnail) {
+        try {
+          await uploadVideoThumbnail(tokenData.video_db_id, selectedThumbnail);
+          console.log("Custom thumbnail uploaded successfully");
+        } catch (thumbnailError) {
+          console.error("Thumbnail upload failed:", thumbnailError);
+          // Don't block the video upload success, just log the error
+        }
+      }
+
+      // Step 4: Reset form and refresh videos list
       setVideoTitle("");
       setSelectedFile(null);
+      setSelectedThumbnail(null);
       setUploadProgress(0);
       fetchVideos();
     } catch (err) {
@@ -705,6 +719,22 @@ export default function AdminPage() {
                   required
                   className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {t.admin?.videos?.selectThumbnail || "Выберите обложку (необязательно)"}
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setSelectedThumbnail(e.target.files?.[0] || null)}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                />
+                {selectedThumbnail && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Выбрано: {selectedThumbnail.name}
+                  </p>
+                )}
               </div>
               {uploading && (
                 <div className="space-y-2">

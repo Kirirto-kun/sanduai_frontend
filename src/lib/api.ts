@@ -175,7 +175,7 @@ export type LessonPlanResponse = {
 export type LessonPlanDocxRequest = LessonPlanResponse;
 
 // Exam (BJB/TJB) types
-export type WidgetType = "multiple_choice" | "matching" | "true_false" | "text_open";
+export type WidgetType = "multiple_choice" | "matching" | "true_false" | "text_open" | "fill_in_blank";
 
 export type TaskGrading = {
   correct_answer: any;
@@ -190,6 +190,8 @@ export type TaskContent = {
   options?: string[];
   pairs?: Array<{ left: string; right: string }>;
   image_placeholder_prompt?: string;
+  text_with_gaps?: string;
+  correct_answers?: string[];
 };
 
 export type ExamTask = {
@@ -207,6 +209,13 @@ export type ExamMeta = {
   total_score: number;
   exam_type: "bjb" | "tjb";
   lang: "kaz" | "rus";
+  // New fields
+  quarter?: number;
+  ktp_topic?: string;
+  task_count?: number;
+  complexity?: "low" | "medium" | "high";
+  allowed_task_types?: string[];
+  special_instructions?: string;
 };
 
 export type ExamGeneratePayload = ExamMeta;
@@ -300,6 +309,27 @@ export type QuizGenerateResponse = {
 export type QuizExportPayload = {
   title: string;
   tasks: QuizTask[];
+};
+
+// At Zharys (Ат Жарыс) game types
+export type GenerateRacePayload = {
+  topic: string;
+  grade: string;
+  additional_info?: string;
+  questions_count: number;
+  language?: "kz" | "ru";
+};
+
+export type RaceQuestion = {
+  id: string;
+  text: string;
+  options: string[]; // Правильный ответ всегда первый
+  correct_answer: string;
+};
+
+export type GenerateRaceResponse = {
+  game_id: string;
+  questions: RaceQuestion[];
 };
 
 // Scientific Project (Ғылыми жоба) types
@@ -1085,6 +1115,12 @@ export type VideoWatchTokenResponse = {
   embed_url: string; // Full URL for iframe embed (ready to use in iframe element)
 };
 
+export type UploadThumbnailResponse = {
+  status: string;
+  thumbnail_url: string;
+  video_id: string;
+};
+
 // Video API functions
 export async function uploadVideoToken(
   payload: UploadVideoTokenPayload,
@@ -1244,3 +1280,223 @@ export async function getVideoWatchToken(
   });
 }
 
+// Admin function to upload custom thumbnail for a video
+export async function uploadVideoThumbnail(
+  videoDbId: string,
+  file: File
+): Promise<UploadThumbnailResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  // НЕ ставим Content-Type, браузер сам поставит multipart/form-data с boundary
+  const res = await fetch(`${getApiBase()}/api/admin/videos/${videoDbId}/thumbnail`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Thumbnail upload failed: ${errorText}`);
+  }
+
+  return res.json();
+}
+
+// At Zharys (Ат Жарыс) game API
+export async function generateRace(
+  payload: GenerateRacePayload,
+): Promise<GenerateRaceResponse> {
+  return request<GenerateRaceResponse>("/api/games/generate-race", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+// ============================================================================
+// Visual Materials API
+// ============================================================================
+
+export type VisualMaterialCategory = {
+  id: string;
+  name: string;
+  name_kk?: string;
+  slug: string;
+  created_at: string;
+};
+
+export type VisualMaterial = {
+  id: string;
+  title: string;
+  url: string;
+  file_size: number;
+  mime_type: string;
+  categories: VisualMaterialCategory[];
+  is_active: boolean;
+  created_at: string;
+};
+
+export type VisualsListResponse = {
+  items: VisualMaterial[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+// Client API - Get visual materials (requires subscription)
+export async function getVisuals(params: {
+  limit?: number;
+  offset?: number;
+  category_id?: string;
+  search?: string;
+}): Promise<VisualsListResponse> {
+  const queryParams = new URLSearchParams();
+  if (params.limit) queryParams.append("limit", params.limit.toString());
+  if (params.offset) queryParams.append("offset", params.offset.toString());
+  if (params.category_id) queryParams.append("category_id", params.category_id);
+  if (params.search) queryParams.append("search", params.search);
+
+  return request<VisualsListResponse>(
+    `/api/visuals?${queryParams.toString()}`,
+    {
+      method: "GET",
+      auth: true,
+    }
+  );
+}
+
+// Client API - Get categories (public)
+export async function getVisualCategories(): Promise<VisualMaterialCategory[]> {
+  return request<VisualMaterialCategory[]>("/api/visuals/categories", {
+    method: "GET",
+    auth: false,
+  });
+}
+
+// Admin API - Upload visual material
+export async function uploadVisualMaterial(
+  file: File,
+  title: string,
+  category_ids: string[]
+): Promise<VisualMaterial> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("title", title);
+  formData.append("category_ids", category_ids.join(","));
+
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${getApiBase()}/api/admin/visuals/upload`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Upload failed: ${errorText}`);
+  }
+
+  return res.json();
+}
+
+// Admin API - Get all visual materials
+export async function getAllVisuals(params: {
+  limit?: number;
+  offset?: number;
+  category_id?: string;
+  search?: string;
+}): Promise<VisualsListResponse> {
+  const queryParams = new URLSearchParams();
+  if (params.limit) queryParams.append("limit", params.limit.toString());
+  if (params.offset) queryParams.append("offset", params.offset.toString());
+  if (params.category_id) queryParams.append("category_id", params.category_id);
+  if (params.search) queryParams.append("search", params.search);
+
+  return request<VisualsListResponse>(
+    `/api/admin/visuals/all?${queryParams.toString()}`,
+    {
+      method: "GET",
+      auth: true,
+    }
+  );
+}
+
+// Admin API - Update visual material
+export async function updateVisualMaterial(
+  id: string,
+  data: {
+    title?: string;
+    category_ids?: string[];
+    is_active?: boolean;
+  }
+): Promise<VisualMaterial> {
+  return request<VisualMaterial>(`/api/admin/visuals/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+    auth: true,
+  });
+}
+
+// Admin API - Delete visual material
+export async function deleteVisualMaterial(id: string): Promise<void> {
+  return request<void>(`/api/admin/visuals/${id}`, {
+    method: "DELETE",
+    auth: true,
+  });
+}
+
+// Admin API - Create category
+export async function createCategory(data: {
+  name: string;
+  name_kk?: string;
+  slug: string;
+}): Promise<VisualMaterialCategory> {
+  return request<VisualMaterialCategory>("/api/admin/visuals/categories", {
+    method: "POST",
+    body: JSON.stringify(data),
+    auth: true,
+  });
+}
+
+// Admin API - Get all categories
+export async function getAllCategories(): Promise<VisualMaterialCategory[]> {
+  return request<VisualMaterialCategory[]>("/api/admin/visuals/categories", {
+    method: "GET",
+    auth: true,
+  });
+}
+
+// Admin API - Update category
+export async function updateCategory(
+  id: string,
+  data: {
+    name?: string;
+    name_kk?: string;
+  }
+): Promise<VisualMaterialCategory> {
+  return request<VisualMaterialCategory>(`/api/admin/visuals/categories/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+    auth: true,
+  });
+}
+
+// Admin API - Delete category
+export async function deleteCategory(id: string): Promise<void> {
+  return request<void>(`/api/admin/visuals/categories/${id}`, {
+    method: "DELETE",
+    auth: true,
+  });
+}

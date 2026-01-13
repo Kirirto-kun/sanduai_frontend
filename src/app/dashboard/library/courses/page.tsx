@@ -1,55 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
-import { getVideos, getVideoWatchToken, type Video, type VideoWatchTokenResponse } from "../../../../lib/api";
-import { formatVideoDuration, isTokenExpired } from "../../../../lib/utils";
+import { useVideos } from "../../../../hooks/useVideos";
+import { getVideoWatchToken, type Video, type VideoWatchTokenResponse } from "../../../../lib/api";
+import { formatVideoDuration } from "../../../../lib/utils";
 import { VideoPlayer } from "../../../../components/VideoPlayer";
+import { VideoCardSkeleton } from "../../../../components/VideoCardSkeleton";
 
 export default function CoursesPage() {
   const t = useTranslations();
   const { hasSubscription, loading: tokensLoading } = useTokens();
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [limit] = useState(12);
   const [offset, setOffset] = useState(0);
+
+  // Use React Query hook for videos with caching
+  const { videos, total, isLoading: videosLoading, error: videosError } = useVideos({ limit, offset });
 
   // Selected video for watching
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [watchToken, setWatchToken] = useState<VideoWatchTokenResponse | null>(null);
   const [loadingToken, setLoadingToken] = useState(false);
   const [tokenError, setTokenError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (hasSubscription !== null) {
-      if (hasSubscription) {
-        fetchVideos();
-      } else {
-        setLoading(false);
-      }
-    }
-  }, [hasSubscription, offset]);
-
-  const fetchVideos = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getVideos(limit, offset);
-      setVideos(data.videos);
-      setTotal(data.total);
-    } catch (err: any) {
-      if (err.message?.includes("403") || err.response?.status === 403) {
-        setError("subscription_required");
-      } else {
-        setError(err.message || "Ошибка загрузки видео");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleWatchVideo = async (video: Video) => {
     setSelectedVideo(video);
@@ -107,8 +80,8 @@ export default function CoursesPage() {
     }
   };
 
-  // Check subscription
-  if (hasSubscription === false) {
+  // Check subscription status (only for display, not for loading videos)
+  if (!tokensLoading && hasSubscription === false) {
     return (
       <div className="glass-card rounded-3xl border border-white/60 px-6 py-12 shadow-md sm:px-8">
         <div className="text-center">
@@ -124,6 +97,11 @@ export default function CoursesPage() {
     );
   }
 
+  // Handle API errors (403 will be handled by subscription check above)
+  const errorMessage = videosError && !videosError.message?.includes("403") 
+    ? videosError.message 
+    : null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -135,18 +113,20 @@ export default function CoursesPage() {
         </p>
       </div>
 
-      {error && error !== "subscription_required" && (
+      {errorMessage && (
         <div className="rounded-2xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          {error}
+          {errorMessage}
         </div>
       )}
 
-      {tokensLoading || loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[color:var(--primary)] border-r-transparent"></div>
-          <p className="mt-2 text-sm text-slate-600">{t.videos?.loading || "Загрузка..."}</p>
+      {videosLoading ? (
+        // Show skeleton cards while loading
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <VideoCardSkeleton key={index} />
+          ))}
         </div>
-      ) : !tokensLoading && !loading && hasSubscription !== null && videos.length === 0 ? (
+      ) : videos.length === 0 ? (
         <div className="glass-card rounded-3xl border border-white/60 px-6 py-12 shadow-md sm:px-8">
           <div className="text-center">
             <p className="text-slate-500">{t.videos?.noVideos || "Видео не найдены"}</p>
@@ -165,6 +145,8 @@ export default function CoursesPage() {
                   <img
                     src={video.thumbnail_url}
                     alt={video.title}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full rounded-xl mb-3 aspect-video object-cover"
                   />
                 ) : (

@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage, useTranslations } from "../../i18n/LanguageContext";
 import { TokenBalance } from "../../components/TokenBalance";
@@ -32,6 +33,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     library: false,
     media: false,
   });
+
+  // Create QueryClient instance for React Query
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 60 * 1000, // 1 minute
+            gcTime: 5 * 60 * 1000, // 5 minutes (previously cacheTime)
+            refetchOnWindowFocus: false,
+            retry: 1,
+          },
+        },
+      })
+  );
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -207,9 +223,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed,_#fdfbf7_40%,_#f5e6d3_80%)]">
-      {/* Sidebar */}
-      <aside
+    <QueryClientProvider client={queryClient}>
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed,_#fdfbf7_40%,_#f5e6d3_80%)]">
+        {/* Sidebar */}
+        <aside
         className={`${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } fixed inset-y-0 left-0 z-30 w-72 transform overflow-y-auto bg-white/95 px-4 py-6 shadow-xl ring-1 ring-slate-200 transition-transform md:translate-x-0`}
@@ -325,5 +342,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <main className="px-4 pb-10 pt-4 md:px-6 lg:px-8">{children}</main>
       </div>
     </div>
+    </QueryClientProvider>
   );
 }
