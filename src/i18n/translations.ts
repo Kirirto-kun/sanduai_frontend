@@ -68,6 +68,8 @@ type Translations = {
       phoneRequired: string;
       invalidPhoneFormat: string;
       stepIndicator: string;
+      termsAgreement: string;
+      termsLink: string;
     };
     profile: {
       title: string;
@@ -730,11 +732,17 @@ type Translations = {
     ctaButton: string;
     emailPlaceholder: string;
     rights: string;
+    termsLink: string;
   };
   common: {
     brand: string;
     ru: string;
     kk: string;
+  };
+  cookieBanner: {
+    message: string;
+    learnMore: string;
+    accept: string;
   };
 };
 
@@ -884,6 +892,8 @@ export const translations: Record<Language, Translations> = {
         phoneRequired: "Телефон обязателен",
         invalidPhoneFormat: "Неверный формат телефона. Используйте международный формат: +7...",
         stepIndicator: "Шаг {current} из {total}",
+        termsAgreement: "Регистрируясь, вы принимаете Пользовательское соглашение",
+        termsLink: "Пользовательское соглашение",
       },
       profile: {
         title: "Личный кабинет",
@@ -1548,11 +1558,17 @@ export const translations: Record<Language, Translations> = {
       ctaButton: "Записаться в список ожидания",
       emailPlaceholder: "Ваш email",
       rights: "Sandu AI. Все права защищены.",
+      termsLink: "Пользовательское соглашение",
     },
     common: {
       brand: "Sandu AI",
       ru: "Русский",
       kk: "Қазақша",
+    },
+    cookieBanner: {
+      message: "Мы используем cookies",
+      learnMore: "Подробнее",
+      accept: "Принять",
     },
   },
   kk: {
@@ -1702,6 +1718,8 @@ export const translations: Record<Language, Translations> = {
         phoneRequired: "Телефон міндетті",
         invalidPhoneFormat: "Телефон форматы қате. Халықаралық форматты қолданыңыз: +7...",
         stepIndicator: "{current}/{total} қадам",
+        termsAgreement: "Тіркелу арқылы сіз Пайдаланушы келісімін қабылдайсыз",
+        termsLink: "Пайдаланушы келісімі",
       },
       profile: {
         title: "Жеке кабинет",
@@ -2366,11 +2384,17 @@ export const translations: Record<Language, Translations> = {
       ctaButton: "Күту тізіміне жазылу",
       emailPlaceholder: "Email",
       rights: "Sandu AI. Барлық құқықтар қорғалған.",
+      termsLink: "Пайдаланушы келісімі",
     },
     common: {
       brand: "Sandu AI",
       ru: "Орысша",
       kk: "Қазақша",
+    },
+    cookieBanner: {
+      message: "Біз cookie қолданамыз",
+      learnMore: "Толығырақ",
+      accept: "Қабылдау",
     },
   },
 };

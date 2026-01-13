@@ -409,6 +409,18 @@ export default function RegisterPage() {
                   </p>
                 )}
 
+                <p className="text-xs text-slate-600">
+                  {t.auth.register.termsAgreement}{" "}
+                  <a
+                    href="/terms-of-service"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-[color:var(--primary)] hover:underline"
+                  >
+                    {t.auth.register.termsLink}
+                  </a>
+                </p>
+
                 <button
                   type="submit"
                   disabled={loading}

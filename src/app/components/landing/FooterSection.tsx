@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "../../../i18n/LanguageContext";
 
 export function FooterSection() {
@@ -57,6 +58,12 @@ export function FooterSection() {
         )}
         <div className="flex flex-col justify-between gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500 sm:flex-row sm:items-center">
           <span>{t.footer.rights}</span>
+          <Link
+            href="/terms-of-service"
+            className="font-medium text-[color:var(--primary)] hover:underline"
+          >
+            {t.footer.termsLink}
+          </Link>
         </div>
       </div>
     </footer>

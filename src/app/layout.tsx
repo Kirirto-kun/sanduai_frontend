@@ -3,6 +3,7 @@ import { Outfit } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "../i18n/LanguageContext";
 import { AuthProvider } from "../contexts/AuthContext";
+import { CookieBanner } from "../components/CookieBanner";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -23,7 +24,10 @@ export default function RootLayout({
     <html lang="ru">
       <body className={`${outfit.variable} antialiased`}>
         <AuthProvider>
-          <LanguageProvider>{children}</LanguageProvider>
+          <LanguageProvider>
+            {children}
+            <CookieBanner />
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>
