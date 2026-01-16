@@ -160,6 +160,11 @@ type Translations = {
       syncing: string;
       selectThumbnail: string;
     };
+    visuals: {
+      title: string;
+      subtitle: string;
+      goToPage: string;
+    };
   };
   videos: {
     title: string;
@@ -983,6 +988,11 @@ export const translations: Record<Language, Translations> = {
         syncStatuses: "Синхронизировать статусы",
         syncing: "Синхронизация...",
         selectThumbnail: "Выберите обложку (необязательно)",
+      },
+      visuals: {
+        title: "Визуальные материалы",
+        subtitle: "Управление визуальными материалами и категориями",
+        goToPage: "Перейти к управлению",
       },
     },
     videos: {
@@ -1809,6 +1819,11 @@ export const translations: Record<Language, Translations> = {
         syncStatuses: "Мәртебелерді синхрондау",
         syncing: "Синхрондау...",
         selectThumbnail: "Қаптаманы таңдаңыз (міндетті емес)",
+      },
+      visuals: {
+        title: "Көрнекі материалдар",
+        subtitle: "Көрнекі материалдар мен категорияларды басқару",
+        goToPage: "Басқаруға өту",
       },
     },
     videos: {

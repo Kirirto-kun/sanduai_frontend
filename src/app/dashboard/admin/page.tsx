@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "../../../i18n/LanguageContext";
+import { useAuth } from "../../../contexts/AuthContext";
 import {
   getAdminUsers,
   addTokensToUser,
@@ -23,6 +25,8 @@ import { formatSubscriptionDate } from "../../../lib/utils";
 
 export default function AdminPage() {
   const t = useTranslations();
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -49,7 +53,7 @@ export default function AdminPage() {
   const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   // Video upload state
-  const [activeTab, setActiveTab] = useState<"users" | "videos">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "videos" | "visuals">("users");
   const [videoTitle, setVideoTitle] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedThumbnail, setSelectedThumbnail] = useState<File | null>(null);
@@ -59,9 +63,18 @@ export default function AdminPage() {
   const [loadingVideos, setLoadingVideos] = useState(false);
   const [syncingStatuses, setSyncingStatuses] = useState(false);
 
+  // Redirect non-admin users
   useEffect(() => {
-    fetchUsers();
-  }, [offset]);
+    if (!authLoading && (!user || user.role !== "admin")) {
+      router.replace("/dashboard");
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      fetchUsers();
+    }
+  }, [offset, user]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -300,6 +313,18 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  // Show loading or nothing while checking auth
+  if (authLoading || !user || user.role !== "admin") {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[color:var(--primary)] border-r-transparent"></div>
+          <p className="text-sm font-semibold text-slate-700">Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -334,6 +359,17 @@ export default function AdminPage() {
           }`}
         >
           {t.admin?.videos?.title || "Видео"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("visuals")}
+          className={`px-4 py-2 text-sm font-semibold transition ${
+            activeTab === "visuals"
+              ? "text-[color:var(--primary)] border-b-2 border-[color:var(--primary)]"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          {t.admin?.visuals?.title || "Визуальные материалы"}
         </button>
       </div>
 
@@ -865,6 +901,28 @@ export default function AdminPage() {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Visuals Tab Content */}
+      {activeTab === "visuals" && (
+        <div className="space-y-6">
+          <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
+            <div className="text-center space-y-4">
+              <h2 className="text-xl font-semibold text-slate-900">
+                {t.admin?.visuals?.title || "Визуальные материалы"}
+              </h2>
+              <p className="text-sm text-slate-600">
+                {t.admin?.visuals?.subtitle || "Управление визуальными материалами и категориями"}
+              </p>
+              <a
+                href="/dashboard/admin/visuals"
+                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30"
+              >
+                {t.admin?.visuals?.goToPage || "Перейти к управлению"}
+              </a>
+            </div>
           </div>
         </div>
       )}

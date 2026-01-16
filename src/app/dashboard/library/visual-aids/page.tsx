@@ -222,9 +222,7 @@ export default function VisualAidsPage() {
             </div>
           )}
         </>
-      )}
-
-      {/* Material viewing modal */}
+      )}      {/* Material viewing modal */}
       {selectedMaterial && (
         <VisualMaterialModal
           material={selectedMaterial}

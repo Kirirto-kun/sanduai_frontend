@@ -21,7 +21,7 @@ type NavGroup = {
 };
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { isAuthenticated, loading, logout } = useAuth();
+  const { isAuthenticated, loading, logout, user } = useAuth();
   const { language, setLanguage } = useLanguage();
   const t = useTranslations();
   const router = useRouter();
@@ -208,17 +208,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       >
         <span>{t.dashboard.menu.settings}</span>
       </Link>
-      <Link
-        href="/dashboard/admin"
-        onClick={onNavigate}
-        className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition ${
-          pathname === "/dashboard/admin"
-            ? "bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] text-white shadow"
-            : "text-slate-700 hover:bg-white/80 hover:text-slate-900"
-        }`}
-      >
-        <span>{t.dashboard.menu.admin || "Админ панель"}</span>
-      </Link>
+      {user?.role === "admin" && (
+        <Link
+          href="/dashboard/admin"
+          onClick={onNavigate}
+          className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition ${
+            pathname === "/dashboard/admin"
+              ? "bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] text-white shadow"
+              : "text-slate-700 hover:bg-white/80 hover:text-slate-900"
+          }`}
+        >
+          <span>{t.dashboard.menu.admin || "Админ панель"}</span>
+        </Link>
+      )}
     </nav>
   );
 

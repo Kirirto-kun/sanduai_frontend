@@ -924,6 +924,25 @@ export function clearToken() {
   deleteCookie(TOKEN_KEY);
 }
 
+// JWT token decoding
+export function decodeJWT(token: string): { sub?: string; role?: string; exp?: number } | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    
+    // Decode base64url payload (second part)
+    const payload = parts[1];
+    // Replace base64url characters
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    // Add padding if needed
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const decoded = atob(padded);
+    return JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+}
+
 // User data management
 const USER_KEY = "sanduai_user";
 
@@ -932,10 +951,21 @@ export type UserData = {
   phone?: string;
   email?: string;
   fullName?: string;
+  role?: string;
 };
 
 export function saveUser(userData: UserData) {
   if (typeof window === "undefined") return;
+  // Extract role from token if not provided
+  if (!userData.role) {
+    const token = getToken();
+    if (token) {
+      const decoded = decodeJWT(token);
+      if (decoded?.role) {
+        userData.role = decoded.role;
+      }
+    }
+  }
   window.localStorage.setItem(USER_KEY, JSON.stringify(userData));
 }
 

@@ -12,6 +12,7 @@ import {
   AuthResponse,
   clearToken,
   clearUser,
+  decodeJWT,
   getToken,
   getUser,
   login as apiLogin,
@@ -26,6 +27,7 @@ type User = {
   phone?: string;
   email?: string;
   fullName?: string;
+  role?: string;
 };
 
 type AuthContextValue = {
@@ -61,6 +63,14 @@ export function AuthProvider({ children }: ProviderProps) {
     if (token) {
       const userData = getUser();
       if (userData) {
+        // Ensure role is set from token if not in userData
+        if (!userData.role) {
+          const decoded = decodeJWT(token);
+          if (decoded?.role) {
+            userData.role = decoded.role;
+            saveUser(userData);
+          }
+        }
         setUser(userData);
       }
     }
@@ -72,11 +82,14 @@ export function AuthProvider({ children }: ProviderProps) {
     extra?: { phone?: string; email?: string; full_name?: string },
   ) => {
     saveToken(data.token);
+    // Decode role from token
+    const decoded = decodeJWT(data.token);
     const userData: UserData = {
       userId: data.user_id,
       phone: extra?.phone,
       email: extra?.email,
       fullName: extra?.full_name,
+      role: decoded?.role,
     };
     saveUser(userData);
     setUser(userData);
