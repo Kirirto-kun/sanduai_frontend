@@ -12,6 +12,13 @@ type Feature = {
   description: string;
 };
 
+type MaterialItem = {
+  title: string;
+  description: string;
+  url: string;
+  image: string;
+};
+
 type Step = {
   title: string;
   items: string[];
@@ -111,6 +118,7 @@ type Translations = {
     usersList: string;
     noUsers: string;
     email: string;
+    phone: string;
     fullName: string;
     role: string;
     balance: string;
@@ -139,6 +147,7 @@ type Translations = {
     subscriptionInactive: string;
     subscriptionEnd: string;
     subscriptionPlan: string;
+    searchPlaceholder: string;
     videos: {
       title: string;
       uploadVideo: string;
@@ -1813,6 +1822,7 @@ export const translations: Record<Language, Translations> = {
       usersList: "Пайдаланушылар тізімі",
       noUsers: "Пайдаланушылар табылмады",
       email: "Email",
+      phone: "Телефон",
       fullName: "Аты-жөні",
       role: "Рөлі",
       balance: "Баланс",
@@ -1839,6 +1849,7 @@ export const translations: Record<Language, Translations> = {
       subscriptionDaysPlaceholder: "30",
       subscriptionActive: "Белсенді",
       subscriptionInactive: "Белсенді емес",
+      searchPlaceholder: "Email немесе телефон нөмірі бойынша іздеу...",
       subscriptionEnd: "Аяқталуы",
       subscriptionPlan: "Түрі",
       videos: {

@@ -52,7 +52,7 @@ export function HeroSection() {
             </div>
             <Link
               href={isAuthenticated ? "/dashboard" : "/login"}
-              className="hidden items-center gap-2 rounded-full bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 sm:inline-flex"
+              className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 sm:gap-2 sm:px-3.5 sm:py-2"
             >
               {isAuthenticated ? "Dashboard" : "Войти"}
             </Link>

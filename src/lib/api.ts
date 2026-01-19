@@ -1018,6 +1018,7 @@ export async function getTokenTransactions(
 export type AdminUser = {
   user_id: string;
   email: string;
+  phone: string | null;
   full_name: string;
   role: string;
   balance: number;
@@ -1059,11 +1060,15 @@ export type AddSubscriptionResponse = {
 export async function getAdminUsers(
   limit: number = 50,
   offset: number = 0,
+  search?: string,
 ): Promise<AdminUsersResponse> {
   const params = new URLSearchParams({
     limit: limit.toString(),
     offset: offset.toString(),
   });
+  if (search && search.trim()) {
+    params.append("search", search.trim());
+  }
   return request<AdminUsersResponse>(`/api/admin/users?${params}`, {
     method: "GET",
     auth: true,

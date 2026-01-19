@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, FormEvent, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "../../../i18n/LanguageContext";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -33,6 +33,8 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [limit] = useState(50);
   const [offset, setOffset] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Selected user for adding tokens
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
@@ -70,17 +72,31 @@ export default function AdminPage() {
     }
   }, [user, authLoading, router]);
 
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Reset offset when search changes
+  useEffect(() => {
+    setOffset(0);
+  }, [debouncedSearch]);
+
   useEffect(() => {
     if (user?.role === "admin") {
       fetchUsers();
     }
-  }, [offset, user]);
+  }, [offset, debouncedSearch, user]);
 
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getAdminUsers(limit, offset);
+      const data = await getAdminUsers(limit, offset, debouncedSearch || undefined);
       setUsers(data.users);
       setTotal(data.total);
     } catch (err) {
@@ -393,6 +409,17 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* Search Input */}
+        <div className="mb-4">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t.admin?.searchPlaceholder || "Поиск по email или номеру телефона..."}
+            className="w-full px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)] focus:border-transparent"
+          />
+        </div>
+
         {loading ? (
           <div className="text-center py-8">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[color:var(--primary)] border-r-transparent"></div>
@@ -409,6 +436,9 @@ export default function AdminPage() {
                 <tr className="border-b border-slate-200">
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
                     {t.admin?.email || "Email"}
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
+                    {t.admin?.phone || "Телефон"}
                   </th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
                     {t.admin?.fullName || "Имя"}
@@ -434,6 +464,7 @@ export default function AdminPage() {
                 {users.map((user) => (
                   <tr key={user.user_id} className="border-b border-slate-100">
                     <td className="py-3 px-4 text-sm text-slate-900">{user.email}</td>
+                    <td className="py-3 px-4 text-sm text-slate-900">{user.phone || "—"}</td>
                     <td className="py-3 px-4 text-sm text-slate-900">{user.full_name || "—"}</td>
                     <td className="py-3 px-4 text-sm text-slate-600">{user.role}</td>
                     <td className="py-3 px-4 text-sm font-semibold text-[color:var(--primary)]">
