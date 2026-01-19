@@ -41,6 +41,11 @@ type Translations = {
     subtitle: string;
     items: Feature[];
   };
+  materialsSection: {
+    title: string;
+    subtitle: string;
+    items: MaterialItem[];
+  };
   benefitsSection: {
     title: string;
     subtitle: string;
@@ -888,6 +893,66 @@ export const translations: Record<Language, Translations> = {
         },
       ],
     },
+    materialsSection: {
+      title: "Полезные материалы для учителей",
+      subtitle: "AI инструменты и ресурсы для повышения эффективности преподавания.",
+      items: [
+        {
+          title: "EduAide.ai",
+          description: "AI платформа для создания учебных материалов и планов уроков.",
+          url: "https://www.eduaide.ai/",
+          image: "/materials_section/eduaide_ai.png",
+        },
+        {
+          title: "MagicSchool.ai",
+          description: "Безопасная AI платформа для школ с инструментами для учителей и учеников.",
+          url: "https://www.magicschool.ai/",
+          image: "/materials_section/magic_school.png",
+        },
+        {
+          title: "Canva AI",
+          description: "Создание визуального контента с помощью искусственного интеллекта.",
+          url: "https://www.canva.com/ai",
+          image: "/materials_section/canva.png",
+        },
+        {
+          title: "Мұғалім Talks 2025",
+          description: "Конференция для учителей с обсуждением современных образовательных технологий.",
+          url: "https://www.youtube.com/watch?v=iZQ9uOLTiW8",
+          image: "/materials_section/Teacher_Talks_2025.png",
+        },
+        {
+          title: "ChatGPT",
+          description: "Универсальный AI помощник для создания контента и ответов на вопросы.",
+          url: "https://chatgpt.com/",
+          image: "/materials_section/chat_gpt.jpeg",
+        },
+        {
+          title: "Grammarly",
+          description: "AI инструмент для проверки грамматики и улучшения письма.",
+          url: "https://www.grammarly.com/",
+          image: "/materials_section/grammarly.png",
+        },
+        {
+          title: "Мұғалім Talks 2024",
+          description: "Запись конференции для учителей с полезными материалами и обсуждениями.",
+          url: "https://www.youtube.com/watch?v=OEF4GiBGh_A&t=191s",
+          image: "/materials_section/Teacher_Talks_2024.jpg",
+        },
+        {
+          title: "Bing Image Creator",
+          description: "Создание изображений с помощью искусственного интеллекта.",
+          url: "https://www.bing.com/images/create",
+          image: "/materials_section/bing_image.png",
+        },
+        {
+          title: "Synthesia",
+          description: "Создание видео с AI аватарами для образовательных целей.",
+          url: "https://www.synthesia.io/",
+          image: "/materials_section/video_ai.png",
+        },
+      ],
+    },
     benefitsSection: {
       title: "Для кого Sandu AI",
       subtitle: "Платформа создаётся в первую очередь для практикующих учителей.",
@@ -970,6 +1035,7 @@ export const translations: Record<Language, Translations> = {
       usersList: "Список пользователей",
       noUsers: "Пользователи не найдены",
       email: "Email",
+      phone: "Телефон",
       fullName: "Имя",
       role: "Роль",
       balance: "Баланс",
@@ -998,6 +1064,7 @@ export const translations: Record<Language, Translations> = {
       subscriptionInactive: "Неактивна",
       subscriptionEnd: "Окончание",
       subscriptionPlan: "Тип",
+      searchPlaceholder: "Поиск по email или номеру телефона...",
       videos: {
         title: "Видео",
         uploadVideo: "Загрузить видео",
@@ -1739,6 +1806,66 @@ export const translations: Record<Language, Translations> = {
         },
       ],
     },
+    materialsSection: {
+      title: "Мұғалімге арналған пайдалы материалдар",
+      subtitle: "Оқыту тиімділігін арттыруға арналған AI құралдары мен ресурстар.",
+      items: [
+        {
+          title: "EduAide.ai",
+          description: "Оқу материалдары мен сабақ жоспарларын жасауға арналған AI платформасы.",
+          url: "https://www.eduaide.ai/",
+          image: "/materials_section/eduaide_ai.png",
+        },
+        {
+          title: "MagicSchool.ai",
+          description: "Мұғалімдер мен оқушыларға арналған құралдары бар мектептерге арналған қауіпсіз AI платформасы.",
+          url: "https://www.magicschool.ai/",
+          image: "/materials_section/magic_school.png",
+        },
+        {
+          title: "Canva AI",
+          description: "Жасанды интеллект көмегімен визуалды контент жасау.",
+          url: "https://www.canva.com/ai",
+          image: "/materials_section/canva.png",
+        },
+        {
+          title: "Мұғалім Talks 2025",
+          description: "Заманауи білім беру технологияларын талқылауға арналған мұғалімдер конференциясы.",
+          url: "https://www.youtube.com/watch?v=iZQ9uOLTiW8",
+          image: "/materials_section/Teacher_Talks_2025.png",
+        },
+        {
+          title: "ChatGPT",
+          description: "Контент жасау және сұрақтарға жауап беруге арналған универсалды AI көмекшісі.",
+          url: "https://chatgpt.com/",
+          image: "/materials_section/chat_gpt.jpeg",
+        },
+        {
+          title: "Grammarly",
+          description: "Грамматиканы тексеру және жазуды жақсартуға арналған AI құралы.",
+          url: "https://www.grammarly.com/",
+          image: "/materials_section/grammarly.png",
+        },
+        {
+          title: "Мұғалім Talks 2024",
+          description: "Пайдалы материалдар мен талқылаулармен мұғалімдер конференциясының жазбасы.",
+          url: "https://www.youtube.com/watch?v=OEF4GiBGh_A&t=191s",
+          image: "/materials_section/Teacher_Talks_2024.jpg",
+        },
+        {
+          title: "Bing Image Creator",
+          description: "Жасанды интеллект көмегімен суреттер жасау.",
+          url: "https://www.bing.com/images/create",
+          image: "/materials_section/bing_image.png",
+        },
+        {
+          title: "Synthesia",
+          description: "Білім беру мақсатында AI аватарлармен бейнелер жасау.",
+          url: "https://www.synthesia.io/",
+          image: "/materials_section/video_ai.png",
+        },
+      ],
+    },
     benefitsSection: {
       title: "Sandu AI кімге арналған",
       subtitle:
@@ -1849,9 +1976,9 @@ export const translations: Record<Language, Translations> = {
       subscriptionDaysPlaceholder: "30",
       subscriptionActive: "Белсенді",
       subscriptionInactive: "Белсенді емес",
-      searchPlaceholder: "Email немесе телефон нөмірі бойынша іздеу...",
       subscriptionEnd: "Аяқталуы",
       subscriptionPlan: "Түрі",
+      searchPlaceholder: "Email немесе телефон нөмірі бойынша іздеу...",
       videos: {
         title: "Бейнелер",
         uploadVideo: "Бейне жүктеу",

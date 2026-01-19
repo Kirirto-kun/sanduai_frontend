@@ -13,6 +13,7 @@ import { HeroSection } from "./components/landing/HeroSection";
 import { FeaturesSection } from "./components/landing/FeaturesSection";
 import { LibrarySection } from "./components/landing/LibrarySection";
 import { MediaSection } from "./components/landing/MediaSection";
+import { MaterialsSection } from "./components/landing/MaterialsSection";
 import { BenefitsSection } from "./components/landing/BenefitsSection";
 import { FooterSection } from "./components/landing/FooterSection";
 
@@ -23,6 +24,7 @@ function LandingPage() {
       <FeaturesSection />
       <LibrarySection />
       <MediaSection />
+      <MaterialsSection />
       <BenefitsSection />
       <FooterSection />
     </>
