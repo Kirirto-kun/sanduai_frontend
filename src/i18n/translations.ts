@@ -267,6 +267,7 @@ type Translations = {
         games: string;
         sketchHub: string;
         simulations: string;
+        interactiveGames: string;
       };
       media: string;
       mediaItems: {
@@ -731,6 +732,26 @@ type Translations = {
       open: string;
       fullscreen: string;
     };
+    interactiveGames: {
+      title: string;
+      subtitle: string;
+      categories: {
+        all: string;
+        literacy: string;
+        math: string;
+        logic: string;
+        natural_science: string;
+        culture: string;
+        biology: string;
+        social_studies: string;
+        art: string;
+        general: string;
+        other: string;
+      };
+      back: string;
+      open: string;
+      fullscreen: string;
+    };
   footer: {
     ctaTitle: string;
     ctaSubtitle: string;
@@ -1097,6 +1118,7 @@ export const translations: Record<Language, Translations> = {
           games: "Интерактивные игры",
           sketchHub: "Скетч-Хаб",
           simulations: "PhET Симуляции",
+          interactiveGames: "Интерактивные игры Wordwall",
         },
         media: "Медиа",
         mediaItems: {
@@ -1561,6 +1583,26 @@ export const translations: Record<Language, Translations> = {
       open: "Открыть симуляцию",
       fullscreen: "На весь экран",
     },
+    interactiveGames: {
+      title: "Интерактивные игры Wordwall",
+      subtitle: "Интерактивные образовательные игры для изучения различных предметов.",
+      categories: {
+        all: "Все",
+        literacy: "Грамотность",
+        math: "Математика",
+        logic: "Логика",
+        natural_science: "Естествознание",
+        culture: "Культура",
+        biology: "Биология",
+        social_studies: "Обществознание",
+        art: "Искусство",
+        general: "Общее",
+        other: "Другое",
+      },
+      back: "Назад к списку",
+      open: "Открыть игру",
+      fullscreen: "На весь экран",
+    },
     footer: {
       ctaTitle: "Присоединиться к запуску Sandu AI",
       ctaSubtitle:
@@ -1928,6 +1970,7 @@ export const translations: Record<Language, Translations> = {
           games: "Интерактивті ойындар",
           sketchHub: "Скетч-Хаб",
           simulations: "PhET Симуляциялары",
+          interactiveGames: "Wordwall Интерактивті ойындары",
         },
         media: "Медиа",
         mediaItems: {
@@ -2390,6 +2433,26 @@ export const translations: Record<Language, Translations> = {
       },
       back: "Тізімге оралу",
       open: "Симуляцияны ашу",
+      fullscreen: "Толық экран",
+    },
+    interactiveGames: {
+      title: "Wordwall Интерактивті ойындары",
+      subtitle: "Әртүрлі пәндерді оқуға арналған интерактивті білім беру ойындары.",
+      categories: {
+        all: "Барлығы",
+        literacy: "Сауаттылық",
+        math: "Математика",
+        logic: "Логика",
+        natural_science: "Табиғи ғылым",
+        culture: "Мәдениет",
+        biology: "Биология",
+        social_studies: "Әлеуметтану",
+        art: "Өнер",
+        general: "Жалпы",
+        other: "Басқа",
+      },
+      back: "Тізімге оралу",
+      open: "Ойынды ашу",
       fullscreen: "Толық экран",
     },
     footer: {

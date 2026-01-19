@@ -107,6 +107,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         { label: t.dashboard.menu.libraryItems.games, href: "/dashboard/library/games" },
         { label: t.dashboard.menu.libraryItems.sketchHub, href: "/dashboard/library/sketch-hub" },
         { label: t.dashboard.menu.libraryItems.simulations, href: "/dashboard/library/simulations" },
+        { label: t.dashboard.menu.libraryItems.interactiveGames, href: "/dashboard/library/interactive-games" },
       ],
     },
     {
