@@ -282,6 +282,7 @@ type Translations = {
         sketchHub: string;
         simulations: string;
         interactiveGames: string;
+        materials: string;
       };
       media: string;
       mediaItems: {
@@ -666,22 +667,35 @@ type Translations = {
   scientificProject: {
     form: {
       title: string;
-      subject: string;
       topic: string;
+      direction: string;
       grade: string;
+      researchType: string;
+      experimental: string;
+      theoretical: string;
+      subject: string;
       language: string;
+      schoolName: string;
+      schoolNamePlaceholder: string;
+      supervisor: string;
+      supervisorPlaceholder: string;
+      city: string;
+      cityPlaceholder: string;
       userComment: string;
       userCommentPlaceholder: string;
       generate: string;
     };
     results: {
       title: string;
-      topic: string;
-      abstract: string;
+      titlePage: string;
+      annotation: string;
+      tableOfContents: string;
       introduction: string;
-      mainPart: string;
+      chapterTheory: string;
+      chapterResearch: string;
       conclusion: string;
       references: string;
+      appendix: string;
       export: string;
       createNew: string;
       editBlock: string;
@@ -1195,6 +1209,7 @@ export const translations: Record<Language, Translations> = {
           sketchHub: "Скетч-Хаб",
           simulations: "PhET Симуляции",
           interactiveGames: "Интерактивные игры Wordwall",
+          materials: "Полезные материалы",
         },
         media: "Медиа",
         mediaItems: {
@@ -1579,22 +1594,67 @@ export const translations: Record<Language, Translations> = {
     scientificProject: {
       form: {
         title: "Научный проект",
-        subject: "Предмет",
-        topic: "Тема",
-        grade: "Класс",
+        topic: "Тақырып (Тема)",
+        direction: "Бағыты (Направление)",
+        grade: "Сыныбы (Класс)",
+        researchType: "Зерттеу түрі (Тип исследования)",
+        experimental: "Тәжірибелік (Практический)",
+        theoretical: "Теориялық (Теоретический)",
+        subject: "Пәні (Предмет)",
         language: "Язык проекта",
+        schoolName: "Мектеп атауы (Название школы)",
+        schoolNamePlaceholder: "Например: СШ №1",
+        supervisor: "Жетекші (Научный руководитель)",
+        supervisorPlaceholder: "ФИО руководителя",
+        city: "Қала/ауыл (Город/село)",
+        cityPlaceholder: "Например: Алматы",
         userComment: "Факты / Комментарии (для практической части)",
         userCommentPlaceholder: "Например: Мы выращивали плесень 10 дней в темном шкафу и на солнце...",
         generate: "Сгенерировать проект",
       },
+      wizard: {
+        step1: "Создание плана",
+        step2: "Просмотр плана",
+        step3: "Генерация текста",
+        step4: "Редактирование",
+        createPlan: "Составить план",
+        approvePlan: "Утвердить и начать писать",
+        regenerateSection: "Перегенерировать секцию",
+        regenerateCost: "3 токена",
+        finalize: "Финализировать проект",
+        progress: {
+          introduction: "Генерация Введения...",
+          chapter1: "Генерация I Главы...",
+          chapter2: "Генерация II Главы...",
+          conclusion: "Генерация Заключения...",
+          complete: "Готово!",
+        },
+      },
+      plan: {
+        hypothesis: "Гипотеза",
+        object: "Объект исследования",
+        subjectField: "Предмет исследования",
+        methods: "Методы",
+        chapter1Title: "Название I Главы",
+        chapter1Subsections: "Подразделы теории",
+        chapter2Title: "Название II Главы",
+        chapter2Subsections: "Подразделы практики",
+        scientificNovelty: "Научная новизна",
+        practicalSignificance: "Практическая значимость",
+        edit: "Редактировать",
+        save: "Сохранить",
+      },
       results: {
         title: "Результат генерации",
-        topic: "Тема проекта",
-        abstract: "Аннотация",
-        introduction: "Введение",
-        mainPart: "Основная часть",
-        conclusion: "Заключение",
-        references: "Список литературы",
+        titlePage: "Титул парағы (Титульная страница)",
+        annotation: "Аннотация",
+        tableOfContents: "Мазмұны (Содержание)",
+        introduction: "Кіріспе (Введение)",
+        chapterTheory: "I тарау. Теориялық бөлім",
+        chapterResearch: "II тарау. Зерттеу бөлімі",
+        conclusion: "Қорытынды (Заключение)",
+        references: "Пайдаланылған әдебиеттер тізімі (Список литературы)",
+        appendix: "Қосымша (Приложение)",
         export: "Скачать DOCX",
         createNew: "Создать новый проект",
         editBlock: "Редактировать",
@@ -2109,6 +2169,7 @@ export const translations: Record<Language, Translations> = {
           sketchHub: "Скетч-Хаб",
           simulations: "PhET Симуляциялары",
           interactiveGames: "Wordwall Интерактивті ойындары",
+          materials: "Пайдалы материалдар",
         },
         media: "Медиа",
         mediaItems: {
@@ -2493,22 +2554,35 @@ export const translations: Record<Language, Translations> = {
     scientificProject: {
       form: {
         title: "Ғылыми жоба",
-        subject: "Пән",
         topic: "Тақырып",
-        grade: "Сынып",
+        direction: "Бағыты",
+        grade: "Сыныбы",
+        researchType: "Зерттеу түрі",
+        experimental: "Тәжірибелік",
+        theoretical: "Теориялық",
+        subject: "Пәні",
         language: "Жоба тілі",
+        schoolName: "Мектеп атауы",
+        schoolNamePlaceholder: "Мысалы: СШ №1",
+        supervisor: "Жетекші",
+        supervisorPlaceholder: "Жетекшінің аты-жөні",
+        city: "Қала/ауыл",
+        cityPlaceholder: "Мысалы: Алматы",
         userComment: "Фактілер / Пікірлер (практикалық бөлім үшін)",
         userCommentPlaceholder: "Мысалы: Біз зеңді 10 күн бойы қараңғы шкафта және күн сәулесінде өсірдік...",
         generate: "Жобаны генерациялау",
       },
       results: {
         title: "Генерация нәтижесі",
-        topic: "Жоба тақырыбы",
-        abstract: "Аннотация",
+        titlePage: "Титул парағы",
+        annotation: "Аннотация",
+        tableOfContents: "Мазмұны",
         introduction: "Кіріспе",
-        mainPart: "Негізгі бөлім",
+        chapterTheory: "I тарау. Теориялық бөлім",
+        chapterResearch: "II тарау. Зерттеу (тәжірибелік) бөлім",
         conclusion: "Қорытынды",
-        references: "Әдебиеттер тізімі",
+        references: "Пайдаланылған әдебиеттер тізімі",
+        appendix: "Қосымша",
         export: "DOCX жүктеу",
         createNew: "Жаңа жоба жасау",
         editBlock: "Өңдеу",
@@ -2521,6 +2595,34 @@ export const translations: Record<Language, Translations> = {
         generic: "Қате пайда болды. Қайта көріңіз.",
       },
       loading: "Ғылыми жұмыс жазылуда (30-60 секунд)...",
+      wizard: {
+        step1: "Жоспар жасау",
+        step2: "Жоспарды қарау",
+        step3: "Мәтін генерациялау",
+        step4: "Өңдеу",
+        createPlan: "Жоспар құру",
+        approvePlan: "Бекіту және жазуды бастау",
+        regenerateSection: "Бөлімді қайта генерациялау",
+        regenerateCost: "3 токен",
+        finalize: "Жобаны аяқтау",
+        progress: {
+          introduction: "Кіріспе генерациялануда...",
+          chapter1: "I тарау генерациялануда...",
+          chapter2: "II тарау генерациялануда...",
+          conclusion: "Қорытынды генерациялануда...",
+          complete: "Дайын!",
+        },
+      },
+      plan: {
+        hypothesis: "Болжам",
+        object: "Зерттеу нысаны",
+        subjectField: "Зерттеу пәні",
+        methods: "Әдістер",
+        structure: "Құрылым",
+        scientificNovelty: "Ғылыми жаңалығы",
+        practicalSignificance: "Практикалық маңызы",
+        editPlan: "Жоспарды өңдеу",
+      },
     },
     worksheet: {
       form: {

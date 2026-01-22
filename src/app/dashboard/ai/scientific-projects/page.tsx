@@ -1,57 +1,58 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "../../../../i18n/LanguageContext";
 import {
-  generateScientificProject,
-  exportScientificProjectDocx,
-  ScientificProjectGeneratePayload,
-  ScientificProjectResponse,
+  createProjectPlan,
+  CreatePlanPayload,
   InsufficientTokensError,
 } from "../../../../lib/api";
-import Markdown from "react-markdown";
 import { useTokens } from "../../../../hooks/useTokens";
 
 export default function ScientificProjectPage() {
   const t = useTranslations();
+  const router = useRouter();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ScientificProjectResponse | null>(null);
 
   // Form state
-  const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
+  const [direction, setDirection] = useState("");
   const [grade, setGrade] = useState("");
+  const [researchType, setResearchType] = useState<"тәжірибелік" | "теориялық">("тәжірибелік");
+  const [subject, setSubject] = useState("");
   const [language, setLanguage] = useState<"ru" | "kz" | "en">("ru");
-  const [userComment, setUserComment] = useState("");
+  const [schoolName, setSchoolName] = useState("");
+  const [supervisor, setSupervisor] = useState("");
+  const [city, setCity] = useState("");
 
-  // Edit state (for modifying generated content blocks)
-  const [editingSection, setEditingSection] = useState<keyof ScientificProjectResponse | null>(null);
-  const [editValue, setEditValue] = useState("");
-
-  const handleGenerate = async (e: React.FormEvent) => {
+  const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!subject || !topic || !grade) {
+    if (!topic || !direction || !grade || !subject) {
       setError(t.scientificProject.errors.required);
       return;
     }
 
     setLoading(true);
     setError(null);
-    setResult(null);
 
     try {
-      const payload: ScientificProjectGeneratePayload = {
-        subject,
+      const payload: CreatePlanPayload = {
         topic,
+        direction,
         grade,
+        research_type: researchType,
+        subject,
         language,
-        user_comment: userComment || undefined,
+        school_name: schoolName || undefined,
+        supervisor: supervisor || undefined,
+        city: city || undefined,
       };
-      const res = await generateScientificProject(payload);
-      setResult(res);
+      const res = await createProjectPlan(payload);
       refreshBalance();
+      router.push(`/dashboard/ai/scientific-projects/${res.project_id}/plan`);
     } catch (err: any) {
       console.error(err);
       if (err instanceof InsufficientTokensError) {
@@ -66,99 +67,6 @@ export default function ScientificProjectPage() {
     }
   };
 
-  const handleExport = async () => {
-    if (!result) return;
-    try {
-      const blob = await exportScientificProjectDocx({ content: result });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "scientific_project.docx";
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to export DOCX");
-    }
-  };
-
-  const startEditing = (section: keyof ScientificProjectResponse) => {
-    if (!result) return;
-    setEditingSection(section);
-    setEditValue(result[section]);
-  };
-
-  const saveEditing = () => {
-    if (!result || !editingSection) return;
-    setResult({
-      ...result,
-      [editingSection]: editValue,
-    });
-    setEditingSection(null);
-    setEditValue("");
-  };
-
-  const cancelEditing = () => {
-    setEditingSection(null);
-    setEditValue("");
-  };
-
-  // Render a result block with Markdown support and edit button
-  const renderBlock = (
-    label: string,
-    sectionKey: keyof ScientificProjectResponse
-  ) => {
-    if (!result) return null;
-    const content = result[sectionKey];
-    const isEditing = editingSection === sectionKey;
-
-    return (
-      <div className="mb-6 rounded-3xl border border-white/60 bg-white/40 p-6 shadow-sm backdrop-blur-sm">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-900">{label}</h3>
-          {!isEditing && (
-            <button
-              onClick={() => startEditing(sectionKey)}
-              className="text-sm font-semibold text-[color:var(--primary)] hover:underline"
-            >
-              ✏️ {t.scientificProject.results.editBlock}
-            </button>
-          )}
-        </div>
-
-        {isEditing ? (
-          <div className="space-y-4">
-            <textarea
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
-              rows={8}
-            />
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={cancelEditing}
-                className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
-              >
-                {t.scientificProject.results.cancel}
-              </button>
-              <button
-                onClick={saveEditing}
-                className="rounded-xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:opacity-90"
-              >
-                {t.scientificProject.results.saveBlock}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="prose prose-sm max-w-none text-slate-800">
-            <Markdown>{content}</Markdown>
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-beige to-green-50 p-4 sm:p-6">
@@ -167,19 +75,33 @@ export default function ScientificProjectPage() {
           {t.scientificProject.form.title}
         </h1>
 
-        {!result ? (
-          <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
-            <form onSubmit={handleGenerate} className="space-y-6">
+        <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
+          <form onSubmit={handleCreatePlan} className="space-y-6">
+              {/* Topic */}
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {t.scientificProject.form.topic}
+                </label>
+                <input
+                  type="text"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                  placeholder="Плесень на хлебе"
+                  required
+                />
+              </div>
+
               <div className="grid gap-6 sm:grid-cols-2">
-                {/* Subject */}
+                {/* Direction */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    {t.scientificProject.form.subject}
+                    {t.scientificProject.form.direction}
                   </label>
                   <input
                     type="text"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
+                    value={direction}
+                    onChange={(e) => setDirection(e.target.value)}
                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                     placeholder="Биология"
                     required
@@ -207,19 +129,98 @@ export default function ScientificProjectPage() {
                 </div>
               </div>
 
-              {/* Topic */}
+              {/* Research Type */}
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  {t.scientificProject.form.topic}
+                  {t.scientificProject.form.researchType}
+                </label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {[
+                    { val: "тәжірибелік" as const, label: t.scientificProject.form.experimental },
+                    { val: "теориялық" as const, label: t.scientificProject.form.theoretical },
+                  ].map((opt) => (
+                    <label
+                      key={opt.val}
+                      className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 transition-all ${
+                        researchType === opt.val
+                          ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                          : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="researchType"
+                          value={opt.val}
+                          checked={researchType === opt.val}
+                          onChange={(e) => setResearchType(e.target.value as "тәжірибелік" | "теориялық")}
+                          className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
+                        />
+                        <span className="text-sm font-medium text-slate-900">{opt.label}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Subject */}
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  {t.scientificProject.form.subject}
                 </label>
                 <input
                   type="text"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
-                  placeholder="Плесень на хлебе"
+                  placeholder="Биология"
                   required
                 />
+              </div>
+
+              {/* Optional Fields */}
+              <div className="grid gap-6 sm:grid-cols-3">
+                {/* School Name */}
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    {t.scientificProject.form.schoolName}
+                  </label>
+                  <input
+                    type="text"
+                    value={schoolName}
+                    onChange={(e) => setSchoolName(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                    placeholder={t.scientificProject.form.schoolNamePlaceholder}
+                  />
+                </div>
+
+                {/* Supervisor */}
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    {t.scientificProject.form.supervisor}
+                  </label>
+                  <input
+                    type="text"
+                    value={supervisor}
+                    onChange={(e) => setSupervisor(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                    placeholder={t.scientificProject.form.supervisorPlaceholder}
+                  />
+                </div>
+
+                {/* City */}
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    {t.scientificProject.form.city}
+                  </label>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                    placeholder={t.scientificProject.form.cityPlaceholder}
+                  />
+                </div>
               </div>
 
               {/* Language */}
@@ -257,20 +258,6 @@ export default function ScientificProjectPage() {
                 </div>
               </div>
 
-              {/* User Comment */}
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  {t.scientificProject.form.userComment}
-                </label>
-                <textarea
-                  value={userComment}
-                  onChange={(e) => setUserComment(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
-                  placeholder={t.scientificProject.form.userCommentPlaceholder}
-                  rows={3}
-                />
-              </div>
-
               {/* Error */}
               {error && (
                 <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
@@ -279,9 +266,9 @@ export default function ScientificProjectPage() {
               )}
 
               {/* Cost Info */}
-              {costs.sciproject_generate && (
+              {costs.sciproject_create_plan && (
                 <div className={`rounded-2xl border px-4 py-3 ${
-                  checkBalance("sciproject_generate")
+                  checkBalance("sciproject_create_plan")
                     ? "border-green-200 bg-green-50"
                     : "border-orange-200 bg-orange-50"
                 }`}>
@@ -290,7 +277,7 @@ export default function ScientificProjectPage() {
                       {t.tokens?.cost || "Стоимость"}:
                     </span>
                     <span className="text-sm font-bold text-slate-900">
-                      {costs.sciproject_generate} {t.tokens?.balance || "токенов"}
+                      {costs.sciproject_create_plan} {t.tokens?.balance || "токенов"}
                     </span>
                   </div>
                   {balance !== null && (
@@ -298,7 +285,7 @@ export default function ScientificProjectPage() {
                       <span className="text-slate-600">
                         {t.tokens?.available || "Доступно"}: {balance}
                       </span>
-                      {!checkBalance("sciproject_generate") && (
+                      {!checkBalance("sciproject_create_plan") && (
                         <span className="font-semibold text-orange-600">
                           {t.tokens?.insufficient || "Недостаточно токенов"}
                         </span>
@@ -308,55 +295,23 @@ export default function ScientificProjectPage() {
                 </div>
               )}
 
-              {/* Generate Button */}
+              {/* Create Plan Button */}
               <button
                 type="submit"
-                disabled={loading || (balance !== null && !checkBalance("sciproject_generate"))}
+                disabled={loading || (balance !== null && !checkBalance("sciproject_create_plan"))}
                 className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
                 {loading ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
-                    {t.scientificProject.loading}
+                    {t.scientificProject.wizard.step1}
                   </>
                 ) : (
-                  t.scientificProject.form.generate
+                  t.scientificProject.wizard.createPlan
                 )}
               </button>
             </form>
           </div>
-        ) : (
-          <div className="animate-fade-in space-y-6">
-            <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md">
-              <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="text-2xl font-bold text-slate-900">
-                  {t.scientificProject.results.title}
-                </h2>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setResult(null)}
-                    className="rounded-2xl bg-white px-6 py-3 font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
-                  >
-                    {t.scientificProject.results.createNew}
-                  </button>
-                  <button
-                    onClick={handleExport}
-                    className="rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
-                  >
-                    {t.scientificProject.results.export}
-                  </button>
-                </div>
-              </div>
-
-              {renderBlock(t.scientificProject.results.topic, "topic")}
-              {renderBlock(t.scientificProject.results.abstract, "abstract")}
-              {renderBlock(t.scientificProject.results.introduction, "introduction")}
-              {renderBlock(t.scientificProject.results.mainPart, "main_part")}
-              {renderBlock(t.scientificProject.results.conclusion, "conclusion")}
-              {renderBlock(t.scientificProject.results.references, "references")}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

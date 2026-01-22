@@ -332,22 +332,101 @@ export type GenerateRaceResponse = {
   questions: RaceQuestion[];
 };
 
-// Scientific Project (Ғылыми жоба) types
-export type ScientificProjectGeneratePayload = {
-  subject: string;
+// Scientific Project (Ғылыми жоба) types - Wizard approach
+export type CreatePlanPayload = {
   topic: string;
+  direction: string;
   grade: string;
+  research_type: "тәжірибелік" | "теориялық";
+  subject: string;
   language: "ru" | "kz" | "en";
+  school_name?: string;
+  supervisor?: string;
+  city?: string;
+};
+
+export type PlanStructure = {
+  chapter_1_title: string;
+  chapter_1_subsections: string[];
+  chapter_2_title: string;
+  chapter_2_subsections: string[];
+};
+
+export type DraftPlanResponse = {
+  project_id: string;
+  hypothesis: string;
+  object: string;
+  subject_field: string;
+  methods: string[];
+  structure: PlanStructure;
+  scientific_novelty: string;
+  practical_significance: string;
+};
+
+export type GenerateSectionPayload = {
+  project_id: string;
+  section_type: "introduction" | "chapter_1" | "chapter_2" | "conclusion";
+  approved_plan?: DraftPlanResponse;
   user_comment?: string;
 };
 
-export type ScientificProjectResponse = {
-  topic: string;
-  abstract: string;
+export type SectionResponse = {
+  section_type: string;
+  content: string;
+  metadata: {
+    word_count?: number;
+    has_tables?: boolean;
+  };
+};
+
+export type RegenerateSectionPayload = {
+  project_id: string;
+  section_type: string;
+  instruction: string;
+  current_content: string;
+};
+
+export type ProjectState = {
+  project_id: string;
+  user_id: string;
+  step: number;
+  plan: DraftPlanResponse;
+  sections: Record<string, string>;
+  tokens_spent: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FinalizeProjectPayload = {
+  project_id: string;
+  student_name?: string;
+  student_class?: string;
+};
+
+export type CompleteProjectResponse = {
+  project_id: string;
+  title_page: string;
+  annotation: string;
+  table_of_contents: string;
   introduction: string;
-  main_part: string;
+  chapter_1_theory: string;
+  chapter_2_research: string;
   conclusion: string;
   references: string;
+  appendix: string;
+};
+
+// Legacy types (kept for export compatibility)
+export type ScientificProjectResponse = {
+  title_page: string;
+  annotation: string;
+  table_of_contents: string;
+  introduction: string;
+  chapter_1_theory: string;
+  chapter_2_research: string;
+  conclusion: string;
+  references: string;
+  appendix: string;
 };
 
 export type ScientificProjectExportPayload = {
@@ -809,15 +888,59 @@ export async function exportLessonPlanDocx(
   return res.blob();
 }
 
-// Scientific Project API functions
-export async function generateScientificProject(
-  payload: ScientificProjectGeneratePayload,
-): Promise<ScientificProjectResponse> {
-  return request<ScientificProjectResponse>("/api/v1/generate/science-project", {
+// Scientific Project API functions (legacy - removed, use wizard instead)
+
+// Wizard API functions
+export async function createProjectPlan(
+  payload: CreatePlanPayload,
+): Promise<DraftPlanResponse> {
+  return request<DraftPlanResponse>("/api/v1/science-project/plan", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
   });
+}
+
+export async function generateSection(
+  payload: GenerateSectionPayload,
+): Promise<SectionResponse> {
+  return request<SectionResponse>("/api/v1/science-project/generate-section", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+export async function regenerateSection(
+  payload: RegenerateSectionPayload,
+): Promise<SectionResponse> {
+  return request<SectionResponse>("/api/v1/science-project/regenerate-section", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+export async function getProjectStatus(
+  projectId: string,
+): Promise<ProjectState> {
+  return request<ProjectState>(`/api/v1/science-project/${projectId}/status`, {
+    method: "GET",
+    auth: true,
+  });
+}
+
+export async function finalizeProject(
+  payload: FinalizeProjectPayload,
+): Promise<CompleteProjectResponse> {
+  return request<CompleteProjectResponse>(
+    `/api/v1/science-project/${payload.project_id}/finalize`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+      auth: true,
+    },
+  );
 }
 
 export async function exportScientificProjectDocx(
@@ -829,7 +952,7 @@ export async function exportScientificProjectDocx(
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}/api/v1/generate/science-project/export-docx`, {
+  const res = await fetch(`${API_BASE}/api/v1/science-project/export-docx`, {
     method: "POST",
     headers,
     cache: "no-store",
