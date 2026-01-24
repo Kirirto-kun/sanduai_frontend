@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { YbyraiAvatar } from "./YbyraiAvatar";
 
 interface YbyraiSceneProps {
   isSpeaking: boolean;

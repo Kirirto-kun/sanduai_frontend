@@ -685,6 +685,40 @@ type Translations = {
       userCommentPlaceholder: string;
       generate: string;
     };
+    wizard: {
+      step1: string;
+      step2: string;
+      step3: string;
+      step4: string;
+      createPlan: string;
+      approvePlan: string;
+      regenerateSection: string;
+      regenerateCost: string;
+      finalize: string;
+      progress: {
+        introduction: string;
+        chapter1: string;
+        chapter2: string;
+        conclusion: string;
+        complete: string;
+      };
+    };
+    plan: {
+      hypothesis: string;
+      object: string;
+      subjectField: string;
+      methods: string;
+      chapter1Title: string;
+      chapter1Subsections: string;
+      chapter2Title: string;
+      chapter2Subsections: string;
+      scientificNovelty: string;
+      practicalSignificance: string;
+      edit: string;
+      save: string;
+      structure?: string;
+      editPlan?: string;
+    };
     results: {
       title: string;
       titlePage: string;
@@ -2618,9 +2652,15 @@ export const translations: Record<Language, Translations> = {
         object: "Зерттеу нысаны",
         subjectField: "Зерттеу пәні",
         methods: "Әдістер",
-        structure: "Құрылым",
+        chapter1Title: "I тарау атауы",
+        chapter1Subsections: "Теориялық бөлімдер",
+        chapter2Title: "II тарау атауы",
+        chapter2Subsections: "Практикалық бөлімдер",
         scientificNovelty: "Ғылыми жаңалығы",
         practicalSignificance: "Практикалық маңызы",
+        edit: "Өңдеу",
+        save: "Сақтау",
+        structure: "Құрылым",
         editPlan: "Жоспарды өңдеу",
       },
     },
