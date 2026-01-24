@@ -504,6 +504,16 @@ export type VoiceoverResponse = {
   duration?: any;
 };
 
+// Ybyrai Digital Avatar types
+export type YbyraiLanguage = "kk" | "ru" | "auto";
+
+export type YbyraiChatResponse = {
+  text: string;
+  audio_url: string;
+  duration: number | null;
+  transcribed_text: string | null;
+};
+
 // Token types
 export type TokenBalance = {
   balance: number;
@@ -850,6 +860,178 @@ export async function generateVoiceover(
   }
 
   return res;
+}
+
+// Ybyrai Digital Avatar API functions
+export async function chatWithYbyrai(
+  audioFile: File,
+  language: YbyraiLanguage = "auto",
+): Promise<YbyraiChatResponse> {
+  const formData = new FormData();
+  formData.append("audio", audioFile);
+  formData.append("language", language);
+
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${getApiBase()}/api/chat/audio`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const message =
+      (data && (data.error || data.detail || data.message)) ||
+      `Request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+
+  const data = await res.json();
+  
+  // Ensure audio_url is absolute
+  if (data.audio_url && !data.audio_url.startsWith("http")) {
+    data.audio_url = `${getApiBase()}${data.audio_url}`;
+  }
+
+  return data;
+}
+
+// Ybyrai Streaming API (SSE)
+export function chatWithYbyraiStream(
+  audioFile: File,
+  language: YbyraiLanguage,
+  callbacks: {
+    onTranscription: (text: string) => void;
+    onTextChunk: (text: string) => void;
+    onAudioChunk: (url: string, text: string) => void;
+    onDone: (fullText: string) => void;
+    onError: (error: string) => void;
+  },
+): () => void {
+  const formData = new FormData();
+  formData.append("audio", audioFile);
+  formData.append("language", language);
+
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  // Use EventSource-like approach with fetch + ReadableStream
+  let aborted = false;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
+  (async () => {
+    try {
+      const res = await fetch(`${getApiBase()}/api/chat/audio/stream`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const message =
+          (data && (data.error || data.detail || data.message)) ||
+          `Request failed with status ${res.status}`;
+        callbacks.onError(message);
+        return;
+      }
+
+      if (!res.body) {
+        callbacks.onError("No response body");
+        return;
+      }
+
+      reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        if (aborted) {
+          reader.cancel();
+          break;
+        }
+
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Process complete SSE messages (separated by double newline)
+        const messages = buffer.split("\n\n");
+        buffer = messages.pop() || ""; // Keep incomplete message in buffer
+
+        for (const message of messages) {
+          if (!message.trim()) continue;
+
+          let eventType = "";
+          let dataStr = "";
+
+          // Parse SSE message format
+          for (const line of message.split("\n")) {
+            if (line.startsWith("event: ")) {
+              eventType = line.substring(7).trim();
+            } else if (line.startsWith("data: ")) {
+              dataStr = line.substring(6).trim();
+            }
+          }
+
+          if (!dataStr) continue;
+
+          try {
+            const data = JSON.parse(dataStr);
+
+            if (data.error) {
+              callbacks.onError(data.error);
+              return;
+            }
+
+            switch (eventType) {
+              case "transcription":
+                if (data.text) callbacks.onTranscription(data.text);
+                break;
+              case "text_chunk":
+                if (data.text) callbacks.onTextChunk(data.text);
+                break;
+              case "audio_chunk":
+                if (data.url && data.text) {
+                  const fullUrl = data.url.startsWith("http")
+                    ? data.url
+                    : `${getApiBase()}${data.url}`;
+                  callbacks.onAudioChunk(fullUrl, data.text);
+                }
+                break;
+              case "done":
+                if (data.full_text) callbacks.onDone(data.full_text);
+                break;
+            }
+          } catch (e) {
+            // Skip invalid JSON
+            console.error("Failed to parse SSE data:", e, dataStr);
+          }
+        }
+      }
+    } catch (err: any) {
+      if (!aborted) {
+        callbacks.onError(err.message || "Stream error");
+      }
+    }
+  })();
+
+  // Return abort function
+  return () => {
+    aborted = true;
+    if (reader) {
+      reader.cancel();
+    }
+  };
 }
 
 // Lesson Plan (Short-term КМЖ) API functions
@@ -1465,6 +1647,74 @@ export async function uploadVideoThumbnail(
   }
 
   return res.json();
+}
+
+// Import YouTube video
+export type ImportYouTubeVideoResponse = {
+  video_db_id: string;
+  bunny_video_id: string;
+  title: string;
+  status: string;
+  source_url: string | null;
+  thumbnail_url: string | null;
+  message: string;
+};
+
+export async function importYouTubeVideo(
+  youtubeUrl: string,
+  title: string,
+  thumbnailFile?: File,
+): Promise<ImportYouTubeVideoResponse> {
+  const formData = new FormData();
+  formData.append("youtube_url", youtubeUrl);
+  formData.append("title", title);
+  if (thumbnailFile) {
+    formData.append("thumbnail", thumbnailFile);
+  }
+
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${getApiBase()}/api/admin/videos/import-youtube`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const message =
+      (data && (data.error || data.detail || data.message)) ||
+      `Request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+
+  return res.json();
+}
+
+// Delete video
+export async function deleteVideo(videoDbId: string): Promise<void> {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${getApiBase()}/api/admin/videos/${videoDbId}`, {
+    method: "DELETE",
+    headers,
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const message =
+      (data && (data.error || data.detail || data.message)) ||
+      `Request failed with status ${res.status}`;
+    throw new Error(message);
+  }
 }
 
 // At Zharys (Ат Жарыс) game API

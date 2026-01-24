@@ -14,6 +14,8 @@ import {
   uploadVideoThumbnail,
   getAllVideos,
   syncAllVideoStatuses,
+  importYouTubeVideo,
+  deleteVideo,
   type AdminUser,
   type AddTokensPayload,
   type AddSubscriptionPayload,
@@ -64,6 +66,16 @@ export default function AdminPage() {
   const [uploadedVideos, setUploadedVideos] = useState<Video[]>([]);
   const [loadingVideos, setLoadingVideos] = useState(false);
   const [syncingStatuses, setSyncingStatuses] = useState(false);
+
+  // YouTube import state
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [youtubeTitle, setYoutubeTitle] = useState("");
+  const [youtubeThumbnail, setYoutubeThumbnail] = useState<File | null>(null);
+  const [importingYouTube, setImportingYouTube] = useState(false);
+
+  // Video deletion state
+  const [videoToDelete, setVideoToDelete] = useState<Video | null>(null);
+  const [deletingVideo, setDeletingVideo] = useState(false);
 
   // Redirect non-admin users
   useEffect(() => {
@@ -197,6 +209,59 @@ export default function AdminPage() {
     }
   };
 
+  const handleDeleteVideo = async () => {
+    if (!videoToDelete) return;
+
+    setDeletingVideo(true);
+    setError(null);
+
+    try {
+      await deleteVideo(videoToDelete.id);
+      setVideoToDelete(null);
+      fetchVideos(); // Обновляем список
+    } catch (err) {
+      console.error("Video deletion error:", err);
+      const errorMessage = err instanceof Error ? err.message : "Ошибка удаления видео";
+      setError(errorMessage);
+    } finally {
+      setDeletingVideo(false);
+    }
+  };
+
+  const handleImportYouTube = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!youtubeUrl.trim() || !youtubeTitle.trim()) {
+      setError("Заполните все обязательные поля");
+      return;
+    }
+
+    if (youtubeTitle.length > 255) {
+      setError("Название видео не должно превышать 255 символов");
+      return;
+    }
+
+    setImportingYouTube(true);
+    setError(null);
+
+    try {
+      await importYouTubeVideo(youtubeUrl.trim(), youtubeTitle.trim(), youtubeThumbnail || undefined);
+
+      // Reset form
+      setYoutubeUrl("");
+      setYoutubeTitle("");
+      setYoutubeThumbnail(null);
+      
+      // Refresh videos list
+      fetchVideos();
+    } catch (err) {
+      console.error("YouTube import error:", err);
+      const errorMessage = err instanceof Error ? err.message : "Ошибка импорта видео с YouTube";
+      setError(errorMessage);
+    } finally {
+      setImportingYouTube(false);
+    }
+  };
+
   const handleUploadVideo = async (e: FormEvent) => {
     e.preventDefault();
     if (!videoTitle.trim() || !selectedFile) {
@@ -320,11 +385,6 @@ export default function AdminPage() {
   useEffect(() => {
     if (activeTab === "videos") {
       fetchVideos();
-      // Poll for status updates every 10 seconds
-      const interval = setInterval(() => {
-        fetchVideos();
-      }, 10000);
-      return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -845,6 +905,86 @@ export default function AdminPage() {
             </form>
           </div>
 
+          {/* Import YouTube Video Form */}
+          <div className="glass-card rounded-3xl border border-white/60 p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">
+              Импорт видео с YouTube
+            </h2>
+            <form onSubmit={handleImportYouTube} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Ссылка на YouTube
+                </label>
+                <input
+                  type="url"
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  required
+                  placeholder="https://www.youtube.com/watch?v=... или https://youtu.be/..."
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Название видео
+                </label>
+                <input
+                  type="text"
+                  value={youtubeTitle}
+                  onChange={(e) => setYoutubeTitle(e.target.value)}
+                  required
+                  maxLength={255}
+                  placeholder="Введите название видео"
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Превью (необязательно)
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setYoutubeThumbnail(e.target.files?.[0] || null)}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                />
+                {youtubeThumbnail && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Выбрано: {youtubeThumbnail.name}
+                  </p>
+                )}
+              </div>
+              {importingYouTube && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <div className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-[color:var(--primary)] border-r-transparent"></div>
+                    <span>Импорт видео с YouTube...</span>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={importingYouTube}
+                  className="flex-1 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {importingYouTube ? "Импорт..." : "Импортировать с YouTube"}
+                </button>
+                {importingYouTube && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImportingYouTube(false);
+                    }}
+                    className="rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  >
+                    Отмена
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
           {/* Videos List */}
           <div className="glass-card rounded-3xl border border-white/60 p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
@@ -896,6 +1036,9 @@ export default function AdminPage() {
                       <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
                         Дата создания
                       </th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
+                        Действия
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -926,12 +1069,57 @@ export default function AdminPage() {
                         <td className="py-3 px-4 text-sm text-slate-600">
                           {formatDate(video.created_at)}
                         </td>
+                        <td className="py-3 px-4">
+                          <button
+                            type="button"
+                            onClick={() => setVideoToDelete(video)}
+                            className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700"
+                          >
+                            Удалить
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Video Confirmation Modal */}
+      {videoToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="glass-card rounded-3xl border border-white/60 p-6 shadow-xl max-w-md w-full mx-4">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">
+              Подтверждение удаления
+            </h2>
+            <p className="text-sm text-slate-600 mb-6">
+              Вы уверены, что хотите удалить видео &quot;{videoToDelete.title}&quot;?
+              <br />
+              <span className="text-xs text-slate-500 mt-2 block">
+                Это действие нельзя отменить. Видео будет удалено из Bunny CDN и базы данных.
+              </span>
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleDeleteVideo}
+                disabled={deletingVideo}
+                className="flex-1 rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-red-700 disabled:opacity-50"
+              >
+                {deletingVideo ? "Удаление..." : "Удалить"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setVideoToDelete(null)}
+                disabled={deletingVideo}
+                className="flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Отмена
+              </button>
+            </div>
           </div>
         </div>
       )}
