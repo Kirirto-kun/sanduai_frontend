@@ -1908,3 +1908,52 @@ export async function deleteCategory(id: string): Promise<void> {
     auth: true,
   });
 }
+
+// Image Generation API
+export type GenerateImagePayload = {
+  prompt: string;
+};
+
+export type GenerateImageResponse = {
+  status: string;
+  temp_url: string | null;
+  warning: string | null;
+  error_message: string | null;
+};
+
+export async function generateImage(
+  payload: GenerateImagePayload
+): Promise<GenerateImageResponse> {
+  return request<GenerateImageResponse>("/api/media/generate-image", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+/**
+ * Скачать изображение через прокси бэкенда
+ * @param imageUrl URL изображения для скачивания
+ */
+export async function downloadImage(imageUrl: string): Promise<Blob> {
+  const token = getToken();
+  if (!token) {
+    throw new Error("Not authenticated");
+  }
+
+  const response = await fetch(`${API_BASE}/api/media/proxy-image`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ url: imageUrl }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => response.statusText);
+    throw new Error(`Failed to download image: ${errorText}`);
+  }
+
+  return response.blob();
+}

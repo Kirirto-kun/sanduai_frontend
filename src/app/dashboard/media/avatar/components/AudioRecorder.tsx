@@ -171,6 +171,10 @@ export function AudioRecorder({
         onAudioChunk: (url: string, text: string) => {
           // Add to queue
           audioQueueRef.current.push({ url, text });
+          // Pass first audio chunk to parent for lip-sync
+          if (audioQueueRef.current.length === 1) {
+            onResponse(fullTextRef.current, url, transcribedTextRef.current);
+          }
           // Start playing if not already
           if (!isPlayingRef.current) {
             playNextAudio();

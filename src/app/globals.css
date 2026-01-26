@@ -37,6 +37,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-outfit), system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
+  overflow-x: hidden; /* Предотвращение горизонтального скролла */
 }
 
 .glass-card {

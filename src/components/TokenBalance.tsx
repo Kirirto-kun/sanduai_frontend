@@ -18,9 +18,9 @@ export function TokenBalance({ showCost, compact = false }: TokenBalanceProps) {
         {loading ? (
           <div className="h-5 w-16 animate-pulse rounded-full bg-slate-200"></div>
         ) : (
-          <div className="flex items-center gap-1.5">
-            <div className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200">
-              <span className="text-[color:var(--primary)]">
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <div className="flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-xs">
+              <span className="hidden text-[color:var(--primary)] sm:inline">
                 {t.tokens?.balance || "Баланс"}
               </span>
               <span className="font-bold">
@@ -28,7 +28,7 @@ export function TokenBalance({ showCost, compact = false }: TokenBalanceProps) {
               </span>
             </div>
             {hasSubscription && subscriptionPlan === "premium" && (
-              <span className="rounded-full bg-gradient-to-r from-green-500 to-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
+              <span className="rounded-full bg-gradient-to-r from-green-500 to-emerald-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm sm:px-2 sm:text-[10px]">
                 {t.tokens?.premium || "PREMIUM"}
               </span>
             )}

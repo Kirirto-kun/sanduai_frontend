@@ -48,7 +48,7 @@ export default function AvatarPage() {
           Цифровой аватар Ыбырай
         </h2>
         <p className="mt-2 text-sm text-slate-600">
-          Интерактивный 3D-ассистент для учителей
+          Интерактивный 3D-ассистент для школьников
         </p>
         
         {/* Language selector */}

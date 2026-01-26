@@ -228,7 +228,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed,_#fdfbf7_40%,_#f5e6d3_80%)]">
+      <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,_#fff7ed,_#fdfbf7_40%,_#f5e6d3_80%)]">
         {/* Sidebar */}
         <aside
         className={`${
@@ -308,21 +308,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
       {/* Main content */}
       <div className="flex flex-col md:ml-72">
-        <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-white/60 bg-white/85 px-4 py-4 shadow-sm backdrop-blur-md">
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">
+        <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-1.5 border-b border-white/60 bg-white/85 px-2 py-2 shadow-sm backdrop-blur-md overflow-x-hidden sm:gap-2 sm:px-4 sm:py-3 md:gap-3 md:py-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg font-semibold text-slate-900 sm:text-xl truncate">
               {t.dashboard.header.title}
             </h1>
-            <p className="text-xs text-slate-600">
+            <p className="hidden text-xs text-slate-600 sm:block">
               {t.dashboard.header.subtitle}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
             <TokenBalance compact />
             <button
               type="button"
               onClick={() => setLanguage(language === "ru" ? "kk" : "ru")}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-[color:var(--primary)] hover:text-[color:var(--primary)]"
+              className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 shadow-sm transition hover:border-[color:var(--primary)] hover:text-[color:var(--primary)] sm:px-3 sm:py-1.5 sm:text-xs"
             >
               {language === "ru" ? "RU / KZ" : "KZ / RU"}
             </button>
@@ -336,14 +336,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-[color:var(--primary)] hover:text-[color:var(--primary)] md:hidden"
+              className="rounded-full border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-[color:var(--primary)] hover:text-[color:var(--primary)] md:hidden"
             >
               ☰
             </button>
           </div>
         </header>
 
-        <main className="px-4 pb-10 pt-4 md:px-6 lg:px-8">{children}</main>
+        <main className="px-2 pb-10 pt-4 sm:px-4 md:px-6 lg:px-8">{children}</main>
       </div>
     </div>
     </QueryClientProvider>

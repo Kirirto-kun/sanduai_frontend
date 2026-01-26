@@ -1,13 +1,222 @@
 "use client";
 
+import { FormEvent, useState } from "react";
+import {
+  generateImage,
+  GenerateImageResponse,
+  InsufficientTokensError,
+  downloadImage,
+} from "../../../../lib/api";
+import { useTranslations } from "../../../../i18n/LanguageContext";
+import { useTokens } from "../../../../hooks/useTokens";
+import { TokenBalance } from "../../../../components/TokenBalance";
+
 export default function PhotoPage() {
+  const t = useTranslations();
+  const { refreshBalance, costs, balance, checkBalance } = useTokens();
+  const [prompt, setPrompt] = useState("");
+  const [result, setResult] = useState<GenerateImageResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const operationType = "image_generate";
+  const cost = costs[operationType] || 20;
+  const hasEnoughBalance = checkBalance(operationType);
+
+  const onGenerate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!prompt.trim()) {
+      setError("Введите описание изображения");
+      return;
+    }
+
+    setError(null);
+    setLoading(true);
+    setResult(null);
+
+    try {
+      const data = await generateImage({ prompt: prompt.trim() });
+      setResult(data);
+      refreshBalance();
+    } catch (err) {
+      if (err instanceof InsufficientTokensError) {
+        setError(
+          `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
+        );
+      } else {
+        setError(err instanceof Error ? err.message : "Ошибка генерации изображения");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!result?.temp_url) return;
+
+    try {
+      // Используем прокси бэкенда для скачивания (обход CORS)
+      const blob = await downloadImage(result.temp_url);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `generated-image-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Download failed:", e);
+      // Fallback: открываем в новой вкладке, если прокси не удался
+      const link = document.createElement("a");
+      link.href = result.temp_url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   return (
-    <div className="glass-card rounded-3xl border border-white/60 px-6 py-12 shadow-md sm:px-8">
-      <div className="text-center">
-        <h2 className="text-2xl font-semibold text-slate-900">Генерация фото</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Эта функция находится в разработке и скоро будет доступна.
-        </p>
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-beige to-green-50 p-4 sm:p-6">
+      <div className="mx-auto max-w-4xl">
+        <h1 className="mb-6 text-3xl font-bold text-slate-900">Генерация изображений</h1>
+
+        {/* Предупреждение */}
+        <div className="glass-card mb-6 rounded-3xl border border-white/60 px-6 py-4 shadow-md sm:px-8">
+          <div className="flex items-start gap-3">
+            <svg
+              className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange-600"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <div>
+              <h3 className="font-semibold text-orange-800">
+                Внимание: Изображение не сохраняется в истории
+              </h3>
+              <p className="mt-1 text-sm text-orange-700">
+                Скачайте изображение сразу после генерации. Ссылка действительна только 1 час.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Форма генерации */}
+        <div className="glass-card mb-6 rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
+          <form onSubmit={onGenerate} className="space-y-6">
+            {/* Информация о стоимости */}
+            <div>
+              <TokenBalance showCost={operationType} />
+              {!hasEnoughBalance && balance !== null && (
+                <div className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+                  Недостаточно токенов для генерации. Требуется: {cost}, доступно: {balance}
+                </div>
+              )}
+            </div>
+
+            {/* Поле ввода промпта */}
+            <div>
+              <label
+                htmlFor="prompt"
+                className="mb-2 block text-sm font-semibold text-slate-700"
+              >
+                Описание изображения
+              </label>
+              <textarea
+                id="prompt"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Например: Абай Кунанбаев читает книгу"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                rows={6}
+                disabled={loading}
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                Опишите детально, какое изображение вы хотите создать
+              </p>
+            </div>
+
+            {/* Ошибка */}
+            {error && (
+              <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
+                {error}
+              </div>
+            )}
+
+            {/* Кнопка генерации */}
+            <button
+              type="submit"
+              disabled={loading || !hasEnoughBalance || !prompt.trim()}
+              className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-3.5 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                  Генерация...
+                </>
+              ) : (
+                "Сгенерировать изображение"
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Результат */}
+        {result && result.status === "success" && result.temp_url && (
+          <div className="glass-card animate-fade-in rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
+            <h2 className="mb-4 text-xl font-semibold text-slate-900">
+              Сгенерированное изображение
+            </h2>
+
+            <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <img
+                src={result.temp_url}
+                alt="Generated image"
+                className="w-full"
+              />
+            </div>
+
+            {result.warning && (
+              <div className="mb-4 rounded-xl bg-yellow-50 p-3 text-sm text-yellow-800">
+                {result.warning}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={handleDownload}
+                className="flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 hover:text-[color:var(--primary)]"
+              >
+                <span>⬇️</span>
+                Скачать изображение
+              </button>
+              <a
+                href={result.temp_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 hover:text-[color:var(--primary)]"
+              >
+                <span>🔗</span>
+                Открыть в новой вкладке
+              </a>
+            </div>
+          </div>
+        )}
+
+        {result && result.status === "error" && (
+          <div className="glass-card rounded-3xl border border-red-200 bg-red-50 px-6 py-4 shadow-md sm:px-8">
+            <div className="text-sm text-red-700">
+              <strong>Ошибка генерации:</strong> {result.error_message || "Неизвестная ошибка"}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
