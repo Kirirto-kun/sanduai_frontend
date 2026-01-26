@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useLanguage, useTranslations } from "../../../i18n/LanguageContext";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -9,14 +8,6 @@ export function HeroSection() {
   const { language, setLanguage } = useLanguage();
   const t = useTranslations();
   const { isAuthenticated } = useAuth();
-  const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setSubmitted(true);
-  };
 
   return (
     <section className="relative overflow-hidden pb-16 pt-10 sm:pt-14">
@@ -72,34 +63,14 @@ export function HeroSection() {
               <p className="max-w-xl text-balance text-sm leading-relaxed text-slate-600 sm:text-base">
                 {t.hero.subtitle}
               </p>
-              <form
-                onSubmit={onSubmit}
-                className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center"
-              >
-                <div className="flex-1">
-                  <div className="flex rounded-full bg-white/90 p-1 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-[color:var(--primary)]">
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full rounded-full border-0 bg-transparent px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0"
-                      placeholder={t.hero.emailPlaceholder}
-                    />
-                  </div>
-                </div>
-                <button
-                  type="submit"
+              <div className="mt-4 flex gap-3">
+                <Link
+                  href={isAuthenticated ? "/dashboard" : "/register"}
                   className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30"
                 >
-                  {t.hero.ctaLabel}
-                </button>
-              </form>
-              {submitted && (
-                <p className="text-xs text-emerald-700">
-                  Email сохранён локально. Интеграция с бэкендом будет добавлена
-                  на следующих этапах.
-                </p>
-              )}
+                  {isAuthenticated ? "Перейти в дашборд" : "Начать бесплатно"}
+                </Link>
+              </div>
             </div>
             <div className="relative mt-8 rounded-2xl bg-gradient-to-br from-[color:var(--primary)]/90 via-amber-300/70 to-[color:var(--secondary)]/90 p-[1px] sm:mt-0 sm:h-64 lg:h-72">
               <div className="flex h-full flex-col justify-between rounded-2xl bg-white/95 p-4 text-[11px] text-slate-800 shadow-inner sm:p-5">
