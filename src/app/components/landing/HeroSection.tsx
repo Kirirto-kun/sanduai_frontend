@@ -63,12 +63,12 @@ export function HeroSection() {
               <p className="max-w-xl text-balance text-sm leading-relaxed text-slate-600 sm:text-base">
                 {t.hero.subtitle}
               </p>
-              <div className="mt-4 flex gap-3">
+              <div className="mt-6 flex gap-3">
                 <Link
                   href={isAuthenticated ? "/dashboard" : "/register"}
-                  className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30"
+                  className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-8 py-3 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30 hover:scale-105"
                 >
-                  {isAuthenticated ? "Перейти в дашборд" : "Начать бесплатно"}
+                  {isAuthenticated ? "Открыть дашборд" : "Начать работу →"}
                 </Link>
               </div>
             </div>
