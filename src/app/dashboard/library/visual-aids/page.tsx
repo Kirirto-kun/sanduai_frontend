@@ -97,11 +97,10 @@ export default function VisualAidsPage() {
       <div className="glass-card rounded-3xl border border-white/60 px-6 py-12 shadow-md sm:px-8">
         <div className="text-center">
           <h2 className="text-2xl font-semibold text-slate-900">
-            Требуется подписка
+            {t.visualAidsPage?.subscriptionRequired || "Требуется подписка"}
           </h2>
           <p className="mt-4 text-sm text-slate-600">
-            Для просмотра көрнекіліктер необходима активная подписка. Обратитесь к
-            администратору для оформления подписки.
+            {t.visualAidsPage?.subscriptionRequiredMessage || "Для просмотра наглядных пособий необходима активная подписка. Обратитесь к администратору для оформления подписки."}
           </p>
         </div>
       </div>
@@ -112,9 +111,9 @@ export default function VisualAidsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Көрнекіліктер</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">{t.visualAidsPage?.title || "Наглядные пособия"}</h1>
         <p className="text-sm text-slate-600 mt-1">
-          Библиотека визуальных материалов, схем и плакатов
+          {t.visualAidsPage?.subtitle || "Библиотека визуальных материалов, схем и плакатов"}
         </p>
       </div>
 
@@ -132,7 +131,7 @@ export default function VisualAidsPage() {
                   handleSearch();
                 }
               }}
-              placeholder="Поиск материалов..."
+              placeholder={t.visualAidsPage?.searchPlaceholder || "Поиск материалов..."}
               className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             <button
@@ -140,7 +139,7 @@ export default function VisualAidsPage() {
               onClick={handleSearch}
               className="rounded-xl bg-blue-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
             >
-              Искать
+              {t.visualAidsPage?.search || "Искать"}
             </button>
           </div>
         </div>
@@ -166,12 +165,12 @@ export default function VisualAidsPage() {
       {loading ? (
         <div className="text-center py-12">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-          <p className="mt-2 text-sm text-slate-600">Загрузка...</p>
+          <p className="mt-2 text-sm text-slate-600">{t.visualAidsPage?.loading || "Загрузка..."}</p>
         </div>
       ) : items.length === 0 ? (
         <div className="glass-card rounded-3xl border border-white/60 px-6 py-12 shadow-md sm:px-8">
           <div className="text-center">
-            <p className="text-slate-500">Материалы не найдены</p>
+            <p className="text-slate-500">{t.visualAidsPage?.noItems || "Материалы не найдены"}</p>
             {(selectedCategoryId || searchQuery) && (
               <button
                 type="button"
@@ -183,7 +182,7 @@ export default function VisualAidsPage() {
                 }}
                 className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
-                Сбросить фильтры
+                {t.visualAidsPage?.resetFilters || "Сбросить фильтры"}
               </button>
             )}
           </div>
@@ -238,10 +237,10 @@ export default function VisualAidsPage() {
                 disabled={offset === 0}
                 className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Назад
+                {t.visualAidsPage?.back || "Назад"}
               </button>
               <span className="text-sm text-slate-600">
-                {offset + 1} - {Math.min(offset + limit, total)} из {total}
+                {offset + 1} - {Math.min(offset + limit, total)} {t.visualAidsPage?.paginationOf || "из"} {total}
               </span>
               <button
                 type="button"
@@ -249,7 +248,7 @@ export default function VisualAidsPage() {
                 disabled={offset + limit >= total}
                 className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Вперед
+                {t.visualAidsPage?.next || "Вперед"}
               </button>
             </div>
           )}

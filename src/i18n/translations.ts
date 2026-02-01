@@ -179,6 +179,11 @@ type Translations = {
       subtitle: string;
       goToPage: string;
     };
+    materials: {
+      title: string;
+      subtitle: string;
+      goToPage: string;
+    };
   };
   videos: {
     title: string;
@@ -191,6 +196,86 @@ type Translations = {
     subscriptionRequiredMessage: string;
     loading: string;
     error: string;
+  };
+  presentationsPage: {
+    title: string;
+    subtitle: string;
+    filterByClassSubject: string;
+    searchPlaceholder: string;
+    search: string;
+    subject: string;
+    class: string;
+    noItems: string;
+    resetFilters: string;
+    loading: string;
+    back: string;
+    next: string;
+    paginationOf: string;
+    subscriptionRequired: string;
+    subscriptionRequiredMessage: string;
+    premiumRequired: string;
+    premiumRequiredMessage: string;
+    downloadMaterial: string;
+    downloadFile: string;
+    downloadHint: string;
+    previewUnavailable: string;
+    download: string;
+  };
+  presentationsAdmin: {
+    title: string;
+    subtitle: string;
+    uploadTitle: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    subjectLabel: string;
+    subjectPlaceholder: string;
+    classLabel: string;
+    classPlaceholder: string;
+    coverLabel: string;
+    coverSelected: string;
+    fileLabel: string;
+    fileHint: string;
+    addFileAndName: string;
+    upload: string;
+    uploading: string;
+    toLibrary: string;
+    uploadedList: string;
+    loading: string;
+    noItems: string;
+    delete: string;
+    deleting: string;
+    deleteConfirm: string;
+    uploadSuccess: string;
+    deleteSuccess: string;
+    uploadError: string;
+    deleteError: string;
+    classSuffix: string;
+  };
+  visualAidsPage: {
+    title: string;
+    subtitle: string;
+    searchPlaceholder: string;
+    search: string;
+    noItems: string;
+    resetFilters: string;
+    loading: string;
+    back: string;
+    next: string;
+    paginationOf: string;
+    subscriptionRequired: string;
+    subscriptionRequiredMessage: string;
+  };
+  visualAidsAdmin: {
+    title: string;
+    subtitle: string;
+    tabMaterials: string;
+    tabCategories: string;
+    tabUpload: string;
+    searchPlaceholder: string;
+    search: string;
+    allCategories: string;
+    loading: string;
+    noItems: string;
   };
   atZharys: {
     setup: {
@@ -299,6 +384,10 @@ type Translations = {
       title: string;
       subtitle: string;
       logout: string;
+    };
+    libraryPage: {
+      title: string;
+      description: string;
     };
     home: {
       title: string;
@@ -1139,6 +1228,11 @@ export const translations: Record<Language, Translations> = {
         subtitle: "Управление визуальными материалами и категориями",
         goToPage: "Перейти к управлению",
       },
+      materials: {
+        title: "Интерактивные презентации",
+        subtitle: "Загрузка интерактивных презентаций",
+        goToPage: "Перейти к загрузке",
+      },
     },
     videos: {
       title: "Видео курсы",
@@ -1151,6 +1245,86 @@ export const translations: Record<Language, Translations> = {
       subscriptionRequiredMessage: "Для просмотра видео необходима активная подписка. Обратитесь к администратору для оформления подписки.",
       loading: "Загрузка...",
       error: "Ошибка",
+    },
+    presentationsPage: {
+      title: "Интерактивные презентации",
+      subtitle: "Фильтруйте по классу и предмету.",
+      filterByClassSubject: "Фильтруйте по классу и предмету.",
+      searchPlaceholder: "Поиск по названию...",
+      search: "Искать",
+      subject: "Предмет",
+      class: "Класс",
+      noItems: "Презентации не найдены",
+      resetFilters: "Сбросить фильтры",
+      loading: "Загрузка...",
+      back: "Назад",
+      next: "Вперед",
+      paginationOf: "из",
+      subscriptionRequired: "Требуется подписка",
+      subscriptionRequiredMessage: "Для просмотра интерактивных презентаций необходима активная подписка. Обратитесь к администратору для оформления подписки.",
+      premiumRequired: "Требуется премиум-подписка",
+      premiumRequiredMessage: "Презентации доступны только премиум-подписчикам. Обратитесь к администратору для оформления подписки.",
+      downloadMaterial: "СКАЧАТЬ МАТЕРИАЛ",
+      downloadFile: "Скачать файл",
+      downloadHint: "Скачайте материал для просмотра",
+      previewUnavailable: "Предпросмотр недоступен для этого типа файла",
+      download: "Скачать",
+    },
+    presentationsAdmin: {
+      title: "Интерактивные презентации",
+      subtitle: "Загрузка интерактивных презентаций в Bunny CDN",
+      uploadTitle: "Загрузить презентацию",
+      nameLabel: "Название *",
+      namePlaceholder: "Урок математики 5 класс",
+      subjectLabel: "Предмет",
+      subjectPlaceholder: "Математика",
+      classLabel: "Класс",
+      classPlaceholder: "5",
+      coverLabel: "Обложка (необязательно)",
+      coverSelected: "Выбрано",
+      fileLabel: "Файл *",
+      fileHint: "PPTX, PDF, Word, видео, HTML5 (index.html)",
+      addFileAndName: "Добавьте файл и название",
+      upload: "Загрузить",
+      uploading: "Загрузка...",
+      toLibrary: "К библиотеке",
+      uploadedList: "Загруженные презентации",
+      loading: "Загрузка...",
+      noItems: "Презентаций пока нет",
+      delete: "Удалить",
+      deleting: "Удаление...",
+      deleteConfirm: "Удалить презентацию?",
+      uploadSuccess: "Презентация загружена успешно",
+      deleteSuccess: "Презентация удалена",
+      uploadError: "Ошибка загрузки",
+      deleteError: "Ошибка удаления",
+      classSuffix: "класс",
+    },
+    visualAidsPage: {
+      title: "Наглядные пособия",
+      subtitle: "Библиотека визуальных материалов, схем и плакатов",
+      searchPlaceholder: "Поиск материалов...",
+      search: "Искать",
+      noItems: "Материалы не найдены",
+      resetFilters: "Сбросить фильтры",
+      loading: "Загрузка...",
+      back: "Назад",
+      next: "Вперед",
+      paginationOf: "из",
+      subscriptionRequired: "Требуется подписка",
+      subscriptionRequiredMessage: "Для просмотра наглядных пособий необходима активная подписка. Обратитесь к администратору для оформления подписки.",
+    },
+    visualAidsAdmin: {
+      title: "Управление наглядными пособиями",
+      subtitle: "Загрузка и редактирование визуальных материалов",
+      tabMaterials: "Материалы",
+      tabCategories: "Категории",
+      tabUpload: "Загрузить",
+      searchPlaceholder: "Поиск...",
+      search: "Искать",
+      allCategories: "Все категории",
+      loading: "Загрузка...",
+      noItems: "Материалы не найдены",
     },
     atZharys: {
       setup: {
@@ -1260,6 +1434,10 @@ export const translations: Record<Language, Translations> = {
         title: "Панель управления",
         subtitle: "Быстрый доступ ко всем функциям Sandu AI",
         logout: "Выйти",
+      },
+      libraryPage: {
+        title: "Библиотека материалов",
+        description: "Здесь будут курсы, наглядные пособия, интерактивные презентации и игры (Sketch Hub).",
       },
       home: {
         title: "Обзор",
@@ -2099,6 +2277,11 @@ export const translations: Record<Language, Translations> = {
         subtitle: "Көрнекі материалдар мен категорияларды басқару",
         goToPage: "Басқаруға өту",
       },
+      materials: {
+        title: "Интерактивті презентациялар",
+        subtitle: "Интерактивті презентацияларды жүктеу",
+        goToPage: "Жүктеуге өту",
+      },
     },
     videos: {
       title: "Бейне курстар",
@@ -2111,6 +2294,86 @@ export const translations: Record<Language, Translations> = {
       subscriptionRequiredMessage: "Бейнелерді көру үшін белсенді жазылым қажет. Жазылымды рәсімдеу үшін әкімшіге хабарласыңыз.",
       loading: "Жүктелуде...",
       error: "Қате",
+    },
+    presentationsPage: {
+      title: "Интерактивті презентациялар",
+      subtitle: "Сынып пен пәні бойынша сүзгілеңіз.",
+      filterByClassSubject: "Сынып пен пәні бойынша сүзгілеңіз.",
+      searchPlaceholder: "Атау бойынша іздеу...",
+      search: "Іздеу",
+      subject: "Пәні",
+      class: "Сынып",
+      noItems: "Презентациялар табылмады",
+      resetFilters: "Сүзгілерді қалпына келтіру",
+      loading: "Жүктелуде...",
+      back: "Артқа",
+      next: "Алға",
+      paginationOf: "/",
+      subscriptionRequired: "Жазылым қажет",
+      subscriptionRequiredMessage: "Интерактивті презентацияларды көру үшін белсенді жазылым қажет. Жазылымды рәсімдеу үшін әкімшіге хабарласыңыз.",
+      premiumRequired: "Премиум жазылым қажет",
+      premiumRequiredMessage: "Презентациялар тек премиум жазылымды пайдаланушыларға қолжетімді. Жазылымды рәсімдеу үшін әкімшіге хабарласыңыз.",
+      downloadMaterial: "МАТЕРИАЛДЫ ЖҮКТЕУ",
+      downloadFile: "Файлды жүктеу",
+      downloadHint: "Материалды көру үшін жүктеңіз",
+      previewUnavailable: "Бұл файл түрі үшін алдын ала қарау қолжетімсіз",
+      download: "Жүктеу",
+    },
+    presentationsAdmin: {
+      title: "Интерактивті презентациялар",
+      subtitle: "Интерактивті презентацияларды Bunny CDN-ге жүктеу",
+      uploadTitle: "Презентацияны жүктеу",
+      nameLabel: "Атауы *",
+      namePlaceholder: "Математика сабағы 5 сынып",
+      subjectLabel: "Пәні",
+      subjectPlaceholder: "Математика",
+      classLabel: "Сынып",
+      classPlaceholder: "5",
+      coverLabel: "Қаптама (міндетті емес)",
+      coverSelected: "Таңдалған",
+      fileLabel: "Файл *",
+      fileHint: "PPTX, PDF, Word, бейне, HTML5 (index.html)",
+      addFileAndName: "Файл мен атауын қосыңыз",
+      upload: "Жүктеу",
+      uploading: "Жүктелуде...",
+      toLibrary: "Кітапханаға",
+      uploadedList: "Жүктелген презентациялар",
+      loading: "Жүктелуде...",
+      noItems: "Презентациялар әзірше жоқ",
+      delete: "Жою",
+      deleting: "Жойылуда...",
+      deleteConfirm: "Презентацияны жойыңыз ба?",
+      uploadSuccess: "Презентация сәтті жүктелді",
+      deleteSuccess: "Презентация жойылды",
+      uploadError: "Жүктеу қатесі",
+      deleteError: "Жою қатесі",
+      classSuffix: "сынып",
+    },
+    visualAidsPage: {
+      title: "Көрнекіліктер",
+      subtitle: "Визуалды материалдар, сызбалар мен плакаттар кітапханасы",
+      searchPlaceholder: "Материалдарды іздеу...",
+      search: "Іздеу",
+      noItems: "Материалдар табылмады",
+      resetFilters: "Сүзгілерді қалпына келтіру",
+      loading: "Жүктелуде...",
+      back: "Артқа",
+      next: "Алға",
+      paginationOf: "/",
+      subscriptionRequired: "Жазылым қажет",
+      subscriptionRequiredMessage: "Көрнекіліктерді көру үшін белсенді жазылым қажет. Жазылымды рәсімдеу үшін әкімшіге хабарласыңыз.",
+    },
+    visualAidsAdmin: {
+      title: "Көрнекіліктерді басқару",
+      subtitle: "Визуалды материалдарды жүктеу және өңдеу",
+      tabMaterials: "Материалдар",
+      tabCategories: "Категориялар",
+      tabUpload: "Жүктеу",
+      searchPlaceholder: "Іздеу...",
+      search: "Іздеу",
+      allCategories: "Барлық категориялар",
+      loading: "Жүктелуде...",
+      noItems: "Материалдар табылмады",
     },
     atZharys: {
       setup: {
@@ -2220,6 +2483,10 @@ export const translations: Record<Language, Translations> = {
         title: "Басқару панелі",
         subtitle: "Sandu AI мүмкіндіктеріне жылдам қолжетімділік",
         logout: "Шығу",
+      },
+      libraryPage: {
+        title: "Материалдар кітапханасы",
+        description: "Мұнда курстар, көрнекіліктер, интерактивті презентациялар және ойындар (Sketch Hub) болады.",
       },
       home: {
         title: "Шолу",

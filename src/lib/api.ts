@@ -1848,6 +1848,129 @@ export async function getVisualCategories(): Promise<VisualMaterialCategory[]> {
   });
 }
 
+// ============================================================================
+// Materials Library API
+// ============================================================================
+
+export type MaterialListItem = {
+  id: string;
+  title: string;
+  category: string;
+  preview_image: string | null;
+  metadata: { subject?: string; class?: string } | null;
+  mime_type: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type MaterialDetail = MaterialListItem & {
+  file_url: string;
+  updated_at: string;
+};
+
+export type MaterialsListResponse = {
+  items: MaterialListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+// Client API - Get materials list (interactive presentations, requires subscription)
+export async function getMaterials(params: {
+  limit?: number;
+  offset?: number;
+  subject?: string;
+  class?: string;
+  search?: string;
+}): Promise<MaterialsListResponse> {
+  const queryParams = new URLSearchParams();
+  if (params.limit) queryParams.append("limit", params.limit.toString());
+  if (params.offset) queryParams.append("offset", params.offset.toString());
+  if (params.subject) queryParams.append("subject", params.subject);
+  if (params.class) queryParams.append("class", params.class);
+  if (params.search) queryParams.append("search", params.search);
+
+  return request<MaterialsListResponse>(`/api/materials?${queryParams.toString()}`, {
+    method: "GET",
+    auth: true,
+  });
+}
+
+// Client API - Get material by ID (requires subscription; presentations require premium)
+export async function getMaterialById(id: string): Promise<MaterialDetail> {
+  return request<MaterialDetail>(`/api/materials/${id}`, {
+    method: "GET",
+    auth: true,
+  });
+}
+
+// Admin API - Get all materials (admin only)
+export async function getAllMaterialsAdmin(params?: {
+  limit?: number;
+  offset?: number;
+  search?: string;
+}): Promise<MaterialsListResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.limit) queryParams.append("limit", params.limit.toString());
+  if (params?.offset) queryParams.append("offset", params.offset.toString());
+  if (params?.search) queryParams.append("search", params.search);
+
+  return request<MaterialsListResponse>(
+    `/api/admin/materials?${queryParams.toString()}`,
+    { method: "GET", auth: true }
+  );
+}
+
+// Admin API - Delete material
+export async function deleteMaterial(id: string): Promise<void> {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${getApiBase()}/api/admin/materials/${id}`, {
+    method: "DELETE",
+    headers,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Delete failed: ${res.status}`);
+  }
+}
+
+// Admin API - Upload material (interactive presentation)
+export async function uploadMaterial(data: {
+  file: File;
+  title: string;
+  subject?: string;
+  class?: string;
+  preview_image?: File;
+}): Promise<MaterialDetail> {
+  const formData = new FormData();
+  formData.append("file", data.file);
+  formData.append("title", data.title);
+  if (data.subject) formData.append("subject", data.subject);
+  if (data.class) formData.append("class", data.class);
+  if (data.preview_image) formData.append("preview_image", data.preview_image);
+
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${getApiBase()}/api/admin/materials/upload`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Upload failed: ${errorText}`);
+  }
+
+  return res.json();
+}
+
 // Admin API - Upload visual material
 export async function uploadVisualMaterial(
   file: File,

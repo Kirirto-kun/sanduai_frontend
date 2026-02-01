@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "../../../../i18n/LanguageContext";
 import {
   getAllVisuals,
   getAllCategories,
@@ -22,6 +23,7 @@ import { FilePreviewCard } from "../../../../components/FilePreviewCard";
 type TabId = "materials" | "categories" | "upload";
 
 export default function AdminVisualsPage() {
+  const t = useTranslations();
   const [activeTab, setActiveTab] = useState<TabId>("materials");
   const [items, setItems] = useState<VisualItem[]>([]);
   const [categories, setCategories] = useState<VisualMaterialCategory[]>([]);
@@ -266,16 +268,16 @@ export default function AdminVisualsPage() {
   };
 
   const tabs: { id: TabId; label: string }[] = [
-    { id: "materials", label: "Материалы" },
-    { id: "categories", label: "Категории" },
-    { id: "upload", label: "Загрузить" },
+    { id: "materials", label: t.visualAidsAdmin?.tabMaterials || "Материалы" },
+    { id: "categories", label: t.visualAidsAdmin?.tabCategories || "Категории" },
+    { id: "upload", label: t.visualAidsAdmin?.tabUpload || "Загрузить" },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Управление көрнекіліктер</h1>
-        <p className="text-sm text-slate-600 mt-1">Загрузка и редактирование визуальных материалов</p>
+        <h1 className="text-2xl font-semibold text-slate-900">{t.visualAidsAdmin?.title || "Управление наглядными пособиями"}</h1>
+        <p className="text-sm text-slate-600 mt-1">{t.visualAidsAdmin?.subtitle || "Загрузка и редактирование визуальных материалов"}</p>
       </div>
 
       {/* Tabs */}
@@ -315,7 +317,7 @@ export default function AdminVisualsPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              placeholder="Поиск..."
+              placeholder={t.visualAidsAdmin?.searchPlaceholder || "Поиск..."}
               className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
             />
             <select
@@ -326,7 +328,7 @@ export default function AdminVisualsPage() {
               }}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm w-full sm:w-48"
             >
-              <option value="">Все категории</option>
+              <option value="">{t.visualAidsAdmin?.allCategories || "Все категории"}</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
@@ -338,7 +340,7 @@ export default function AdminVisualsPage() {
               onClick={handleSearch}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
             >
-              Искать
+              {t.visualAidsAdmin?.search || "Искать"}
             </button>
             <button
               type="button"
@@ -408,9 +410,9 @@ export default function AdminVisualsPage() {
 
           <div className="glass-card rounded-2xl border border-white/60 overflow-hidden shadow-md">
             {loading ? (
-              <div className="px-4 py-12 text-center text-sm text-slate-500">Загрузка...</div>
+              <div className="px-4 py-12 text-center text-sm text-slate-500">{t.visualAidsAdmin?.loading || "Загрузка..."}</div>
             ) : items.length === 0 ? (
-              <div className="px-4 py-12 text-center text-sm text-slate-500">Материалы не найдены</div>
+              <div className="px-4 py-12 text-center text-sm text-slate-500">{t.visualAidsAdmin?.noItems || "Материалы не найдены"}</div>
             ) : viewMode === "table" ? (
               <div className="overflow-x-auto">
                 <table className="w-full">

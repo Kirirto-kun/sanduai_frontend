@@ -57,7 +57,7 @@ export default function AdminPage() {
   const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   // Video upload state
-  const [activeTab, setActiveTab] = useState<"users" | "videos" | "visuals">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "videos" | "visuals" | "materials">("users");
   const [videoTitle, setVideoTitle] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedThumbnail, setSelectedThumbnail] = useState<File | null>(null);
@@ -446,6 +446,17 @@ export default function AdminPage() {
           }`}
         >
           {t.admin?.visuals?.title || "Визуальные материалы"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("materials")}
+          className={`px-4 py-2 text-sm font-semibold transition ${
+            activeTab === "materials"
+              ? "text-[color:var(--primary)] border-b-2 border-[color:var(--primary)]"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          {t.admin?.materials?.title || t.presentationsAdmin?.title || "Интерактивные презентации"}
         </button>
       </div>
 
@@ -1140,6 +1151,28 @@ export default function AdminPage() {
                 className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30"
               >
                 {t.admin?.visuals?.goToPage || "Перейти к управлению"}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Materials Tab Content */}
+      {activeTab === "materials" && (
+        <div className="space-y-6">
+          <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
+            <div className="text-center space-y-4">
+              <h2 className="text-xl font-semibold text-slate-900">
+                {t.admin?.materials?.title || t.presentationsAdmin?.title || "Интерактивные презентации"}
+              </h2>
+              <p className="text-sm text-slate-600">
+                {t.admin?.materials?.subtitle || t.presentationsAdmin?.subtitle || "Загрузка интерактивных презентаций"}
+              </p>
+              <a
+                href="/dashboard/admin/materials"
+                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30"
+              >
+                {t.admin?.materials?.goToPage || "Перейти к загрузке"}
               </a>
             </div>
           </div>
