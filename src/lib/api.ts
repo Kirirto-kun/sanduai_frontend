@@ -1751,6 +1751,32 @@ export type VisualMaterial = {
   created_at: string;
 };
 
+export type MaterialGroup = {
+  id: string;
+  title: string;
+  slug: string;
+  materials: VisualMaterial[];
+  categories: VisualMaterialCategory[];
+  is_active: boolean;
+  created_at: string;
+  material_count: number;
+};
+
+export type VisualItem = {
+  type: "material" | "group";
+  id: string;
+  title: string;
+  slug?: string;
+  url?: string;
+  file_size?: number;
+  mime_type?: string;
+  categories: VisualMaterialCategory[];
+  is_active: boolean;
+  created_at: string;
+  material_count: number;
+  materials?: VisualMaterial[];
+};
+
 export type VisualsListResponse = {
   items: VisualMaterial[];
   total: number;
@@ -1758,26 +1784,60 @@ export type VisualsListResponse = {
   offset: number;
 };
 
-// Client API - Get visual materials (requires subscription)
+export type VisualUnifiedListResponse = {
+  items: VisualItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+// Client API - Get visual materials and groups (requires subscription)
 export async function getVisuals(params: {
   limit?: number;
   offset?: number;
   category_id?: string;
   search?: string;
-}): Promise<VisualsListResponse> {
+}): Promise<VisualUnifiedListResponse> {
   const queryParams = new URLSearchParams();
   if (params.limit) queryParams.append("limit", params.limit.toString());
   if (params.offset) queryParams.append("offset", params.offset.toString());
   if (params.category_id) queryParams.append("category_id", params.category_id);
   if (params.search) queryParams.append("search", params.search);
 
-  return request<VisualsListResponse>(
+  return request<VisualUnifiedListResponse>(
     `/api/visuals?${queryParams.toString()}`,
     {
       method: "GET",
       auth: true,
     }
   );
+}
+
+// Client API - Get group by slug
+export async function getVisualGroup(slug: string): Promise<MaterialGroup> {
+  return request<MaterialGroup>(`/api/visuals/groups/${slug}`, {
+    method: "GET",
+    auth: true,
+  });
+}
+
+// Client API - Download group as ZIP (fetches with auth, triggers download)
+export async function downloadVisualGroupZip(slug: string): Promise<void> {
+  const token = getToken();
+  if (!token) throw new Error("Not authenticated");
+
+  const res = await fetch(`${getApiBase()}/api/visuals/groups/${slug}/download`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${slug}.zip`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // Client API - Get categories (public)
@@ -1819,26 +1879,77 @@ export async function uploadVisualMaterial(
   return res.json();
 }
 
-// Admin API - Get all visual materials
+// Admin API - Get all visual materials and groups
 export async function getAllVisuals(params: {
   limit?: number;
   offset?: number;
   category_id?: string;
   search?: string;
-}): Promise<VisualsListResponse> {
+}): Promise<VisualUnifiedListResponse> {
   const queryParams = new URLSearchParams();
   if (params.limit) queryParams.append("limit", params.limit.toString());
   if (params.offset) queryParams.append("offset", params.offset.toString());
   if (params.category_id) queryParams.append("category_id", params.category_id);
   if (params.search) queryParams.append("search", params.search);
 
-  return request<VisualsListResponse>(
+  return request<VisualUnifiedListResponse>(
     `/api/admin/visuals/all?${queryParams.toString()}`,
     {
       method: "GET",
       auth: true,
     }
   );
+}
+
+// Admin API - Create material group
+export async function createMaterialGroup(data: {
+  title: string;
+  category_ids: string[];
+}): Promise<MaterialGroup> {
+  return request<MaterialGroup>("/api/admin/visuals/groups", {
+    method: "POST",
+    body: JSON.stringify({
+      title: data.title,
+      category_ids: data.category_ids,
+    }),
+    auth: true,
+  });
+}
+
+// Admin API - Upload batch to group
+export async function uploadBatchToGroup(
+  groupId: string,
+  files: File[]
+): Promise<{ uploaded: number; materials: VisualMaterial[] }> {
+  const formData = new FormData();
+  formData.append("group_id", groupId);
+  for (const file of files) {
+    formData.append("files", file);
+  }
+
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${getApiBase()}/api/admin/visuals/upload-batch`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Upload failed: ${errorText}`);
+  }
+  return res.json();
+}
+
+// Admin API - Delete material group
+export async function deleteMaterialGroup(id: string): Promise<void> {
+  return request<void>(`/api/admin/visuals/groups/${id}`, {
+    method: "DELETE",
+    auth: true,
+  });
 }
 
 // Admin API - Update visual material
@@ -1869,7 +1980,7 @@ export async function deleteVisualMaterial(id: string): Promise<void> {
 export async function createCategory(data: {
   name: string;
   name_kk?: string;
-  slug: string;
+  slug?: string;
 }): Promise<VisualMaterialCategory> {
   return request<VisualMaterialCategory>("/api/admin/visuals/categories", {
     method: "POST",

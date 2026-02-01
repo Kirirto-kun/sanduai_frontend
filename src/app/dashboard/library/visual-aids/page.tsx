@@ -6,18 +6,21 @@ import { useTokens } from "../../../../hooks/useTokens";
 import {
   getVisuals,
   getVisualCategories,
+  type VisualItem,
   type VisualMaterial,
   type VisualMaterialCategory,
 } from "../../../../lib/api";
 import { VisualMaterialCard } from "../../../../components/VisualMaterialCard";
 import { VisualMaterialModal } from "../../../../components/VisualMaterialModal";
+import { VisualGroupCard } from "../../../../components/VisualGroupCard";
+import { VisualGroupModal } from "../../../../components/VisualGroupModal";
 import { CategoryFilter } from "../../../../components/CategoryFilter";
 
 export default function VisualAidsPage() {
   const t = useTranslations();
   const { hasSubscription, loading: tokensLoading } = useTokens();
   
-  const [materials, setMaterials] = useState<VisualMaterial[]>([]);
+  const [items, setItems] = useState<VisualItem[]>([]);
   const [categories, setCategories] = useState<VisualMaterialCategory[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -29,8 +32,9 @@ export default function VisualAidsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
 
-  // Selected material for viewing
+  // Selected item for viewing
   const [selectedMaterial, setSelectedMaterial] = useState<VisualMaterial | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<VisualItem | null>(null);
 
   // Load categories
   useEffect(() => {
@@ -64,7 +68,7 @@ export default function VisualAidsPage() {
         category_id: selectedCategoryId || undefined,
         search: searchQuery || undefined,
       });
-      setMaterials(data.items);
+      setItems(data.items);
       setTotal(data.total);
     } catch (err: any) {
       if (err.message?.includes("403") || err.response?.status === 403) {
@@ -164,7 +168,7 @@ export default function VisualAidsPage() {
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
           <p className="mt-2 text-sm text-slate-600">Загрузка...</p>
         </div>
-      ) : materials.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="glass-card rounded-3xl border border-white/60 px-6 py-12 shadow-md sm:px-8">
           <div className="text-center">
             <p className="text-slate-500">Материалы не найдены</p>
@@ -186,15 +190,43 @@ export default function VisualAidsPage() {
         </div>
       ) : (
         <>
-          {/* Materials grid */}
+          {/* Materials and groups grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {materials.map((material) => (
-              <VisualMaterialCard
-                key={material.id}
-                material={material}
-                onClick={() => setSelectedMaterial(material)}
-              />
-            ))}
+            {items.map((item) =>
+              item.type === "material" ? (
+                <VisualMaterialCard
+                  key={item.id}
+                  material={{
+                    id: item.id,
+                    title: item.title,
+                    url: item.url || "",
+                    file_size: item.file_size || 0,
+                    mime_type: item.mime_type || "",
+                    categories: item.categories,
+                    is_active: item.is_active,
+                    created_at: item.created_at,
+                  }}
+                  onClick={() =>
+                    setSelectedMaterial({
+                      id: item.id,
+                      title: item.title,
+                      url: item.url || "",
+                      file_size: item.file_size || 0,
+                      mime_type: item.mime_type || "",
+                      categories: item.categories,
+                      is_active: item.is_active,
+                      created_at: item.created_at,
+                    })
+                  }
+                />
+              ) : (
+                <VisualGroupCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => setSelectedGroup(item)}
+                />
+              )
+            )}
           </div>
 
           {/* Pagination */}
@@ -222,11 +254,19 @@ export default function VisualAidsPage() {
             </div>
           )}
         </>
-      )}      {/* Material viewing modal */}
+      )}
+      {/* Material viewing modal */}
       {selectedMaterial && (
         <VisualMaterialModal
           material={selectedMaterial}
           onClose={() => setSelectedMaterial(null)}
+        />
+      )}
+      {/* Group viewing modal */}
+      {selectedGroup && (
+        <VisualGroupModal
+          item={selectedGroup}
+          onClose={() => setSelectedGroup(null)}
         />
       )}
     </div>
