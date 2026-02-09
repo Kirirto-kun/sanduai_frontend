@@ -63,13 +63,21 @@ export function HeroSection() {
               <p className="max-w-xl text-balance text-sm leading-relaxed text-slate-600 sm:text-base">
                 {t.hero.subtitle}
               </p>
-              <div className="mt-6 flex gap-3">
+              <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href={isAuthenticated ? "/dashboard" : "/register"}
                   className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-8 py-3 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30 hover:scale-105"
                 >
                   {isAuthenticated ? "Открыть дашборд" : "Начать работу →"}
                 </Link>
+                {isAuthenticated && (
+                  <Link
+                    href="/dashboard/sandubot"
+                    className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-[color:var(--primary)] bg-white px-6 py-3 text-base font-semibold text-[color:var(--primary)] transition hover:bg-[color:var(--primary)]/5"
+                  >
+                    {t.sandubot?.title || "Sandu Bot"}
+                  </Link>
+                )}
               </div>
             </div>
             <div className="relative mt-8 rounded-2xl bg-gradient-to-br from-[color:var(--primary)]/90 via-amber-300/70 to-[color:var(--secondary)]/90 p-[1px] sm:mt-0 sm:h-64 lg:h-72">

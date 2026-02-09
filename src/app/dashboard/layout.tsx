@@ -145,6 +145,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <span>{t.dashboard.menu.home}</span>
       </Link>
 
+      {/* Sandu Bot — сразу под Главная */}
+      <Link
+        href="/dashboard/sandubot"
+        onClick={onNavigate}
+        className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition ${
+          pathname === "/dashboard/sandubot"
+            ? "bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] text-white shadow"
+            : "text-slate-700 hover:bg-white/80 hover:text-slate-900"
+        }`}
+      >
+        <span>{t.sandubot?.title || "Sandu Bot"}</span>
+      </Link>
+
       {/* Collapsible groups */}
       {navGroups.map((group) => {
         const filteredItems = filterItems(group.items);

@@ -605,6 +605,24 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
   });
 }
 
+export type UserProfile = {
+  id: string;
+  email: string;
+  phone: string | null;
+  full_name: string | null;
+  role: string;
+  subscription_plan: string;
+  subscription_end: string | null; // ISO datetime string
+  created_at: string; // ISO datetime string
+};
+
+export async function getProfile(): Promise<UserProfile> {
+  return request<UserProfile>("/auth/me", {
+    method: "GET",
+    auth: true,
+  });
+}
+
 export async function generateKmzh(
   payload: KmzhGeneratePayload,
 ): Promise<{ lessons: KmzhLesson[] }> {
@@ -860,6 +878,113 @@ export async function generateVoiceover(
   }
 
   return res;
+}
+
+// Sandu Bot API
+export type SandubotChatResponse = {
+  text: string;
+  links?: { label: string; href: string }[];
+};
+
+export type SandubotHistoryMessage = {
+  role: "user" | "assistant";
+  text: string;
+  links?: { label: string; href: string }[];
+};
+
+export type SandubotHistoryResponse = {
+  messages: SandubotHistoryMessage[];
+};
+
+export async function getSandubotHistory(): Promise<SandubotHistoryResponse> {
+  return request<SandubotHistoryResponse>("/api/sandubot/history", {
+    method: "GET",
+    auth: true,
+  });
+}
+
+export async function sendSandubotMessage(message: string): Promise<SandubotChatResponse> {
+  return request<SandubotChatResponse>("/api/sandubot/chat", {
+    method: "POST",
+    body: JSON.stringify({ message }),
+    auth: true,
+  });
+}
+
+export type SandubotStreamEvent =
+  | { type: "thinking" }
+  | { type: "chunk"; content: string }
+  | { type: "done"; links?: { label: string; href: string }[] }
+  | { type: "error"; message: string };
+
+export async function* sendSandubotMessageStream(
+  message: string,
+): AsyncGenerator<SandubotStreamEvent, void, unknown> {
+  const token = getToken();
+  const res = await fetch(`${getApiBase()}/api/sandubot/chat/stream`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ message }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 402) {
+      const detail = data?.detail || "";
+      const requiredMatch = detail.match(/Required:\s*(\d+)/i);
+      const availableMatch = detail.match(/Available:\s*(\d+)/i);
+      throw new InsufficientTokensError(
+        detail,
+        requiredMatch ? parseInt(requiredMatch[1], 10) : 0,
+        availableMatch ? parseInt(availableMatch[1], 10) : 0,
+      );
+    }
+    throw new Error(data?.detail || data?.message || `Request failed: ${res.status}`);
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("No response body");
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (line.startsWith("data: ")) {
+        const data = line.slice(6);
+        if (data === "[DONE]" || data === "") continue;
+        try {
+          const event = JSON.parse(data) as SandubotStreamEvent;
+          yield event;
+        } catch {
+          // skip invalid JSON
+        }
+      }
+    }
+  }
+
+  if (buffer.trim()) {
+    const line = buffer.trim();
+    if (line.startsWith("data: ")) {
+      const data = line.slice(6);
+      try {
+        const event = JSON.parse(data) as SandubotStreamEvent;
+        yield event;
+      } catch {
+        // skip
+      }
+    }
+  }
 }
 
 // Ybyrai Digital Avatar API functions

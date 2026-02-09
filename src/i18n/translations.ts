@@ -277,6 +277,24 @@ type Translations = {
     loading: string;
     noItems: string;
   };
+  photoPage: {
+    title: string;
+    warningTitle: string;
+    warningText: string;
+    promptLabel: string;
+    promptPlaceholder: string;
+    promptHint: string;
+    enterPrompt: string;
+    generationError: string;
+    generating: string;
+    generate: string;
+    resultTitle: string;
+    download: string;
+    openInNewTab: string;
+    errorLabel: string;
+    unknownError: string;
+    insufficientTokensFormat: string;
+  };
   atZharys: {
     setup: {
       title: string;
@@ -398,6 +416,7 @@ type Translations = {
         library: string;
         media: string;
         profile: string;
+        sandubot: string;
       };
     };
   };
@@ -911,6 +930,14 @@ type Translations = {
     rights: string;
     termsLink: string;
   };
+  sandubot: {
+    title: string;
+    placeholder: string;
+    inputPlaceholder: string;
+    send: string;
+    insufficientTokens: string;
+    thinking: string;
+  };
   common: {
     brand: string;
     ru: string;
@@ -1326,6 +1353,24 @@ export const translations: Record<Language, Translations> = {
       loading: "Загрузка...",
       noItems: "Материалы не найдены",
     },
+    photoPage: {
+      title: "Генерация изображений",
+      warningTitle: "Внимание: Изображение не сохраняется в истории",
+      warningText: "Скачайте изображение сразу после генерации. Ссылка действительна только 1 час.",
+      promptLabel: "Описание изображения",
+      promptPlaceholder: "Например: Абай Кунанбаев читает книгу",
+      promptHint: "Опишите детально, какое изображение вы хотите создать",
+      enterPrompt: "Введите описание изображения",
+      generationError: "Ошибка генерации изображения",
+      generating: "Генерация...",
+      generate: "Сгенерировать изображение",
+      resultTitle: "Сгенерированное изображение",
+      download: "Скачать изображение",
+      openInNewTab: "Открыть в новой вкладке",
+      errorLabel: "Ошибка генерации:",
+      unknownError: "Неизвестная ошибка",
+      insufficientTokensFormat: "Недостаточно токенов для генерации. Требуется: {cost}, доступно: {balance}",
+    },
     atZharys: {
       setup: {
         title: "Ат Жарыс",
@@ -1448,6 +1493,7 @@ export const translations: Record<Language, Translations> = {
           library: "Материалы: курсы, наглядные пособия, игры",
           media: "Фото/видео/аватар, Kaspi QR и карты",
           profile: "Профиль и настройки учётной записи",
+          sandubot: "Sandu Bot — помощник по навигации и ответам на вопросы",
         },
       },
     },
@@ -1960,6 +2006,14 @@ export const translations: Record<Language, Translations> = {
       rights: "Sandu AI. Все права защищены.",
       termsLink: "Пользовательское соглашение",
     },
+    sandubot: {
+      title: "Sandu Bot",
+      placeholder: "Напишите вопрос или попросите помочь с навигацией. Например: «Нужен КМЖ»",
+      inputPlaceholder: "Введите сообщение...",
+      send: "Отправить",
+      insufficientTokens: "Недостаточно токенов",
+      thinking: "Думаю...",
+    },
     common: {
       brand: "Sandu AI",
       ru: "Русский",
@@ -2375,6 +2429,24 @@ export const translations: Record<Language, Translations> = {
       loading: "Жүктелуде...",
       noItems: "Материалдар табылмады",
     },
+    photoPage: {
+      title: "Сурет генерациясы",
+      warningTitle: "Назар: Сурет тарихта сақталмайды",
+      warningText: "Суретті генерациялағаннан кейін дереу жүктеңіз. Сілтеме тек 1 сағатқа жарамды.",
+      promptLabel: "Сурет сипаттамасы",
+      promptPlaceholder: "Мысалы: Абай Құнанбаев кітап оқып отыр",
+      promptHint: "Қандай сурет жасағыңыз келетінін егжей-тегжейлі сипаттаңыз",
+      enterPrompt: "Сурет сипаттамасын енгізіңіз",
+      generationError: "Сурет генерациялау қатесі",
+      generating: "Генерациялау...",
+      generate: "Суретті генерациялау",
+      resultTitle: "Генерацияланған сурет",
+      download: "Суретті жүктеу",
+      openInNewTab: "Жаңа қойындыда ашу",
+      errorLabel: "Генерация қатесі:",
+      unknownError: "Белгісіз қате",
+      insufficientTokensFormat: "Генерация үшін токендер жеткіліксіз. Қажет: {cost}, қолжетімді: {balance}",
+    },
     atZharys: {
       setup: {
         title: "Ат Жарыс",
@@ -2497,6 +2569,7 @@ export const translations: Record<Language, Translations> = {
           library: "Материалдар: курстар, көрнекіліктер, ойындар",
           media: "Фото/видео/аватар, Kaspi QR және карталар",
           profile: "Профиль және аккаунт баптаулары",
+          sandubot: "Sandu Bot — навигацияға және сұрақтарға көмекші",
         },
       },
     },
@@ -3010,6 +3083,14 @@ export const translations: Record<Language, Translations> = {
       emailPlaceholder: "Email",
       rights: "Sandu AI. Барлық құқықтар қорғалған.",
       termsLink: "Пайдаланушы келісімі",
+    },
+    sandubot: {
+      title: "Sandu Bot",
+      placeholder: "Сұрақ жазыңыз немесе навигацияға көмек сұраңыз. Мысалы: «КМЖ керек»",
+      inputPlaceholder: "Хабарламаны енгізіңіз...",
+      send: "Жіберу",
+      insufficientTokens: "Токендер жеткіліксіз",
+      thinking: "Ойланып жатырмын...",
     },
     common: {
       brand: "Sandu AI",

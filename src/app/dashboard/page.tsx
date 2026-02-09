@@ -9,6 +9,7 @@ const cards: { href: string; key: keyof typeof labels }[] = [
   { href: "/dashboard/library", key: "library" },
   { href: "/dashboard/media", key: "media" },
   { href: "/dashboard/profile", key: "profile" },
+  { href: "/dashboard/sandubot", key: "sandubot" },
 ];
 
 const labels = {
@@ -17,6 +18,7 @@ const labels = {
   library: "library",
   media: "media",
   profile: "profile",
+  sandubot: "sandubot",
 } as const;
 
 export default function DashboardHome() {
@@ -34,6 +36,8 @@ export default function DashboardHome() {
         return t.dashboard.menu.media;
       case "profile":
         return t.dashboard.menu.profile;
+      case "sandubot":
+        return t.sandubot?.title || "Sandu Bot";
     }
   };
 
@@ -55,7 +59,7 @@ export default function DashboardHome() {
         <div className="grid gap-4 sm:grid-cols-2">
           {cards.map((card) => (
             <Link
-              key={card.href}
+              key={card.key}
               href={card.href}
               className="group rounded-2xl bg-white/90 p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-lg hover:ring-[color:var(--primary)]/50"
             >

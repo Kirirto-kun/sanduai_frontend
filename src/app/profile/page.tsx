@@ -1,27 +1,51 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTranslations } from "../../i18n/LanguageContext";
 import { useTokens } from "../../hooks/useTokens";
 import { formatSubscriptionDate } from "../../lib/utils";
+import { getProfile, UserProfile } from "../../lib/api";
 
 export default function ProfilePage() {
-  const { user, isAuthenticated, loading, logout } = useAuth();
+  const { isAuthenticated, loading: authLoading, logout } = useAuth();
   const t = useTranslations();
   const router = useRouter();
   const { balance, hasSubscription, subscriptionEnd, subscriptionPlan } = useTokens();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const profileData = await getProfile();
+      setProfile(profileData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка загрузки профиля");
+      console.error("Failed to load profile:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       router.replace("/login");
+      return;
     }
-  }, [isAuthenticated, loading, router]);
 
-  const name = user?.fullName || "—";
-  const email = user?.email || "—";
-  const phone = user?.phone || "—";
+    if (isAuthenticated) {
+      loadProfile();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, authLoading]);
+
+  const name = profile?.full_name || "—";
+  const email = profile?.email || "—";
+  const phone = profile?.phone || "—";
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed,_#fdfbf7_40%,_#f5e6d3_80%)]">
@@ -36,53 +60,65 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-6 space-y-4">
-              <InfoRow label={t.auth.profile.name} value={name} />
-              <InfoRow label={t.auth.profile.email} value={email} />
-              <InfoRow label={t.auth.profile.phone} value={phone} />
-              <InfoRow
-                label={t.tokens?.balance || "Баланс токенов"}
-                value={balance !== null ? balance.toString() : "—"}
-              />
-              
-              {/* Subscription Info */}
-              <div className="space-y-2 border-t border-slate-200 pt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-600">
-                    {t.tokens?.subscriptionStatus || "Статус подписки"}:
-                  </span>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      hasSubscription
-                        ? "bg-green-100 text-green-700"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {hasSubscription
-                      ? t.tokens?.subscriptionActive || "Активна"
-                      : t.tokens?.subscriptionInactive || "Неактивна"}
-                  </span>
+              {loading ? (
+                <div className="text-center py-8 text-slate-600">
+                  Загрузка данных профиля...
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-600">
-                    {t.tokens?.subscriptionPlan || "Тип подписки"}:
-                  </span>
-                  <span className="text-sm font-semibold text-slate-900">
-                    {subscriptionPlan === "premium"
-                      ? t.tokens?.premium || "Премиум"
-                      : t.tokens?.free || "Бесплатная"}
-                  </span>
+              ) : error ? (
+                <div className="text-center py-8 text-red-600">
+                  {error}
                 </div>
-                {subscriptionEnd && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-600">
-                      {t.tokens?.subscriptionEnd || "Окончание подписки"}:
-                    </span>
-                    <span className="text-sm font-semibold text-slate-900">
-                      {formatSubscriptionDate(subscriptionEnd)}
-                    </span>
+              ) : (
+                <>
+                  <InfoRow label={t.auth.profile.name} value={name} />
+                  <InfoRow label={t.auth.profile.email} value={email} />
+                  <InfoRow label={t.auth.profile.phone} value={phone} />
+                  <InfoRow
+                    label={t.tokens?.balance || "Баланс токенов"}
+                    value={balance !== null ? balance.toString() : "—"}
+                  />
+                  
+                  {/* Subscription Info */}
+                  <div className="space-y-2 border-t border-slate-200 pt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-600">
+                        {t.tokens?.subscriptionStatus || "Статус подписки"}:
+                      </span>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          hasSubscription
+                            ? "bg-green-100 text-green-700"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {hasSubscription
+                          ? t.tokens?.subscriptionActive || "Активна"
+                          : t.tokens?.subscriptionInactive || "Неактивна"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-600">
+                        {t.tokens?.subscriptionPlan || "Тип подписки"}:
+                      </span>
+                      <span className="text-sm font-semibold text-slate-900">
+                        {subscriptionPlan === "premium"
+                          ? t.tokens?.premium || "Премиум"
+                          : t.tokens?.free || "Бесплатная"}
+                      </span>
+                    </div>
+                    {subscriptionEnd && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">
+                          {t.tokens?.subscriptionEnd || "Окончание подписки"}:
+                        </span>
+                        <span className="text-sm font-semibold text-slate-900">
+                          {formatSubscriptionDate(subscriptionEnd)}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
 
             <button

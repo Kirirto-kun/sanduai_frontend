@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useGLTF, Environment, OrbitControls } from "@react-three/drei";
+import { useGLTF, Environment } from "@react-three/drei";
 import * as THREE from "three";
 
 interface AvatarModelProps {
@@ -14,7 +14,7 @@ interface AvatarModelProps {
  * Компонент модели аватара
  */
 function AvatarModel({ audioUrl, isPlaying }: AvatarModelProps) {
-  const { scene } = useGLTF("/models/avatar.glb");
+  const { scene } = useGLTF("/models/avatar_rpm.glb");
   
   const headMesh = useRef<THREE.Mesh | null>(null);
   const morphName = useRef<string | null>(null);
@@ -155,12 +155,13 @@ interface AvatarSceneProps {
  */
 export function AvatarScene({ audioUrl, isPlaying }: AvatarSceneProps) {
   const [error, setError] = useState<string | null>(null);
+  const [canvasKey, setCanvasKey] = useState(0);
 
   useEffect(() => {
     const handleContextLost = (event: Event) => {
       event.preventDefault();
-      console.error("[Avatar] WebGL context lost");
-      setError("WebGL контекст потерян. Пожалуйста, обновите страницу.");
+      console.warn("[Avatar] WebGL context lost");
+      setError("WebGL контекст потерян. Пожалуйста, попробуйте снова.");
     };
 
     const handleContextRestored = () => {
@@ -181,7 +182,12 @@ export function AvatarScene({ audioUrl, isPlaying }: AvatarSceneProps) {
         canvas.removeEventListener("webglcontextrestored", handleContextRestored);
       }
     };
-  }, []);
+  }, [canvasKey]);
+
+  const handleRetry = () => {
+    setError(null);
+    setCanvasKey((k) => k + 1);
+  };
 
   if (error) {
     return (
@@ -189,10 +195,10 @@ export function AvatarScene({ audioUrl, isPlaying }: AvatarSceneProps) {
         <div className="text-center p-4">
           <p className="text-red-700 mb-2">{error}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={handleRetry}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            Обновить страницу
+            Попробовать снова
           </button>
         </div>
       </div>
@@ -201,12 +207,14 @@ export function AvatarScene({ audioUrl, isPlaying }: AvatarSceneProps) {
 
   return (
     <div style={{ width: "100%", height: "100%", borderRadius: "16px", overflow: "hidden" }}>
-      <Canvas 
+      <Canvas
+        key={canvasKey}
         camera={{ position: [0, 0.2, 1.5], fov: 40 }}
-        gl={{ 
+        gl={{
           preserveDrawingBuffer: true,
           antialias: true,
           alpha: true,
+          powerPreference: "low-power",
         }}
         onCreated={({ gl }) => {
           // Настройка для предотвращения потери контекста
@@ -221,17 +229,14 @@ export function AvatarScene({ audioUrl, isPlaying }: AvatarSceneProps) {
         <spotLight position={[-2, 4, 2]} intensity={1} />
 
         {/* Окружение (красивые блики на очках) */}
-        <Environment preset="city" />
+        <Environment preset="studio" />
 
         {/* Аватар */}
         <AvatarModel audioUrl={audioUrl} isPlaying={isPlaying} />
-
-        {/* Управление (можно убрать в продакшене) */}
-        <OrbitControls enableZoom={false} minPolarAngle={Math.PI / 3} maxPolarAngle={Math.PI / 2} />
       </Canvas>
     </div>
   );
 }
 
 // Предзагрузка модели для оптимизации
-useGLTF.preload("/models/avatar.glb");
+useGLTF.preload("/models/avatar_rpm.glb");

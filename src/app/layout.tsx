@@ -4,6 +4,7 @@ import "./globals.css";
 import { LanguageProvider } from "../i18n/LanguageContext";
 import { AuthProvider } from "../contexts/AuthContext";
 import { CookieBanner } from "../components/CookieBanner";
+import { ChatWidgetWrapper } from "../components/ChatWidgetWrapper";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -27,6 +28,7 @@ export default function RootLayout({
           <LanguageProvider>
             {children}
             <CookieBanner />
+            <ChatWidgetWrapper />
           </LanguageProvider>
         </AuthProvider>
       </body>

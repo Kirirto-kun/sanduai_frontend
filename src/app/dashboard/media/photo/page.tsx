@@ -26,7 +26,7 @@ export default function PhotoPage() {
   const onGenerate = async (e: FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) {
-      setError("Введите описание изображения");
+      setError(t.photoPage?.enterPrompt || "Введите описание изображения");
       return;
     }
 
@@ -44,7 +44,7 @@ export default function PhotoPage() {
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(err instanceof Error ? err.message : "Ошибка генерации изображения");
+        setError(err instanceof Error ? err.message : (t.photoPage?.generationError || "Ошибка генерации изображения"));
       }
     } finally {
       setLoading(false);
@@ -81,7 +81,7 @@ export default function PhotoPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-beige to-green-50 p-4 sm:p-6">
       <div className="mx-auto max-w-4xl">
-        <h1 className="mb-6 text-3xl font-bold text-slate-900">Генерация изображений</h1>
+        <h1 className="mb-6 text-3xl font-bold text-slate-900">{t.photoPage?.title || "Генерация изображений"}</h1>
 
         {/* Предупреждение */}
         <div className="glass-card mb-6 rounded-3xl border border-white/60 px-6 py-4 shadow-md sm:px-8">
@@ -99,10 +99,10 @@ export default function PhotoPage() {
             </svg>
             <div>
               <h3 className="font-semibold text-orange-800">
-                Внимание: Изображение не сохраняется в истории
+                {t.photoPage?.warningTitle || "Внимание: Изображение не сохраняется в истории"}
               </h3>
               <p className="mt-1 text-sm text-orange-700">
-                Скачайте изображение сразу после генерации. Ссылка действительна только 1 час.
+                {t.photoPage?.warningText || "Скачайте изображение сразу после генерации. Ссылка действительна только 1 час."}
               </p>
             </div>
           </div>
@@ -116,7 +116,7 @@ export default function PhotoPage() {
               <TokenBalance showCost={operationType} />
               {!hasEnoughBalance && balance !== null && (
                 <div className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">
-                  Недостаточно токенов для генерации. Требуется: {cost}, доступно: {balance}
+                  {(t.photoPage?.insufficientTokensFormat || "Недостаточно токенов для генерации. Требуется: {cost}, доступно: {balance}").replace("{cost}", String(cost)).replace("{balance}", String(balance))}
                 </div>
               )}
             </div>
@@ -127,19 +127,19 @@ export default function PhotoPage() {
                 htmlFor="prompt"
                 className="mb-2 block text-sm font-semibold text-slate-700"
               >
-                Описание изображения
+                {t.photoPage?.promptLabel || "Описание изображения"}
               </label>
               <textarea
                 id="prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Например: Абай Кунанбаев читает книгу"
+                placeholder={t.photoPage?.promptPlaceholder || "Например: Абай Кунанбаев читает книгу"}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                 rows={6}
                 disabled={loading}
               />
               <p className="mt-2 text-xs text-slate-500">
-                Опишите детально, какое изображение вы хотите создать
+                {t.photoPage?.promptHint || "Опишите детально, какое изображение вы хотите создать"}
               </p>
             </div>
 
@@ -159,10 +159,10 @@ export default function PhotoPage() {
               {loading ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
-                  Генерация...
+                  {t.photoPage?.generating || "Генерация..."}
                 </>
               ) : (
-                "Сгенерировать изображение"
+                t.photoPage?.generate || "Сгенерировать изображение"
               )}
             </button>
           </form>
@@ -172,7 +172,7 @@ export default function PhotoPage() {
         {result && result.status === "success" && result.temp_url && (
           <div className="glass-card animate-fade-in rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
             <h2 className="mb-4 text-xl font-semibold text-slate-900">
-              Сгенерированное изображение
+              {t.photoPage?.resultTitle || "Сгенерированное изображение"}
             </h2>
 
             <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -195,7 +195,7 @@ export default function PhotoPage() {
                 className="flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 hover:text-[color:var(--primary)]"
               >
                 <span>⬇️</span>
-                Скачать изображение
+                {t.photoPage?.download || "Скачать изображение"}
               </button>
               <a
                 href={result.temp_url}
@@ -204,7 +204,7 @@ export default function PhotoPage() {
                 className="flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 hover:text-[color:var(--primary)]"
               >
                 <span>🔗</span>
-                Открыть в новой вкладке
+                {t.photoPage?.openInNewTab || "Открыть в новой вкладке"}
               </a>
             </div>
           </div>
@@ -213,7 +213,7 @@ export default function PhotoPage() {
         {result && result.status === "error" && (
           <div className="glass-card rounded-3xl border border-red-200 bg-red-50 px-6 py-4 shadow-md sm:px-8">
             <div className="text-sm text-red-700">
-              <strong>Ошибка генерации:</strong> {result.error_message || "Неизвестная ошибка"}
+              <strong>{t.photoPage?.errorLabel || "Ошибка генерации:"}</strong> {result.error_message || (t.photoPage?.unknownError || "Неизвестная ошибка")}
             </div>
           </div>
         )}

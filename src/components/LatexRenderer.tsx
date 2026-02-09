@@ -4,81 +4,64 @@ import katex from "katex";
 import "katex/dist/katex.min.css";
 
 type LatexRendererProps = {
-  text: string;
+  /** Raw LaTeX content (без $$). Используется из BotMessageRenderer. */
+  content?: string;
+  /** Текст с формулами $$...$$ или \(...\). Обратная совместимость для bjb-tjb, tests и т.д. */
+  text?: string;
+  displayMode?: boolean;
 };
+
+function renderLatex(content: string, displayMode: boolean) {
+  try {
+    const html = katex.renderToString(content.trim(), {
+      throwOnError: false,
+      displayMode,
+    });
+    return (
+      <span
+        dangerouslySetInnerHTML={{ __html: html }}
+        className={displayMode ? "block my-2 overflow-x-auto" : "inline-block align-middle"}
+      />
+    );
+  } catch (err) {
+    console.error("KaTeX rendering error:", err);
+    return <span>{`$$${content}$$`}</span>;
+  }
+}
 
 /**
  * LatexRenderer component
- * Finds LaTeX formulas wrapped in $$...$$ and renders them using KaTeX
- * Other text is displayed as-is
+ * Renders LaTeX formula using KaTeX.
+ * - content: raw LaTeX (from BotMessageRenderer)
+ * - text: parses $$...$$ and \(...\) (backward compat)
  */
-export function LatexRenderer({ text }: LatexRendererProps) {
+export function LatexRenderer({ content, text, displayMode = false }: LatexRendererProps) {
+  if (content) {
+    return renderLatex(content, displayMode);
+  }
   if (!text) return null;
 
-  // Split text by LaTeX delimiters $$...$$
-  const parts: { type: "text" | "latex"; content: string }[] = [];
-  let currentIndex = 0;
-  const regex = /\$\$(.*?)\$\$/g;
+  const parts: React.ReactNode[] = [];
+  const regex = /\$\$([\s\S]*?)\$\$|\\\(([\s\S]*?)\\\)|\\\[([\s\S]*?)\\\]/g;
   let match;
+  let currentIndex = 0;
 
   while ((match = regex.exec(text)) !== null) {
-    // Add text before the formula
     if (match.index > currentIndex) {
-      parts.push({
-        type: "text",
-        content: text.slice(currentIndex, match.index),
-      });
+      parts.push(<span key={`t-${parts.length}`}>{text.slice(currentIndex, match.index)}</span>);
     }
-
-    // Add the formula
-    parts.push({
-      type: "latex",
-      content: match[1],
-    });
-
+    const latexContent = (match[1] ?? match[2] ?? match[3] ?? "").trim();
+    const isDisplay = match[1] !== undefined || match[3] !== undefined;
+    parts.push(<span key={`l-${parts.length}`}>{renderLatex(latexContent, isDisplay)}</span>);
     currentIndex = match.index + match[0].length;
   }
 
-  // Add remaining text after last formula
   if (currentIndex < text.length) {
-    parts.push({
-      type: "text",
-      content: text.slice(currentIndex),
-    });
+    parts.push(<span key={`t-${parts.length}`}>{text.slice(currentIndex)}</span>);
   }
 
-  // If no LaTeX found, return text as-is
-  if (parts.length === 0) {
-    return <span>{text}</span>;
-  }
-
-  return (
-    <span>
-      {parts.map((part, idx) => {
-        if (part.type === "text") {
-          return <span key={idx}>{part.content}</span>;
-        } else {
-          // Render LaTeX
-          try {
-            const html = katex.renderToString(part.content, {
-              throwOnError: false,
-              displayMode: false,
-            });
-            return (
-              <span
-                key={idx}
-                dangerouslySetInnerHTML={{ __html: html }}
-                className="inline-block"
-              />
-            );
-          } catch (err) {
-            console.error("KaTeX rendering error:", err);
-            return <span key={idx}>{`$$${part.content}$$`}</span>;
-          }
-        }
-      })}
-    </span>
-  );
+  if (parts.length === 0) return <span>{text}</span>;
+  return <span>{parts}</span>;
 }
 
 
