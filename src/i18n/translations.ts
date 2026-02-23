@@ -753,14 +753,37 @@ type Translations = {
     title: string;
     placeholder: string;
     voiceLabel: string;
+    voiceFilterAll: string;
+    voiceFilterFemale: string;
+    voiceFilterMale: string;
+    voiceFilterNeutral: string;
+    voiceSearchPlaceholder: string;
+    voicesLoading: string;
+    voicesLoadError: string;
     voices: {
-      alloy: string;
-      echo: string;
-      fable: string;
-      onyx: string;
-      nova: string;
-      shimmer: string;
+      roger: string;
+      sarah: string;
+      laura: string;
+      charlie: string;
+      george: string;
+      callum: string;
+      river: string;
+      harry: string;
+      liam: string;
+      alice: string;
+      matilda: string;
+      will: string;
+      jessica: string;
+      eric: string;
+      bella: string;
+      chris: string;
+      brian: string;
+      daniel: string;
+      lily: string;
+      adam: string;
+      bill: string;
     };
+    charactersUsed?: string;
     generate: string;
     result: string;
     download: string;
@@ -1828,16 +1851,39 @@ export const translations: Record<Language, Translations> = {
     },
     voiceover: {
       title: "Озвучка при помощи ИИ",
-      placeholder: "Введите текст для озвучки (на казахском или русском)...",
+      placeholder: "Введите текст для озвучки (на казахском, русском или английском)...",
       voiceLabel: "Выберите голос",
+      voiceFilterAll: "Все",
+      voiceFilterFemale: "Женские",
+      voiceFilterMale: "Мужские",
+      voiceFilterNeutral: "Нейтральные",
+      voiceSearchPlaceholder: "Поиск по имени",
+      voicesLoading: "Загрузка голосов…",
+      voicesLoadError: "Не удалось загрузить список голосов",
       voices: {
-        alloy: "Арайлым (Женский)",
-        echo: "Арман (Мужской)",
-        fable: "Данияр (Мужской)",
-        onyx: "Олжас (Мужской)",
-        nova: "Жанар (Женский)",
-        shimmer: "Айгерім (Женский)",
+        roger: "Роджер — расслабленный, уверенный",
+        sarah: "Сара — зрелая, внушающая доверие",
+        laura: "Лора — энергичная, с характером",
+        charlie: "Чарли — глубокий, уверенный, энергичный",
+        george: "Джордж — тёплый, завораживающий",
+        callum: "Каллум — хрипловатый, с изюминкой",
+        river: "Ривер — спокойный, нейтральный",
+        harry: "Гарри — напористый, волевой",
+        liam: "Лиам — энергичный, современный",
+        alice: "Элис — чёткий, располагающий",
+        matilda: "Матильда — эрудированная, профессиональная",
+        will: "Уилл — спокойный оптимист",
+        jessica: "Джессика — игривый, яркий, тёплый",
+        eric: "Эрик — мягкий, надёжный",
+        bella: "Белла — профессиональная, яркая, тёплая",
+        chris: "Крис — обаятельный, приземлённый",
+        brian: "Бриан — глубокий, бархатный",
+        daniel: "Даниэль — ровный диктор",
+        lily: "Лили — бархатный, актёрский",
+        adam: "Адам — доминантный, твёрдый",
+        bill: "Билл — мудрый, зрелый",
       },
+      charactersUsed: "Символов использовано",
       generate: "Генерировать",
       result: "Результат озвучки",
       download: "Скачать MP3",
@@ -2904,16 +2950,39 @@ export const translations: Record<Language, Translations> = {
     },
     voiceover: {
       title: "ИИ арқылы дыбыстау",
-      placeholder: "Дыбыстау үшін мәтінді енгізіңіз (қазақша немесе орысша)...",
+      placeholder: "Дыбыстау үшін мәтінді енгізіңіз (қазақша, орысша немесе ағылшынша)...",
       voiceLabel: "Дауысты таңдаңыз",
+      voiceFilterAll: "Барлығы",
+      voiceFilterFemale: "Әйелдер",
+      voiceFilterMale: "Ерлер",
+      voiceFilterNeutral: "Бейтарап",
+      voiceSearchPlaceholder: "Аты бойынша іздеу",
+      voicesLoading: "Дауыстар жүктелуде…",
+      voicesLoadError: "Дауыстар тізімін жүктеу мүмкін болмады",
       voices: {
-        alloy: "Арайлым (Әйел)",
-        echo: "Арман (Ер)",
-        fable: "Данияр (Ер)",
-        onyx: "Олжас (Ер)",
-        nova: "Жанар (Әйел)",
-        shimmer: "Айгерім (Әйел)",
+        roger: "Роджер — босаң, сенімді",
+        sarah: "Сара — жетілген, сенімді",
+        laura: "Лора — қызу, ерекше мінез",
+        charlie: "Чарли — терең, сенімді, қарқынды",
+        george: "Джордж — жылы, тартымды",
+        callum: "Каллум — дыбысы қалың, озық",
+        river: "Ривер — тыныш, бейтарап",
+        harry: "Гарри — күшті, ерлі",
+        liam: "Лиам — қарқынды, заманауи",
+        alice: "Элис — анық, тартымды",
+        matilda: "Мәтилда — білімді, кәсіби",
+        will: "Уилл — тыныш оптимист",
+        jessica: "Джессика — ойнақы, жарқын, жылы",
+        eric: "Эрик — жұмсақ, сенімді",
+        bella: "Бәйше — кәсіби, жарқын, жылы",
+        chris: "Крис — тартымды, қарапайым",
+        brian: "Бриан — терең, ыңғайлы",
+        daniel: "Даниэль — тұрақты диктор",
+        lily: "Лили — жұмсақ, актерлік",
+        adam: "Әділет — басым, қатты",
+        bill: "Билл — дана, жетілген",
       },
+      charactersUsed: "Пайдаланылған таңбалар",
       generate: "Генерациялау",
       result: "Дыбыстау нәтижесі",
       download: "MP3 жүктеу",

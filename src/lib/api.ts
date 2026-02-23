@@ -491,17 +491,28 @@ export type WorksheetExportPayload = {
   content: WorksheetContent;
 };
 
-// Voiceover (Озвучка ИИ) types
+// Voiceover (Озвучка ИИ) — ElevenLabs
 export type VoiceoverGeneratePayload = {
   text: string;
-  voice: string;
+  voice_id: string;
   speed?: number;
 };
 
 export type VoiceoverResponse = {
   success: boolean;
   audio_url: string;
-  duration?: any;
+  duration?: number | null;
+  characters_used?: number | null;
+};
+
+export type VoiceoverVoice = {
+  name: string;
+  voice_id: string;
+  gender: string;
+};
+
+export type VoiceoverVoicesResponse = {
+  voices: VoiceoverVoice[];
 };
 
 // Ybyrai Digital Avatar types
@@ -873,11 +884,22 @@ export async function generateVoiceover(
     auth: true,
   });
 
+  // Ensure audio_url is absolute and uses backend path /media/audio/ (not /audio/)
   if (res.audio_url && !res.audio_url.startsWith("http")) {
-    res.audio_url = `${API_BASE}${res.audio_url}`;
+    const path = res.audio_url.startsWith("/audio/")
+      ? `/media${res.audio_url}`
+      : res.audio_url;
+    res.audio_url = `${API_BASE}${path}`;
   }
 
   return res;
+}
+
+export async function getVoiceoverVoices(): Promise<VoiceoverVoicesResponse> {
+  return request<VoiceoverVoicesResponse>("/api/v1/ai/voices", {
+    method: "GET",
+    auth: true,
+  });
 }
 
 // Sandu Bot API
