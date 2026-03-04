@@ -14,7 +14,7 @@ interface AvatarModelProps {
  * Компонент модели аватара
  */
 function AvatarModel({ audioUrl, isPlaying }: AvatarModelProps) {
-  const { scene } = useGLTF("/models/avatar_rpm.glb");
+  const { scene } = useGLTF("/models/avatar_1.glb");
   
   const headMesh = useRef<THREE.Mesh | null>(null);
   const morphName = useRef<string | null>(null);
@@ -22,45 +22,79 @@ function AvatarModel({ audioUrl, isPlaying }: AvatarModelProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // 1. Инициализация: Ищем "голову" и морф для рта
+  // 1. Инициализация: Ищем "голову" и морф для рта (не брови)
   useEffect(() => {
-    const candidates = ["mouthOpen", "jawOpen", "mouth_open", "A05_jaw_open", "viseme_aa"];
+    const mouthCandidates = [
+      "jawOpen",
+      "Jaw_Open",
+      "mouthOpen",
+      "Mouth_Open",
+      "mouth_open",
+      "mouthClose",
+      "A05_jaw_open",
+      "viseme_aa",
+      "jaw_open",
+    ];
     const preferredMeshNames = ["Head", "head", "Face", "face", "Body", "body", "Avatar", "avatar"];
     const excludedMeshNames = ["Eye", "eye", "Hair", "hair", "Glasses", "glasses"];
-    
-    // Сначала ищем на предпочтительных мешах
-    const meshes: Array<{ mesh: THREE.Mesh; name: string; priority: number }> = [];
-    
+    const browSubstrings = ["brow", "eyebrow", "бров"];
+
+    function isBrowLike(name: string): boolean {
+      const lower = name.toLowerCase();
+      return browSubstrings.some((sub) => lower.includes(sub));
+    }
+
+    function morphNamePriority(name: string): number {
+      const lower = name.toLowerCase();
+      if (lower.includes("jaw") || lower.includes("mouth")) return 0;
+      if (lower.includes("viseme")) return 1;
+      return 2;
+    }
+
+    const meshes: Array<{
+      mesh: THREE.Mesh;
+      name: string;
+      meshPriority: number;
+      morphPriority: number;
+    }> = [];
+
     scene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.morphTargetDictionary && child.morphTargetInfluences) {
         const meshName = child.name.toLowerCase();
-        
-        // Пропускаем исключенные меши
+
+        if (process.env.NODE_ENV === "development") {
+          const keys = Object.keys(child.morphTargetDictionary);
+          if (keys.length > 0) {
+            console.log(`[Avatar] Mesh "${child.name}" morphTargetDictionary:`, keys);
+          }
+        }
+
         if (excludedMeshNames.some((excluded) => meshName.includes(excluded.toLowerCase()))) {
           return;
         }
-        
+
         const dict = child.morphTargetDictionary;
-        const match = candidates.find((name) => name in dict);
-        
-        if (match) {
-          // Определяем приоритет меша
-          const priority = preferredMeshNames.findIndex((pref) => 
-            meshName.includes(pref.toLowerCase())
-          );
-          
+        for (const candidate of mouthCandidates) {
+          if (!(candidate in dict)) continue;
+          if (isBrowLike(candidate)) continue;
+          const meshPriority =
+            preferredMeshNames.findIndex((pref) => meshName.includes(pref.toLowerCase()));
           meshes.push({
             mesh: child,
-            name: match,
-            priority: priority >= 0 ? priority : 999, // Низкий приоритет для непредпочтительных
+            name: candidate,
+            meshPriority: meshPriority >= 0 ? meshPriority : 999,
+            morphPriority: morphNamePriority(candidate),
           });
+          break;
         }
       }
     });
-    
-    // Сортируем по приоритету и берем первый
+
     if (meshes.length > 0) {
-      meshes.sort((a, b) => a.priority - b.priority);
+      meshes.sort(
+        (a, b) =>
+          a.meshPriority - b.meshPriority || a.morphPriority - b.morphPriority
+      );
       const selected = meshes[0];
       headMesh.current = selected.mesh;
       morphName.current = selected.name;
@@ -142,7 +176,7 @@ function AvatarModel({ audioUrl, isPlaying }: AvatarModelProps) {
   });
 
   // Настройка позиции (опустить модель пониже и увеличить)
-  return <primitive object={scene} position={[0, -1.6, 0]} scale={1.2} />;
+  return <primitive object={scene} position={[0, -2.0, 0]} scale={1.2} />;
 }
 
 interface AvatarSceneProps {
@@ -239,4 +273,4 @@ export function AvatarScene({ audioUrl, isPlaying }: AvatarSceneProps) {
 }
 
 // Предзагрузка модели для оптимизации
-useGLTF.preload("/models/avatar_rpm.glb");
+useGLTF.preload("/models/avatar_1.glb");

@@ -594,9 +594,11 @@ async function request<T>(
       const available = availableMatch ? parseInt(availableMatch[1], 10) : 0;
       throw new InsufficientTokensError(detail, required, available);
     }
-    const message =
-      (data && (data.error || data.message)) ||
-      `Request failed with status ${res.status}`;
+    let message = data && (data.detail || data.error || data.message);
+    if (Array.isArray(message)) {
+      message = message.map((e: any) => e.msg || JSON.stringify(e)).join("; ");
+    }
+    message = message || `Request failed with status ${res.status}`;
     throw new Error(message);
   }
   return data as T;
@@ -1039,7 +1041,7 @@ export async function chatWithYbyrai(
   }
 
   const data = await res.json();
-  
+
   // Ensure audio_url is absolute
   if (data.audio_url && !data.audio_url.startsWith("http")) {
     data.audio_url = `${getApiBase()}${data.audio_url}`;
@@ -1110,7 +1112,7 @@ export function chatWithYbyraiStream(
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        
+
         // Process complete SSE messages (separated by double newline)
         const messages = buffer.split("\n\n");
         buffer = messages.pop() || ""; // Keep incomplete message in buffer
@@ -1381,7 +1383,7 @@ export function decodeJWT(token: string): { sub?: string; role?: string; exp?: n
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
-    
+
     // Decode base64url payload (second part)
     const payload = parts[1];
     // Replace base64url characters
@@ -1642,7 +1644,7 @@ export async function uploadVideoToBunny(
       } else {
         let errorText = `Upload failed with status ${xhr.status}`;
         let errorDetails: any = {};
-        
+
         try {
           const responseText = xhr.responseText;
           if (responseText) {
@@ -1653,7 +1655,7 @@ export async function uploadVideoToBunny(
         } catch {
           errorText = xhr.responseText || xhr.statusText || errorText;
         }
-        
+
         console.error("Bunny CDN upload error:", {
           status: xhr.status,
           statusText: xhr.statusText,
@@ -1661,7 +1663,7 @@ export async function uploadVideoToBunny(
           errorDetails,
           responseHeaders: xhr.getAllResponseHeaders(),
         });
-        
+
         reject(new Error(errorText));
       }
     });
@@ -1677,7 +1679,7 @@ export async function uploadVideoToBunny(
 
     // Use PUT method as required by Bunny CDN for direct uploads
     xhr.open("PUT", url);
-    
+
     // Bunny CDN requires header name "AccessKey", not "Authorization"
     // Backend sends "AccessKey <key>", we need to extract just the key
     let accessKey: string;
@@ -1688,14 +1690,14 @@ export async function uploadVideoToBunny(
       // If no prefix, use as-is (shouldn't happen, but just in case)
       accessKey = authHeader.trim();
     }
-    
+
     // Set header with name "AccessKey" (not "Authorization")
     xhr.setRequestHeader("AccessKey", accessKey);
-    
+
     // Set Content-Type to application/octet-stream to ensure Bunny recognizes the upload
     // Without this header, Bunny may accept the file but won't trigger encoding process
     xhr.setRequestHeader("Content-Type", "application/octet-stream");
-    
+
     // Log upload details for debugging
     const urlObj = new URL(url);
     console.log("Uploading to Bunny CDN:", {
@@ -1711,7 +1713,7 @@ export async function uploadVideoToBunny(
       extractedAccessKey: accessKey.substring(0, 10) + "...",
       contentType: "application/octet-stream",
     });
-    
+
     xhr.send(file);
   });
 }
@@ -1739,18 +1741,18 @@ export async function getAllVideos(): Promise<VideosResponse> {
 }
 
 // Admin function to sync all video statuses
-export async function syncAllVideoStatuses(): Promise<{ 
-  message: string; 
-  updated: number; 
-  deleted: number; 
-  errors: string[]; 
+export async function syncAllVideoStatuses(): Promise<{
+  message: string;
+  updated: number;
+  deleted: number;
+  errors: string[];
   total_processed: number;
 }> {
-  return request<{ 
-    message: string; 
-    updated: number; 
-    deleted: number; 
-    errors: string[]; 
+  return request<{
+    message: string;
+    updated: number;
+    deleted: number;
+    errors: string[];
     total_processed: number;
   }>("/api/admin/videos/sync-all-statuses", {
     method: "POST",

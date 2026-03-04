@@ -64,7 +64,7 @@ export default function RegisterPage() {
         });
       } catch (err: any) {
         console.error("Failed to initialize reCAPTCHA:", err);
-        
+
         let errorMessage = "Ошибка инициализации reCAPTCHA. ";
         if (err.code === "auth/network-request-failed") {
           errorMessage += "Проверьте подключение к интернету. Убедитесь, что домен добавлен в настройках Firebase Authentication (Firebase Console > Authentication > Settings > Authorized domains).";
@@ -73,7 +73,7 @@ export default function RegisterPage() {
         } else {
           errorMessage += "Попробуйте обновить страницу.";
         }
-        
+
         setError(errorMessage);
       }
     };
@@ -120,7 +120,7 @@ export default function RegisterPage() {
     } catch (err: any) {
       console.error("Error sending verification code:", err);
       resetRecaptcha();
-      
+
       let errorMessage = t.auth.errors.generic;
       if (err.code === "auth/invalid-phone-number") {
         errorMessage = t.auth.register.invalidPhoneFormat;
@@ -129,7 +129,7 @@ export default function RegisterPage() {
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsSendingCode(false);
@@ -158,7 +158,7 @@ export default function RegisterPage() {
       setStep("register");
     } catch (err: any) {
       console.error("Error verifying code:", err);
-      
+
       let errorMessage = t.auth.register.invalidCode;
       if (err.code === "auth/invalid-verification-code") {
         errorMessage = t.auth.register.invalidCode;
@@ -169,7 +169,7 @@ export default function RegisterPage() {
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsVerifying(false);
@@ -207,7 +207,14 @@ export default function RegisterPage() {
       });
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.auth.errors.generic);
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("Invalid credentials")) {
+        setError(t.auth.errors.invalidCredentials || msg);
+      } else if (msg.includes("User with this email or phone already exists")) {
+        setError(t.auth.errors.userExists || msg);
+      } else {
+        setError(msg || t.auth.errors.generic);
+      }
     }
   };
 
@@ -217,7 +224,7 @@ export default function RegisterPage() {
     setVerificationCode("");
     setIsCodeSent(false);
     setStep("phone");
-    
+
     // Re-initialize reCAPTCHA
     try {
       await initializeRecaptcha("send-code-button", true);

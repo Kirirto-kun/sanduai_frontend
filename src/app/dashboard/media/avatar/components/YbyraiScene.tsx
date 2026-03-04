@@ -1,14 +1,21 @@
 "use client";
 
-import { AvatarScene } from "./AvatarScene";
+import { AvatarVideo } from "./AvatarVideo";
 
 interface YbyraiSceneProps {
   isSpeaking: boolean;
+  /** После разговора — всегда listen_1. В простое — случайный listen. */
+  useFixedListenVideo?: boolean;
   responseText: string | null;
   audioUrl?: string | null;
 }
 
-export function YbyraiScene({ isSpeaking, responseText, audioUrl }: YbyraiSceneProps) {
-  // Адаптируем интерфейс: isSpeaking -> isPlaying
-  return <AvatarScene audioUrl={audioUrl} isPlaying={isSpeaking} />;
+export function YbyraiScene({ isSpeaking, useFixedListenVideo }: YbyraiSceneProps) {
+  return (
+    <AvatarVideo
+      isSpeaking={isSpeaking}
+      useFixedListenVideo={useFixedListenVideo}
+      avatarId="ybyrai"
+    />
+  );
 }

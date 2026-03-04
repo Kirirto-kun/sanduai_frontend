@@ -8,6 +8,8 @@ interface AudioRecorderProps {
   onResponse: (text: string, audioUrl?: string, transcribedText?: string) => void;
   onError: (error: string) => void;
   onProcessing: (processing: boolean) => void;
+  /** Вызывается только когда реально играет ответ (для аватара «говорит»). */
+  onSpeaking?: (speaking: boolean) => void;
 }
 
 export function AudioRecorder({
@@ -15,6 +17,7 @@ export function AudioRecorder({
   onResponse,
   onError,
   onProcessing,
+  onSpeaking,
 }: AudioRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -49,6 +52,7 @@ export function AudioRecorder({
   // Play audio queue sequentially
   const playNextAudio = () => {
     if (isPlayingRef.current || audioQueueRef.current.length === 0) {
+      onSpeaking?.(false);
       return;
     }
 
@@ -56,20 +60,19 @@ export function AudioRecorder({
     if (!chunk) return;
 
     isPlayingRef.current = true;
+    onSpeaking?.(true);
     const audio = new Audio(chunk.url);
     currentAudioRef.current = audio;
 
     audio.onended = () => {
       isPlayingRef.current = false;
       currentAudioRef.current = null;
-      // Play next chunk
       playNextAudio();
     };
 
     audio.onerror = () => {
       isPlayingRef.current = false;
       currentAudioRef.current = null;
-      // Try next chunk even if this one failed
       playNextAudio();
     };
 
@@ -193,6 +196,7 @@ export function AudioRecorder({
           }, 100);
         },
         onError: (error: string) => {
+          onSpeaking?.(false);
           setIsProcessing(false);
           onProcessing(false);
           if (error.includes("Insufficient tokens")) {
@@ -204,6 +208,7 @@ export function AudioRecorder({
       });
     } catch (err: any) {
       console.error("Error processing audio:", err);
+      onSpeaking?.(false);
       setIsProcessing(false);
       onProcessing(false);
 
@@ -216,22 +221,17 @@ export function AudioRecorder({
   };
 
   const handleStop = () => {
-    // Abort stream if active
     if (abortStreamRef.current) {
       abortStreamRef.current();
       abortStreamRef.current = null;
     }
-    
-    // Stop current audio
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
     }
-    
-    // Clear queue
     audioQueueRef.current = [];
     isPlayingRef.current = false;
-    
+    onSpeaking?.(false);
     setIsProcessing(false);
     onProcessing(false);
   };

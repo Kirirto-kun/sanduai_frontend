@@ -30,7 +30,14 @@ export default function LoginPage() {
       });
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.auth.errors.generic);
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("Invalid credentials")) {
+        setError(t.auth.errors.invalidCredentials || msg);
+      } else if (msg.includes("User with this email or phone already exists")) {
+        setError(t.auth.errors.userExists || msg);
+      } else {
+        setError(msg || t.auth.errors.generic);
+      }
     }
   };
 

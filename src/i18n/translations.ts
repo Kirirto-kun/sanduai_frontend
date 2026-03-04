@@ -96,6 +96,8 @@ type Translations = {
       invalidEmail: string;
       shortPassword: string;
       generic: string;
+      invalidCredentials: string;
+      userExists: string;
     };
     loading: string;
   };
@@ -1195,6 +1197,8 @@ export const translations: Record<Language, Translations> = {
         invalidEmail: "Неверный формат email.",
         shortPassword: "Пароль должен быть не короче 6 символов.",
         generic: "Произошла ошибка. Попробуйте ещё раз.",
+        invalidCredentials: "Неправильный логин или пароль.",
+        userExists: "Пользователь с таким email или телефоном уже существует.",
       },
       loading: "Загрузка...",
     },
@@ -2294,6 +2298,8 @@ export const translations: Record<Language, Translations> = {
         invalidEmail: "Email форматы дұрыс емес.",
         shortPassword: "Пароль кемінде 6 таңба болуы керек.",
         generic: "Қате пайда болды. Қайта көріңіз.",
+        invalidCredentials: "Логин немесе құпия сөз қате.",
+        userExists: "Бұл email немесе телефон нөмірі қазірдің өзінде тіркелген.",
       },
       loading: "Жүктелуде...",
     },
