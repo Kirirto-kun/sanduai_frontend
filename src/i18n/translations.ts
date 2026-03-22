@@ -963,6 +963,89 @@ type Translations = {
     insufficientTokens: string;
     thinking: string;
   };
+  aiPresentations: {
+    title: string;
+    subtitle: string;
+    create: string;
+    createSubtitle: string;
+    contentLabel: string;
+    contentPlaceholder: string;
+    instructionsLabel: string;
+    instructionsPlaceholder: string;
+    slidesCount: string;
+    language: string;
+    template: string;
+    format: string;
+    tone: string;
+    generate: string;
+    generating: string;
+    download: string;
+    downloading: string;
+    status: string;
+    noPresentations: string;
+    delete: string;
+    deleteConfirm: string;
+    export: string;
+    editor: string;
+    outlines: string;
+    outlinesSubtitle: string;
+    editOutline: string;
+    addOutline: string;
+    removeOutline: string;
+    prepareSlides: string;
+    generateSlides: string;
+    generatingSlides: string;
+    themes: string;
+    createTheme: string;
+    themeName: string;
+    primaryColor: string;
+    generateColors: string;
+    fonts: string;
+    uploadFont: string;
+    images: string;
+    generateImage: string;
+    uploadImage: string;
+    icons: string;
+    searchIcons: string;
+    aiEdit: string;
+    aiEditPlaceholder: string;
+    undo: string;
+    redo: string;
+    slides: string;
+    addSlide: string;
+    deleteSlide: string;
+    loading: string;
+    error: string;
+    errorGeneration: string;
+    back: string;
+    backToList: string;
+    webSearch: string;
+    tableOfContents: string;
+    titleSlide: string;
+    selectLayout: string;
+    exportPptx: string;
+    exportPdf: string;
+    templateSubtitle: string;
+    statusPending: string;
+    statusProcessing: string;
+    statusCompleted: string;
+    statusError: string;
+    tipMagic: string;
+    tipAnalyzing: string;
+    tipOrganizing: string;
+    tipVisuals: string;
+    tipFinishing: string;
+    layoutsCount: string;
+    selectTemplate: string;
+    selected: string;
+    createdAt: string;
+    defaultBadge: string;
+    uploadTemplate: string;
+    uploadTemplateHint: string;
+    langEnglish: string;
+    langRussian: string;
+    langKazakh: string;
+  };
   common: {
     brand: string;
     ru: string;
@@ -2063,6 +2146,89 @@ export const translations: Record<Language, Translations> = {
       send: "Отправить",
       insufficientTokens: "Недостаточно токенов",
       thinking: "Думаю...",
+    },
+    aiPresentations: {
+      title: "ИИ Презентации",
+      subtitle: "Создавайте презентации с помощью искусственного интеллекта",
+      create: "Создать презентацию",
+      createSubtitle: "Введите тему или загрузите файл для генерации",
+      contentLabel: "Тема / содержание",
+      contentPlaceholder: "Например: «Урок по фотосинтезу для 7 класса: цель, понятия, примеры, мини-тест»",
+      instructionsLabel: "Доп. инструкции (необязательно)",
+      instructionsPlaceholder: "Например: «Добавь примеры, сделай стиль академическим, избегай сложных терминов»",
+      slidesCount: "Кол-во слайдов",
+      language: "Язык презентации",
+      template: "Шаблон оформления",
+      templateSubtitle: "Выберите стиль оформления для вашей презентации",
+      format: "Формат файла",
+      tone: "Тон",
+      generate: "Создать презентацию",
+      generating: "Создаём презентацию...",
+      download: "Скачать файл",
+      downloading: "Скачивание...",
+      status: "Статус",
+      noPresentations: "У вас пока нет презентаций. Создайте первую!",
+      delete: "Удалить",
+      deleteConfirm: "Вы уверены, что хотите удалить эту презентацию?",
+      export: "Экспорт",
+      editor: "Открыть в редакторе",
+      outlines: "План презентации",
+      outlinesSubtitle: "Редактируйте план и выберите макеты для слайдов",
+      editOutline: "Нажмите для редактирования",
+      addOutline: "Добавить пункт",
+      removeOutline: "Удалить",
+      prepareSlides: "Подготовить слайды",
+      generateSlides: "Генерировать слайды",
+      generatingSlides: "Генерация слайдов...",
+      themes: "Темы",
+      createTheme: "Создать тему",
+      themeName: "Название темы",
+      primaryColor: "Основной цвет",
+      generateColors: "Сгенерировать палитру",
+      fonts: "Шрифты",
+      uploadFont: "Загрузить шрифт",
+      images: "Изображения",
+      generateImage: "Сгенерировать изображение",
+      uploadImage: "Загрузить изображение",
+      icons: "Иконки",
+      searchIcons: "Поиск иконок",
+      aiEdit: "ИИ-редактирование",
+      aiEditPlaceholder: "Опишите, что нужно изменить на слайде...",
+      undo: "Отменить",
+      redo: "Повторить",
+      slides: "слайдов",
+      addSlide: "Добавить слайд",
+      deleteSlide: "Удалить слайд",
+      loading: "Загрузка...",
+      error: "Ошибка",
+      errorGeneration: "Не удалось создать презентацию. Попробуйте ещё раз.",
+      back: "Назад",
+      backToList: "К списку презентаций",
+      webSearch: "Искать информацию в интернете",
+      tableOfContents: "Добавить оглавление",
+      titleSlide: "Добавить титульный слайд",
+      selectLayout: "Выбрать макет",
+      exportPptx: "Скачать PPTX",
+      exportPdf: "Скачать PDF",
+      statusPending: "Подготавливаем вашу презентацию...",
+      statusProcessing: "ИИ создаёт слайды. Это займёт 1–2 минуты",
+      statusCompleted: "Презентация готова!",
+      statusError: "Произошла ошибка при генерации",
+      tipMagic: "Создаём презентацию с помощью ИИ",
+      tipAnalyzing: "Анализируем вашу тему для идеальных слайдов",
+      tipOrganizing: "Структурируем информацию для максимального эффекта",
+      tipVisuals: "Добавляем визуальные элементы для вовлечения аудитории",
+      tipFinishing: "Почти готово! Финальные штрихи",
+      layoutsCount: "макетов",
+      selectTemplate: "Выбрать",
+      selected: "Выбран",
+      createdAt: "Создана",
+      defaultBadge: "Рекомендуем",
+      uploadTemplate: "Загрузить свой шаблон",
+      uploadTemplateHint: "Загрузите .pptx файл для создания шаблона",
+      langEnglish: "English",
+      langRussian: "Русский",
+      langKazakh: "Қазақша",
     },
     common: {
       brand: "Sandu AI",
@@ -3166,6 +3332,89 @@ export const translations: Record<Language, Translations> = {
       send: "Жіберу",
       insufficientTokens: "Токендер жеткіліксіз",
       thinking: "Ойланып жатырмын...",
+    },
+    aiPresentations: {
+      title: "ИИ Презентациялар",
+      subtitle: "Жасанды интеллект көмегімен презентация жасаңыз",
+      create: "Презентация жасау",
+      createSubtitle: "Тақырыпты енгізіңіз немесе файл жүктеңіз",
+      contentLabel: "Тақырып / мазмұны",
+      contentPlaceholder: "Мысалы: «7-сынып фотосинтез сабағы: мақсат, ұғымдар, мысалдар, мини-тест»",
+      instructionsLabel: "Қосымша нұсқаулар (міндетті емес)",
+      instructionsPlaceholder: "Мысалы: «Мысалдар қосыңыз, академиялық стиль жасаңыз»",
+      slidesCount: "Слайд саны",
+      language: "Презентация тілі",
+      template: "Безендіру шаблоны",
+      templateSubtitle: "Презентацияңыз үшін безендіру стилін таңдаңыз",
+      format: "Файл форматы",
+      tone: "Тон",
+      generate: "Презентация жасау",
+      generating: "Презентация жасалып жатыр...",
+      download: "Файлды жүктеу",
+      downloading: "Жүктелуде...",
+      status: "Күйі",
+      noPresentations: "Сізде әзірше презентациялар жоқ. Біріншісін жасаңыз!",
+      delete: "Жою",
+      deleteConfirm: "Бұл презентацияны жойғыңыз келе ме?",
+      export: "Экспорт",
+      editor: "Редакторда ашу",
+      outlines: "Презентация жоспары",
+      outlinesSubtitle: "Жоспарды өзгертіңіз және макеттерді таңдаңыз",
+      editOutline: "Өзгерту үшін басыңыз",
+      addOutline: "Тармақ қосу",
+      removeOutline: "Жою",
+      prepareSlides: "Слайдтарды дайындау",
+      generateSlides: "Слайдтарды генерациялау",
+      generatingSlides: "Слайдтар генерацияланып жатыр...",
+      themes: "Тақырыптар",
+      createTheme: "Тақырып жасау",
+      themeName: "Тақырып атауы",
+      primaryColor: "Негізгі түс",
+      generateColors: "Палитра генерациялау",
+      fonts: "Қаріптер",
+      uploadFont: "Қаріп жүктеу",
+      images: "Суреттер",
+      generateImage: "Сурет генерациялау",
+      uploadImage: "Сурет жүктеу",
+      icons: "Белгішелер",
+      searchIcons: "Белгіше іздеу",
+      aiEdit: "ИИ-редакциялау",
+      aiEditPlaceholder: "Слайдта не өзгерту керек екенін сипаттаңыз...",
+      undo: "Болдырмау",
+      redo: "Қайтару",
+      slides: "слайд",
+      addSlide: "Слайд қосу",
+      deleteSlide: "Слайдты жою",
+      loading: "Жүктелуде...",
+      error: "Қате",
+      errorGeneration: "Презентация жасау мүмкін болмады. Қайтадан көріңіз.",
+      back: "Артқа",
+      backToList: "Презентациялар тізіміне",
+      webSearch: "Интернеттен ақпарат іздеу",
+      tableOfContents: "Мазмұн қосу",
+      titleSlide: "Титулдық слайд қосу",
+      selectLayout: "Макет таңдау",
+      exportPptx: "PPTX жүктеу",
+      exportPdf: "PDF жүктеу",
+      statusPending: "Презентацияңыз дайындалып жатыр...",
+      statusProcessing: "ИИ слайдтар жасап жатыр. 1–2 минут күтіңіз",
+      statusCompleted: "Презентация дайын!",
+      statusError: "Генерация кезінде қате болды",
+      tipMagic: "ИИ көмегімен презентация жасалуда",
+      tipAnalyzing: "Тақырыпты тамаша слайдтар үшін талдап жатырмыз",
+      tipOrganizing: "Ақпаратты максималды әсер үшін құрылымдап жатырмыз",
+      tipVisuals: "Аудиторияны тарту үшін визуал элементтер қосып жатырмыз",
+      tipFinishing: "Дерлік дайын! Соңғы штрихтар",
+      layoutsCount: "макет",
+      selectTemplate: "Таңдау",
+      selected: "Таңдалды",
+      createdAt: "Жасалған",
+      defaultBadge: "Ұсынамыз",
+      uploadTemplate: "Өз шаблонын жүктеу",
+      uploadTemplateHint: "Шаблон жасау үшін .pptx файлын жүктеңіз",
+      langEnglish: "English",
+      langRussian: "Орысша",
+      langKazakh: "Қазақша",
     },
     common: {
       brand: "Sandu AI",

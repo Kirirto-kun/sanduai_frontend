@@ -2340,3 +2340,6 @@ export async function downloadImage(imageUrl: string): Promise<Blob> {
 
   return response.blob();
 }
+
+// Presenton API moved to @/lib/presenton-api.ts
+// Old functions removed — use imports from presenton-api.ts instead.
