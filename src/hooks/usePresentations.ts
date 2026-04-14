@@ -103,7 +103,7 @@ export function useTaskStatus(taskId: string | null, enabled = true) {
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       if (status === "completed" || status === "error") return false;
-      return 2000; // poll every 2s while pending/processing
+      return 5000; // poll every 5s while pending/processing
     },
   });
 }

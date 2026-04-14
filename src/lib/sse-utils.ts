@@ -26,6 +26,29 @@ const API_BASE =
 export async function* fetchSSE(
   path: string,
   signal?: AbortSignal,
+  maxRetries = 3,
+): AsyncGenerator<SSEEvent> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      yield* _fetchSSEOnce(path, signal);
+      return; // Success — done
+    } catch (err: any) {
+      lastError = err;
+      if (signal?.aborted) throw err; // Don't retry if aborted
+      if (attempt < maxRetries - 1) {
+        const wait = Math.min(1000 * 2 ** attempt, 10000);
+        await new Promise((r) => setTimeout(r, wait));
+      }
+    }
+  }
+  throw lastError || new Error("SSE failed after retries");
+}
+
+async function* _fetchSSEOnce(
+  path: string,
+  signal?: AbortSignal,
 ): AsyncGenerator<SSEEvent> {
   const token = getToken();
   const headers: Record<string, string> = {

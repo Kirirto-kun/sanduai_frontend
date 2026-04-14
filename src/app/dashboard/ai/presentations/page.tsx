@@ -19,7 +19,7 @@ import type { AsyncGeneratePayload } from "@/types/presenton";
 export default function PresentationsPage() {
   const t = useTranslations().aiPresentations;
   const { data: presentations, isLoading: listLoading } = usePresentationsList();
-  const { data: templates, isLoading: templatesLoading } = useTemplates();
+  const { data: templates, isLoading: templatesLoading, isError: templatesError, refetch: refetchTemplates } = useTemplates();
   const deleteMutation = useDeletePresentation();
   const generateMutation = useStartAsyncGeneration();
 
@@ -117,6 +117,7 @@ export default function PresentationsPage() {
       <GenerationOverlay
         show={isGenerating}
         status={taskStatus?.status || (generateMutation.isPending ? "pending" : null)}
+        message={taskStatus?.message}
         t={t}
       />
 
@@ -259,6 +260,16 @@ export default function PresentationsPage() {
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-600 border-r-transparent" />
                 <span className="text-sm text-slate-500">{t.loading}</span>
               </div>
+            ) : templatesError ? (
+              <div className="rounded-xl bg-rose-50 border border-rose-200 px-4 py-3">
+                <p className="text-sm text-rose-700">{t.errorTemplates || "Не удалось загрузить шаблоны"}</p>
+                <button
+                  onClick={() => refetchTemplates()}
+                  className="mt-2 text-xs font-medium text-rose-600 underline hover:text-rose-800"
+                >
+                  {t.retry || "Попробовать ещё раз"}
+                </button>
+              </div>
             ) : (
               <TemplateSelector
                 templates={templates || []}
@@ -273,9 +284,11 @@ export default function PresentationsPage() {
 
           {/* Generate button + status */}
           <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
-            {error && (
+            {(error || taskStatus?.status === "error") && (
               <div className="mb-4 rounded-xl bg-rose-50 border border-rose-200 px-4 py-3">
-                <p className="text-sm text-rose-700">{error}</p>
+                <p className="text-sm text-rose-700">
+                  {error || taskStatus?.message || t.errorGeneration}
+                </p>
               </div>
             )}
 

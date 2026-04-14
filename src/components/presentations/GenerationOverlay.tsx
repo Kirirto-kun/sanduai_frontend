@@ -5,12 +5,13 @@ import { useEffect, useState } from "react";
 interface Props {
   show: boolean;
   status: string | null;
+  message?: string | null;
   t: Record<string, string>;
 }
 
 const TIPS_KEYS = ["tipMagic", "tipAnalyzing", "tipOrganizing", "tipVisuals", "tipFinishing"] as const;
 
-export default function GenerationOverlay({ show, status, t }: Props) {
+export default function GenerationOverlay({ show, status, message, t }: Props) {
   const [tipIndex, setTipIndex] = useState(0);
   const [progress, setProgress] = useState(0);
 
@@ -80,8 +81,18 @@ export default function GenerationOverlay({ show, status, t }: Props) {
         {/* Status text */}
         <h3 className="text-lg font-semibold text-white">{statusText}</h3>
 
+        {/* Error message detail */}
+        {status === "error" && message && (
+          <p className="mt-2 text-sm text-rose-300">{message}</p>
+        )}
+
+        {/* Processing message */}
+        {status !== "completed" && status !== "error" && message && (
+          <p className="mt-2 text-sm text-white/70">{message}</p>
+        )}
+
         {/* Rotating tip */}
-        {status !== "completed" && status !== "error" && (
+        {status !== "completed" && status !== "error" && !message && (
           <p className="mt-3 min-h-[24px] text-sm text-white/60 transition-opacity duration-500">
             {t[TIPS_KEYS[tipIndex]]}
           </p>
