@@ -155,6 +155,26 @@ type Translations = {
     subscriptionEnd: string;
     subscriptionPlan: string;
     searchPlaceholder: string;
+    loadUsersError: string;
+    fillAllFields: string;
+    tokensPositiveNumber: string;
+    daysPositiveNumber: string;
+    addTokensError: string;
+    loadTransactionsError: string;
+    subscriptionError: string;
+    defaultTokenDescription: string;
+    subscriptionExtendNote: string;
+    subscriptionNewNote: string;
+    total: string;
+    loading: string;
+    selectedFile: string;
+    videoTitleMaxLength: string;
+    deleteVideoError: string;
+    videoUploadError: string;
+    videoUploadAuthError: string;
+    videoUploadAccessError: string;
+    videoListLoadError: string;
+    syncError: string;
     videos: {
       title: string;
       uploadVideo: string;
@@ -175,6 +195,23 @@ type Translations = {
       syncStatuses: string;
       syncing: string;
       selectThumbnail: string;
+      tableName: string;
+      tableCreatedAt: string;
+      tableActions: string;
+      delete: string;
+      deleting: string;
+      deleteConfirmTitle: string;
+      deleteConfirmMessage: string;
+      deleteConfirmWarning: string;
+      youtubeImportTitle: string;
+      youtubeUrlLabel: string;
+      youtubeUrlPlaceholder: string;
+      youtubeVideoTitle: string;
+      youtubeVideoTitlePlaceholder: string;
+      youtubeThumbnailLabel: string;
+      youtubeImporting: string;
+      youtubeImportButton: string;
+      youtubeImportError: string;
     };
     visuals: {
       title: string;
@@ -198,6 +235,10 @@ type Translations = {
     subscriptionRequiredMessage: string;
     loading: string;
     error: string;
+    videoNotReady: string;
+    videoNotFound: string;
+    watchTokenError: string;
+    paginationOf: string;
   };
   presentationsPage: {
     title: string;
@@ -278,6 +319,75 @@ type Translations = {
     allCategories: string;
     loading: string;
     noItems: string;
+    loadError: string;
+    addFilesAndTitle: string;
+    materialUploaded: string;
+    groupCreated: string;
+    uploadError: string;
+    materialUpdated: string;
+    updateError: string;
+    deleteMaterialConfirm: string;
+    deleteMaterialSuccess: string;
+    deleteGroupConfirm: string;
+    deleteGroupSuccess: string;
+    deleteError: string;
+    categoryRequired: string;
+    categoryCreated: string;
+    categoryCreateError: string;
+    categoryUpdated: string;
+    categoryUpdateError: string;
+    deleteCategoryConfirm: string;
+    categoryDeleted: string;
+    deleteCategoryError: string;
+    categoryCreatedAndSelected: string;
+    viewGrid: string;
+    viewTable: string;
+    editPrefix: string;
+    nameLabel: string;
+    categoriesLabel: string;
+    activeLabel: string;
+    save: string;
+    cancel: string;
+    edit: string;
+    delete: string;
+    deleteGroup: string;
+    back: string;
+    forward: string;
+    paginationOf: string;
+    editCategory: string;
+    createCategory: string;
+    nameRuLabel: string;
+    nameKkLabel: string;
+    update: string;
+    create: string;
+    categoriesList: string;
+    typeGroup: string;
+    typeFile: string;
+    tableType: string;
+    tablePreview: string;
+    tableName: string;
+    tableCategories: string;
+    tableSizeFiles: string;
+    tableStatus: string;
+    tableActions: string;
+    statusActive: string;
+    statusInactive: string;
+    filesCount: string;
+    dropFiles: string;
+    dropFilesOrClick: string;
+    multipleWillZip: string;
+    titleLabel: string;
+    titlePackagePlaceholder: string;
+    titleMaterialPlaceholder: string;
+    categoriesRequired: string;
+    noCategoryNeeded: string;
+    categoryNameRuPlaceholder: string;
+    categoryNameKkPlaceholder: string;
+    createQuick: string;
+    filesLabel: string;
+    uploadButton: string;
+    uploadPackage: string;
+    uploading: string;
   };
   photoPage: {
     title: string;
@@ -296,6 +406,21 @@ type Translations = {
     errorLabel: string;
     unknownError: string;
     insufficientTokensFormat: string;
+  };
+  qrGenerator: {
+    title: string;
+    subtitle: string;
+    textLabel: string;
+    textPlaceholder: string;
+    sizeLabel: string;
+    errorCorrectionLabel: string;
+    errorCorrectionHint: string;
+    fgColorLabel: string;
+    bgColorLabel: string;
+    previewTitle: string;
+    downloadPNG: string;
+    downloadSVG: string;
+    emptyState: string;
   };
   atZharys: {
     setup: {
@@ -360,6 +485,7 @@ type Translations = {
     loading: string;
   };
   dashboard: {
+    loading: string;
     search: string;
     searchPlaceholder: string;
     menu: {
@@ -395,6 +521,7 @@ type Translations = {
         video: string;
         avatar: string;
         voiceover: string;
+        qrGenerator: string;
       };
       profile: string;
       settings: string;
@@ -529,6 +656,7 @@ type Translations = {
       totalScore: string;
       language: string;
       generate: string;
+      taskTypesLabel: string;
     };
     types: {
       bjb: string;
@@ -553,6 +681,14 @@ type Translations = {
       matching: string;
       trueFalse: string;
       textOpen: string;
+      fillInBlank: string;
+    };
+    taskTypes: {
+      multiple_choice: string;
+      matching: string;
+      fill_in_blank: string;
+      true_false: string;
+      text_open: string;
     };
     errors: {
       required: string;
@@ -1045,6 +1181,8 @@ type Translations = {
     langEnglish: string;
     langRussian: string;
     langKazakh: string;
+    errorTemplates: string;
+    retry: string;
   };
   common: {
     brand: string;
@@ -1339,6 +1477,26 @@ export const translations: Record<Language, Translations> = {
       subscriptionEnd: "Окончание",
       subscriptionPlan: "Тип",
       searchPlaceholder: "Поиск по email или номеру телефона...",
+      loadUsersError: "Ошибка загрузки пользователей",
+      fillAllFields: "Заполните все поля",
+      tokensPositiveNumber: "Количество токенов должно быть положительным числом",
+      daysPositiveNumber: "Количество дней должно быть положительным числом",
+      addTokensError: "Ошибка начисления токенов",
+      loadTransactionsError: "Ошибка загрузки транзакций",
+      subscriptionError: "Ошибка выдачи подписки",
+      defaultTokenDescription: "Начисление токенов администратором",
+      subscriptionExtendNote: "Подписка будет продлена от текущей даты окончания",
+      subscriptionNewNote: "Будет создана новая подписка на указанное количество дней",
+      total: "Всего",
+      loading: "Загрузка...",
+      selectedFile: "Выбрано",
+      videoTitleMaxLength: "Название видео не должно превышать 255 символов",
+      deleteVideoError: "Ошибка удаления видео",
+      videoUploadError: "Ошибка загрузки видео",
+      videoUploadAuthError: "Ошибка авторизации при загрузке. Проверьте настройки Bunny CDN на сервере.",
+      videoUploadAccessError: "Доступ запрещен. Убедитесь, что у вас есть права администратора.",
+      videoListLoadError: "Ошибка загрузки списка видео",
+      syncError: "Ошибка синхронизации статусов",
       videos: {
         title: "Видео",
         uploadVideo: "Загрузить видео",
@@ -1359,6 +1517,23 @@ export const translations: Record<Language, Translations> = {
         syncStatuses: "Синхронизировать статусы",
         syncing: "Синхронизация...",
         selectThumbnail: "Выберите обложку (необязательно)",
+        tableName: "Название",
+        tableCreatedAt: "Дата создания",
+        tableActions: "Действия",
+        delete: "Удалить",
+        deleting: "Удаление...",
+        deleteConfirmTitle: "Подтверждение удаления",
+        deleteConfirmMessage: "Вы уверены, что хотите удалить видео",
+        deleteConfirmWarning: "Это действие нельзя отменить. Видео будет удалено из Bunny CDN и базы данных.",
+        youtubeImportTitle: "Импорт видео с YouTube",
+        youtubeUrlLabel: "Ссылка на YouTube",
+        youtubeUrlPlaceholder: "https://www.youtube.com/watch?v=... или https://youtu.be/...",
+        youtubeVideoTitle: "Название видео",
+        youtubeVideoTitlePlaceholder: "Введите название видео",
+        youtubeThumbnailLabel: "Превью (необязательно)",
+        youtubeImporting: "Импорт видео с YouTube...",
+        youtubeImportButton: "Импортировать с YouTube",
+        youtubeImportError: "Ошибка импорта видео с YouTube",
       },
       visuals: {
         title: "Визуальные материалы",
@@ -1382,6 +1557,10 @@ export const translations: Record<Language, Translations> = {
       subscriptionRequiredMessage: "Для просмотра видео необходима активная подписка. Обратитесь к администратору для оформления подписки.",
       loading: "Загрузка...",
       error: "Ошибка",
+      videoNotReady: "Видео обрабатывается, попробуйте позже",
+      videoNotFound: "Видео не найдено",
+      watchTokenError: "Ошибка загрузки токена просмотра",
+      paginationOf: "из",
     },
     presentationsPage: {
       title: "Интерактивные презентации",
@@ -1462,6 +1641,75 @@ export const translations: Record<Language, Translations> = {
       allCategories: "Все категории",
       loading: "Загрузка...",
       noItems: "Материалы не найдены",
+      loadError: "Ошибка загрузки материалов",
+      addFilesAndTitle: "Добавьте файлы, название и категории",
+      materialUploaded: "Материал загружен",
+      groupCreated: "Пакет создан",
+      uploadError: "Ошибка загрузки",
+      materialUpdated: "Материал обновлен",
+      updateError: "Ошибка обновления",
+      deleteMaterialConfirm: "Удалить этот материал?",
+      deleteMaterialSuccess: "Материал удален",
+      deleteGroupConfirm: "Удалить этот пакет и все файлы?",
+      deleteGroupSuccess: "Пакет удален",
+      deleteError: "Ошибка удаления",
+      categoryRequired: "Заполните обязательные поля категории",
+      categoryCreated: "Категория создана",
+      categoryCreateError: "Ошибка создания категории",
+      categoryUpdated: "Категория обновлена",
+      categoryUpdateError: "Ошибка обновления",
+      deleteCategoryConfirm: "Удалить эту категорию?",
+      categoryDeleted: "Категория удалена",
+      deleteCategoryError: "Ошибка удаления категории",
+      categoryCreatedAndSelected: "Категория создана и выбрана",
+      viewGrid: "Сетка",
+      viewTable: "Таблица",
+      editPrefix: "Редактировать",
+      nameLabel: "Название",
+      categoriesLabel: "Категории",
+      activeLabel: "Активный",
+      save: "Сохранить",
+      cancel: "Отмена",
+      edit: "Изменить",
+      delete: "Удалить",
+      deleteGroup: "Удалить пакет",
+      back: "Назад",
+      forward: "Вперед",
+      paginationOf: "из",
+      editCategory: "Редактировать категорию",
+      createCategory: "Создать категорию",
+      nameRuLabel: "Название (RU) *",
+      nameKkLabel: "Название (KK)",
+      update: "Обновить",
+      create: "Создать",
+      categoriesList: "Категории:",
+      typeGroup: "Пакет",
+      typeFile: "Файл",
+      tableType: "Тип",
+      tablePreview: "Превью",
+      tableName: "Название",
+      tableCategories: "Категории",
+      tableSizeFiles: "Размер/Файлов",
+      tableStatus: "Статус",
+      tableActions: "Действия",
+      statusActive: "Активный",
+      statusInactive: "Неактивный",
+      filesCount: "файлов",
+      dropFiles: "Отпустите файлы",
+      dropFilesOrClick: "Перетащите файлы сюда или нажмите",
+      multipleWillZip: "Один или несколько — при нескольких будет ZIP",
+      titleLabel: "Название",
+      titlePackagePlaceholder: "Например: Плакаты по биологии",
+      titleMaterialPlaceholder: "Название материала",
+      categoriesRequired: "Категории *",
+      noCategoryNeeded: "Нет нужной категории?",
+      categoryNameRuPlaceholder: "Название (RU)",
+      categoryNameKkPlaceholder: "Название (KK)",
+      createQuick: "+ Создать",
+      filesLabel: "Файлы",
+      uploadButton: "Загрузить",
+      uploadPackage: "Загрузить пакет",
+      uploading: "Загрузка...",
     },
     photoPage: {
       title: "Генерация изображений",
@@ -1480,6 +1728,21 @@ export const translations: Record<Language, Translations> = {
       errorLabel: "Ошибка генерации:",
       unknownError: "Неизвестная ошибка",
       insufficientTokensFormat: "Недостаточно токенов для генерации. Требуется: {cost}, доступно: {balance}",
+    },
+    qrGenerator: {
+      title: "QR-генератор",
+      subtitle: "Создавайте QR-коды для ссылок, текста или любой информации",
+      textLabel: "Содержимое",
+      textPlaceholder: "Введите URL, текст или любое содержимое...",
+      sizeLabel: "Размер",
+      errorCorrectionLabel: "Коррекция ошибок",
+      errorCorrectionHint: "H = максимальная надежность, L = больше данных",
+      fgColorLabel: "Цвет QR",
+      bgColorLabel: "Фон",
+      previewTitle: "Предпросмотр",
+      downloadPNG: "Скачать PNG",
+      downloadSVG: "Скачать SVG",
+      emptyState: "Введите текст или URL для генерации QR-кода",
     },
     atZharys: {
       setup: {
@@ -1545,6 +1808,7 @@ export const translations: Record<Language, Translations> = {
       loading: "Идёт генерация (10–30 секунд)...",
     },
     dashboard: {
+      loading: "Загрузка...",
       search: "Поиск",
       searchPlaceholder: "Поиск по функциям...",
       menu: {
@@ -1580,6 +1844,7 @@ export const translations: Record<Language, Translations> = {
           video: "Генерация видео",
           avatar: "Цифровой аватар",
           voiceover: "Озвучка ИИ",
+          qrGenerator: "QR-генератор",
         },
         profile: "Профиль",
         settings: "Настройки",
@@ -1714,6 +1979,7 @@ export const translations: Record<Language, Translations> = {
         totalScore: "Общий балл",
         language: "Язык",
         generate: "Сгенерировать",
+        taskTypesLabel: "Типы заданий (оставьте пустым — будет выбрано автоматически)",
       },
       types: {
         bjb: "БЖБ (СОР)",
@@ -1738,6 +2004,14 @@ export const translations: Record<Language, Translations> = {
         matching: "Сопоставление",
         trueFalse: "Верно/Неверно",
         textOpen: "Открытый вопрос",
+        fillInBlank: "Заполнение пропусков",
+      },
+      taskTypes: {
+        multiple_choice: "Тест (один/несколько ответов)",
+        matching: "Соотнесение",
+        fill_in_blank: "Заполнение пропусков",
+        true_false: "Истина/Ложь",
+        text_open: "Открытый вопрос / Задача",
       },
       errors: {
         required: "Заполните все обязательные поля.",
@@ -2229,6 +2503,8 @@ export const translations: Record<Language, Translations> = {
       langEnglish: "English",
       langRussian: "Русский",
       langKazakh: "Қазақша",
+      errorTemplates: "Не удалось загрузить шаблоны",
+      retry: "Попробовать ещё раз",
     },
     common: {
       brand: "Sandu AI",
@@ -2523,6 +2799,26 @@ export const translations: Record<Language, Translations> = {
       subscriptionEnd: "Аяқталуы",
       subscriptionPlan: "Түрі",
       searchPlaceholder: "Email немесе телефон нөмірі бойынша іздеу...",
+      loadUsersError: "Пайдаланушыларды жүктеу қатесі",
+      fillAllFields: "Барлық өрістерді толтырыңыз",
+      tokensPositiveNumber: "Токен саны оң сан болуы керек",
+      daysPositiveNumber: "Күн саны оң сан болуы керек",
+      addTokensError: "Токен қосу қатесі",
+      loadTransactionsError: "Транзакцияларды жүктеу қатесі",
+      subscriptionError: "Жазылым беру қатесі",
+      defaultTokenDescription: "Әкімші тарапынан токен қосу",
+      subscriptionExtendNote: "Жазылым ағымдағы аяқталу күнінен ұзартылады",
+      subscriptionNewNote: "Көрсетілген күн санына жаңа жазылым жасалады",
+      total: "Барлығы",
+      loading: "Жүктелуде...",
+      selectedFile: "Таңдалған",
+      videoTitleMaxLength: "Бейне атауы 255 таңбадан аспауы керек",
+      deleteVideoError: "Бейне жою қатесі",
+      videoUploadError: "Бейне жүктеу қатесі",
+      videoUploadAuthError: "Жүктеу кезінде авторизация қатесі. Сервердегі Bunny CDN баптауларын тексеріңіз.",
+      videoUploadAccessError: "Рұқсат жоқ. Әкімші құқығыңыз бар екеніне көз жеткізіңіз.",
+      videoListLoadError: "Бейне тізімін жүктеу қатесі",
+      syncError: "Мәртебелерді синхрондау қатесі",
       videos: {
         title: "Бейнелер",
         uploadVideo: "Бейне жүктеу",
@@ -2543,6 +2839,23 @@ export const translations: Record<Language, Translations> = {
         syncStatuses: "Мәртебелерді синхрондау",
         syncing: "Синхрондау...",
         selectThumbnail: "Қаптаманы таңдаңыз (міндетті емес)",
+        tableName: "Атауы",
+        tableCreatedAt: "Жасалған күні",
+        tableActions: "Әрекеттер",
+        delete: "Жою",
+        deleting: "Жойылуда...",
+        deleteConfirmTitle: "Жоюды растау",
+        deleteConfirmMessage: "Бейнені жоюды қалайсыз ба",
+        deleteConfirmWarning: "Бұл әрекетті кері қайтару мүмкін емес. Бейне Bunny CDN мен деректер қорынан жойылады.",
+        youtubeImportTitle: "YouTube-тен бейне импорттау",
+        youtubeUrlLabel: "YouTube сілтемесі",
+        youtubeUrlPlaceholder: "https://www.youtube.com/watch?v=... немесе https://youtu.be/...",
+        youtubeVideoTitle: "Бейне атауы",
+        youtubeVideoTitlePlaceholder: "Бейне атауын енгізіңіз",
+        youtubeThumbnailLabel: "Алдын ала қарау (міндетті емес)",
+        youtubeImporting: "YouTube-тен бейне импорттау...",
+        youtubeImportButton: "YouTube-тен импорттау",
+        youtubeImportError: "YouTube-тен бейне импорттау қатесі",
       },
       visuals: {
         title: "Көрнекі материалдар",
@@ -2566,6 +2879,10 @@ export const translations: Record<Language, Translations> = {
       subscriptionRequiredMessage: "Бейнелерді көру үшін белсенді жазылым қажет. Жазылымды рәсімдеу үшін әкімшіге хабарласыңыз.",
       loading: "Жүктелуде...",
       error: "Қате",
+      videoNotReady: "Бейне өңделуде, кейінірек қайта көріңіз",
+      videoNotFound: "Бейне табылмады",
+      watchTokenError: "Көру токенін жүктеу қатесі",
+      paginationOf: "/",
     },
     presentationsPage: {
       title: "Интерактивті презентациялар",
@@ -2646,6 +2963,75 @@ export const translations: Record<Language, Translations> = {
       allCategories: "Барлық категориялар",
       loading: "Жүктелуде...",
       noItems: "Материалдар табылмады",
+      loadError: "Материалдарды жүктеу қатесі",
+      addFilesAndTitle: "Файлдар, атауы және категориялар қосыңыз",
+      materialUploaded: "Материал жүктелді",
+      groupCreated: "Пакет жасалды",
+      uploadError: "Жүктеу қатесі",
+      materialUpdated: "Материал жаңартылды",
+      updateError: "Жаңарту қатесі",
+      deleteMaterialConfirm: "Бұл материалды жоюды қалайсыз ба?",
+      deleteMaterialSuccess: "Материал жойылды",
+      deleteGroupConfirm: "Бұл пакетті және барлық файлдарды жоюды қалайсыз ба?",
+      deleteGroupSuccess: "Пакет жойылды",
+      deleteError: "Жою қатесі",
+      categoryRequired: "Категорияның міндетті өрістерін толтырыңыз",
+      categoryCreated: "Категория жасалды",
+      categoryCreateError: "Категория жасау қатесі",
+      categoryUpdated: "Категория жаңартылды",
+      categoryUpdateError: "Жаңарту қатесі",
+      deleteCategoryConfirm: "Бұл категорияны жоюды қалайсыз ба?",
+      categoryDeleted: "Категория жойылды",
+      deleteCategoryError: "Категорияны жою қатесі",
+      categoryCreatedAndSelected: "Категория жасалды және таңдалды",
+      viewGrid: "Тор",
+      viewTable: "Кесте",
+      editPrefix: "Өңдеу",
+      nameLabel: "Атауы",
+      categoriesLabel: "Категориялар",
+      activeLabel: "Белсенді",
+      save: "Сақтау",
+      cancel: "Болдырмау",
+      edit: "Өзгерту",
+      delete: "Жою",
+      deleteGroup: "Пакетті жою",
+      back: "Артқа",
+      forward: "Алға",
+      paginationOf: "/",
+      editCategory: "Категорияны өңдеу",
+      createCategory: "Категория жасау",
+      nameRuLabel: "Атауы (RU) *",
+      nameKkLabel: "Атауы (KK)",
+      update: "Жаңарту",
+      create: "Жасау",
+      categoriesList: "Категориялар:",
+      typeGroup: "Пакет",
+      typeFile: "Файл",
+      tableType: "Түрі",
+      tablePreview: "Алдын ала қарау",
+      tableName: "Атауы",
+      tableCategories: "Категориялар",
+      tableSizeFiles: "Көлемі/Файлдар",
+      tableStatus: "Мәртебе",
+      tableActions: "Әрекеттер",
+      statusActive: "Белсенді",
+      statusInactive: "Белсенді емес",
+      filesCount: "файл",
+      dropFiles: "Файлдарды жіберіңіз",
+      dropFilesOrClick: "Файлдарды осында сүйреңіз немесе басыңыз",
+      multipleWillZip: "Бір немесе бірнеше — бірнешеуінде ZIP болады",
+      titleLabel: "Атауы",
+      titlePackagePlaceholder: "Мысалы: Биология бойынша плакаттар",
+      titleMaterialPlaceholder: "Материал атауы",
+      categoriesRequired: "Категориялар *",
+      noCategoryNeeded: "Қажетті категория жоқ па?",
+      categoryNameRuPlaceholder: "Атауы (RU)",
+      categoryNameKkPlaceholder: "Атауы (KK)",
+      createQuick: "+ Жасау",
+      filesLabel: "Файлдар",
+      uploadButton: "Жүктеу",
+      uploadPackage: "Пакетті жүктеу",
+      uploading: "Жүктелуде...",
     },
     photoPage: {
       title: "Сурет генерациясы",
@@ -2664,6 +3050,21 @@ export const translations: Record<Language, Translations> = {
       errorLabel: "Генерация қатесі:",
       unknownError: "Белгісіз қате",
       insufficientTokensFormat: "Генерация үшін токендер жеткіліксіз. Қажет: {cost}, қолжетімді: {balance}",
+    },
+    qrGenerator: {
+      title: "QR-генератор",
+      subtitle: "Сілтемелер, мәтін немесе кез-келген ақпарат үшін QR-код жасаңыз",
+      textLabel: "Мазмұны",
+      textPlaceholder: "URL, мәтін немесе кез-келген мазмұнды енгізіңіз...",
+      sizeLabel: "Өлшемі",
+      errorCorrectionLabel: "Қателерді түзету",
+      errorCorrectionHint: "H = ең жоғары сенімділік, L = көп деректер",
+      fgColorLabel: "QR түсі",
+      bgColorLabel: "Фон",
+      previewTitle: "Алдын ала көру",
+      downloadPNG: "PNG жүктеу",
+      downloadSVG: "SVG жүктеу",
+      emptyState: "QR-код жасау үшін мәтін немесе URL енгізіңіз",
     },
     atZharys: {
       setup: {
@@ -2729,6 +3130,7 @@ export const translations: Record<Language, Translations> = {
       loading: "Генерация жүріп жатыр (10–30 секунд)...",
     },
     dashboard: {
+      loading: "Жүктелуде...",
       search: "Іздеу",
       searchPlaceholder: "Функцияларды іздеу...",
       menu: {
@@ -2764,6 +3166,7 @@ export const translations: Record<Language, Translations> = {
           video: "Видео генерациясы",
           avatar: "Цифрлық аватар",
           voiceover: "ИИ дыбыстау",
+          qrGenerator: "QR-генератор",
         },
         profile: "Профиль",
         settings: "Баптаулар",
@@ -2898,6 +3301,7 @@ export const translations: Record<Language, Translations> = {
         totalScore: "Жалпы балл",
         language: "Тіл",
         generate: "Генерациялау",
+        taskTypesLabel: "Тапсырма түрлері (бос қалдырсаңыз — автоматты түрде таңдалады)",
       },
       types: {
         bjb: "БЖБ (СОР)",
@@ -2922,6 +3326,14 @@ export const translations: Record<Language, Translations> = {
         matching: "Сәйкестендіру",
         trueFalse: "Дұрыс/Бұрыс",
         textOpen: "Ашық сұрақ",
+        fillInBlank: "Бос орындарды толтыру",
+      },
+      taskTypes: {
+        multiple_choice: "Тест (бір/бірнеше жауап)",
+        matching: "Сәйкестендіру",
+        fill_in_blank: "Бос орындарды толтыру",
+        true_false: "Ақиқат/Жалған",
+        text_open: "Ашық сұрақ / Есеп",
       },
       errors: {
         required: "Барлық міндетті өрістерді толтырыңыз.",
@@ -3415,6 +3827,8 @@ export const translations: Record<Language, Translations> = {
       langEnglish: "English",
       langRussian: "Орысша",
       langKazakh: "Қазақша",
+      errorTemplates: "Шаблондарды жүктеу мүмкін болмады",
+      retry: "Қайталап көріңіз",
     },
     common: {
       brand: "Sandu AI",
