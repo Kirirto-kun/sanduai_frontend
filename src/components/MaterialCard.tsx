@@ -69,7 +69,17 @@ export function MaterialCard({ material, onClick, isPremiumLocked = false }: Mat
             />
           </svg>
           <span className="text-xs text-slate-500 font-medium">
-            {material.mime_type?.split("/")[1]?.toUpperCase() || "FILE"}
+            {(() => {
+              const mime = material.mime_type || "";
+              if (mime.includes("presentationml") || mime.includes("powerpoint")) return "PPTX";
+              if (mime.includes("wordprocessingml") || mime.includes("msword")) return "DOCX";
+              if (mime.includes("spreadsheetml") || mime.includes("excel")) return "XLSX";
+              if (mime.includes("pdf")) return "PDF";
+              if (mime.startsWith("video/")) return mime.split("/")[1]?.toUpperCase() || "VIDEO";
+              if (mime.startsWith("image/")) return mime.split("/")[1]?.toUpperCase() || "IMAGE";
+              if (mime.startsWith("text/html")) return "HTML";
+              return mime.split("/")[1]?.split(".").pop()?.toUpperCase() || "FILE";
+            })()}
           </span>
         </div>
       )}

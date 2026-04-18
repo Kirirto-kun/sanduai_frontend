@@ -48,7 +48,7 @@ export default function CoursesPage() {
       } else if (err.response?.status === 404) {
         setTokenError("video_not_found");
       } else {
-        setTokenError(err.message || "Ошибка загрузки токена просмотра");
+        setTokenError(err.message || t.videos?.watchTokenError || "Ошибка загрузки токена просмотра");
       }
     } finally {
       setLoadingToken(false);
@@ -192,7 +192,7 @@ export default function CoursesPage() {
                 {t.admin?.previous || "Назад"}
               </button>
               <span className="text-sm text-slate-600">
-                {offset + 1} - {Math.min(offset + limit, total)} из {total}
+                {offset + 1} - {Math.min(offset + limit, total)} {t.videos?.paginationOf || "из"} {total}
               </span>
               <button
                 type="button"
@@ -243,9 +243,9 @@ export default function CoursesPage() {
                       ? t.videos?.subscriptionRequiredMessage ||
                         "Требуется активная подписка"
                       : tokenError === "video_not_ready"
-                      ? "Видео обрабатывается, попробуйте позже"
+                      ? t.videos?.videoNotReady || "Видео обрабатывается, попробуйте позже"
                       : tokenError === "video_not_found"
-                      ? "Видео не найдено"
+                      ? t.videos?.videoNotFound || "Видео не найдено"
                       : tokenError}
                   </p>
                 </div>
