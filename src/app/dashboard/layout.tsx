@@ -61,7 +61,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,_#fff7ed,_#fdfbf7_40%,_#f5e6d3_80%)]">
         <div className="text-center">
           <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[color:var(--primary)] border-r-transparent"></div>
-          <p className="text-sm font-semibold text-slate-700">Загрузка...</p>
+          <p className="text-sm font-semibold text-slate-700">{t.dashboard.loading}</p>
         </div>
       </div>
     );
@@ -119,6 +119,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         { label: t.dashboard.menu.mediaItems.video, href: "/dashboard/media/video" },
         { label: t.dashboard.menu.mediaItems.avatar, href: "/dashboard/media/avatar" },
         { label: t.dashboard.menu.mediaItems.voiceover, href: "/dashboard/media/voiceover" },
+        { label: t.dashboard.menu.mediaItems.qrGenerator || "QR Generator", href: "/dashboard/media/qr-generator" },
       ],
     },
   ];
