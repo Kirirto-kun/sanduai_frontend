@@ -84,7 +84,7 @@ export default function AdminVisualsPage() {
       setItems(data.items);
       setTotal(data.total);
     } catch (err: any) {
-      setError(err.message || "Ошибка загрузки материалов");
+      setError(err.message || t.visualAidsAdmin?.loadError || "Ошибка загрузки материалов");
     } finally {
       setLoading(false);
     }
@@ -114,9 +114,9 @@ export default function AdminVisualsPage() {
       setUploadCategoryIds((ids) => [...ids, cat.id]);
       setNewCategoryName("");
       setNewCategoryNameKk("");
-      setSuccess(`Категория «${cat.name}» создана и выбрана`);
+      setSuccess(`${t.visualAidsAdmin?.categoryCreatedAndSelected || "Категория создана и выбрана"}: ${cat.name}`);
     } catch (err: any) {
-      setError(err.message || "Ошибка создания категории");
+      setError(err.message || t.visualAidsAdmin?.categoryCreateError || "Ошибка создания категории");
     } finally {
       setCreatingCategory(false);
     }
@@ -124,7 +124,7 @@ export default function AdminVisualsPage() {
 
   const handleUpload = async () => {
     if (uploadFiles.length === 0 || !uploadTitle || uploadCategoryIds.length === 0) {
-      setError("Добавьте файлы, название и категории");
+      setError(t.visualAidsAdmin?.addFilesAndTitle || "Добавьте файлы, название и категории");
       return;
     }
     setUploading(true);
@@ -133,21 +133,21 @@ export default function AdminVisualsPage() {
     try {
       if (uploadFiles.length === 1) {
         await uploadVisualMaterial(uploadFiles[0], uploadTitle, uploadCategoryIds);
-        setSuccess("Материал загружен");
+        setSuccess(t.visualAidsAdmin?.materialUploaded || "Материал загружен");
       } else {
         const group = await createMaterialGroup({
           title: uploadTitle,
           category_ids: uploadCategoryIds,
         });
         await uploadBatchToGroup(group.id, uploadFiles);
-        setSuccess(`Пакет создан: ${uploadFiles.length} файлов`);
+        setSuccess(`${t.visualAidsAdmin?.groupCreated || "Пакет создан"}: ${uploadFiles.length} ${t.visualAidsAdmin?.filesCount || "файлов"}`);
       }
       setUploadFiles([]);
       setUploadTitle("");
       setUploadCategoryIds([]);
       loadMaterials();
     } catch (err: any) {
-      setError(err.message || "Ошибка загрузки");
+      setError(err.message || t.visualAidsAdmin?.uploadError || "Ошибка загрузки");
     } finally {
       setUploading(false);
     }
@@ -162,51 +162,51 @@ export default function AdminVisualsPage() {
         category_ids: editCategoryIds,
         is_active: editIsActive,
       });
-      setSuccess("Материал обновлен");
+      setSuccess(t.visualAidsAdmin?.materialUpdated || "Материал обновлен");
       setEditingMaterial(null);
       loadMaterials();
     } catch (err: any) {
-      setError(err.message || "Ошибка обновления");
+      setError(err.message || t.visualAidsAdmin?.updateError || "Ошибка обновления");
     }
   };
 
   const handleDeleteMaterial = async (id: string) => {
-    if (!confirm("Удалить этот материал?")) return;
+    if (!confirm(t.visualAidsAdmin?.deleteMaterialConfirm || "Удалить этот материал?")) return;
     try {
       await deleteVisualMaterial(id);
-      setSuccess("Материал удален");
+      setSuccess(t.visualAidsAdmin?.deleteMaterialSuccess || "Материал удален");
       loadMaterials();
     } catch (err: any) {
-      setError(err.message || "Ошибка удаления");
+      setError(err.message || t.visualAidsAdmin?.deleteError || "Ошибка удаления");
     }
   };
 
   const handleDeleteGroup = async (id: string) => {
-    if (!confirm("Удалить этот пакет и все файлы?")) return;
+    if (!confirm(t.visualAidsAdmin?.deleteGroupConfirm || "Удалить этот пакет и все файлы?")) return;
     try {
       await deleteMaterialGroup(id);
-      setSuccess("Пакет удален");
+      setSuccess(t.visualAidsAdmin?.deleteGroupSuccess || "Пакет удален");
       loadMaterials();
     } catch (err: any) {
-      setError(err.message || "Ошибка удаления");
+      setError(err.message || t.visualAidsAdmin?.deleteError || "Ошибка удаления");
     }
   };
 
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!categoryName) {
-      setError("Заполните обязательные поля категории");
+      setError(t.visualAidsAdmin?.categoryRequired || "Заполните обязательные поля категории");
       return;
     }
     try {
       await createCategory({ name: categoryName, name_kk: categoryNameKk || undefined });
-      setSuccess("Категория создана");
+      setSuccess(t.visualAidsAdmin?.categoryCreated || "Категория создана");
       setCategoryName("");
       setCategoryNameKk("");
       setEditingCategory(null);
       loadCategories();
     } catch (err: any) {
-      setError(err.message || "Ошибка создания категории");
+      setError(err.message || t.visualAidsAdmin?.categoryCreateError || "Ошибка создания категории");
     }
   };
 
@@ -218,24 +218,24 @@ export default function AdminVisualsPage() {
         name: categoryName,
         name_kk: categoryNameKk || undefined,
       });
-      setSuccess("Категория обновлена");
+      setSuccess(t.visualAidsAdmin?.categoryUpdated || "Категория обновлена");
       setEditingCategory(null);
       setCategoryName("");
       setCategoryNameKk("");
       loadCategories();
     } catch (err: any) {
-      setError(err.message || "Ошибка обновления");
+      setError(err.message || t.visualAidsAdmin?.categoryUpdateError || "Ошибка обновления");
     }
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!confirm("Удалить эту категорию?")) return;
+    if (!confirm(t.visualAidsAdmin?.deleteCategoryConfirm || "Удалить эту категорию?")) return;
     try {
       await deleteCategory(id);
-      setSuccess("Категория удалена");
+      setSuccess(t.visualAidsAdmin?.categoryDeleted || "Категория удалена");
       loadCategories();
     } catch (err: any) {
-      setError(err.message || "Ошибка удаления категории");
+      setError(err.message || t.visualAidsAdmin?.deleteCategoryError || "Ошибка удаления категории");
     }
   };
 
@@ -347,16 +347,16 @@ export default function AdminVisualsPage() {
               onClick={() => setViewMode(viewMode === "table" ? "grid" : "table")}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              {viewMode === "table" ? "Сетка" : "Таблица"}
+              {viewMode === "table" ? (t.visualAidsAdmin?.viewGrid || "Сетка") : (t.visualAidsAdmin?.viewTable || "Таблица")}
             </button>
           </div>
 
           {editingMaterial && (
             <div className="glass-card rounded-2xl border border-white/60 p-6 shadow-md">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">Редактировать: {editingMaterial.title}</h3>
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">{t.visualAidsAdmin?.editPrefix || "Редактировать"}: {editingMaterial.title}</h3>
               <form onSubmit={handleEdit}>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Название</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t.visualAidsAdmin?.nameLabel || "Название"}</label>
                   <input
                     type="text"
                     value={editTitle}
@@ -365,7 +365,7 @@ export default function AdminVisualsPage() {
                   />
                 </div>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Категории</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t.visualAidsAdmin?.categoriesLabel || "Категории"}</label>
                   <div className="flex flex-wrap gap-2">
                     {categories.map((cat) => (
                       <label key={cat.id} className="flex items-center gap-1">
@@ -386,7 +386,7 @@ export default function AdminVisualsPage() {
                 <div className="mb-4">
                   <label className="flex items-center gap-2">
                     <input type="checkbox" checked={editIsActive} onChange={(e) => setEditIsActive(e.target.checked)} />
-                    <span className="text-sm font-medium text-slate-700">Активный</span>
+                    <span className="text-sm font-medium text-slate-700">{t.visualAidsAdmin?.activeLabel || "Активный"}</span>
                   </label>
                 </div>
                 <div className="flex gap-2">
@@ -394,14 +394,14 @@ export default function AdminVisualsPage() {
                     type="submit"
                     className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
                   >
-                    Сохранить
+                    {t.visualAidsAdmin?.save || "Сохранить"}
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditingMaterial(null)}
                     className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
-                    Отмена
+                    {t.visualAidsAdmin?.cancel || "Отмена"}
                   </button>
                 </div>
               </form>
@@ -418,13 +418,13 @@ export default function AdminVisualsPage() {
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Тип</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Превью</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Название</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Категории</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Размер/Файлов</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Статус</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">Действия</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">{t.visualAidsAdmin?.tableType || "Тип"}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">{t.visualAidsAdmin?.tablePreview || "Превью"}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">{t.visualAidsAdmin?.tableName || "Название"}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">{t.visualAidsAdmin?.tableCategories || "Категории"}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">{t.visualAidsAdmin?.tableSizeFiles || "Размер/Файлов"}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">{t.visualAidsAdmin?.tableStatus || "Статус"}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">{t.visualAidsAdmin?.tableActions || "Действия"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -436,7 +436,7 @@ export default function AdminVisualsPage() {
                               item.type === "group" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"
                             }`}
                           >
-                            {item.type === "group" ? "Пакет" : "Файл"}
+                            {item.type === "group" ? (t.visualAidsAdmin?.typeGroup || "Пакет") : (t.visualAidsAdmin?.typeFile || "Файл")}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -457,7 +457,7 @@ export default function AdminVisualsPage() {
                         <td className="px-4 py-3 text-sm text-slate-900">
                           <div className="font-medium">{item.title}</div>
                           {item.type === "group" && (
-                            <div className="text-xs text-slate-500">{item.material_count} файлов</div>
+                            <div className="text-xs text-slate-500">{item.material_count} {t.visualAidsAdmin?.filesCount || "файлов"}</div>
                           )}
                         </td>
                         <td className="px-4 py-3">
@@ -480,7 +480,7 @@ export default function AdminVisualsPage() {
                         <td className="px-4 py-3 text-sm text-slate-600">
                           {item.type === "material" && item.file_size != null
                             ? formatFileSize(item.file_size)
-                            : `${item.material_count} файлов`}
+                            : `${item.material_count} ${t.visualAidsAdmin?.filesCount || "файлов"}`}
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -488,7 +488,7 @@ export default function AdminVisualsPage() {
                               item.is_active ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-600"
                             }`}
                           >
-                            {item.is_active ? "Активный" : "Неактивный"}
+                            {item.is_active ? (t.visualAidsAdmin?.statusActive || "Активный") : (t.visualAidsAdmin?.statusInactive || "Неактивный")}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -512,13 +512,13 @@ export default function AdminVisualsPage() {
                                 }}
                                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                               >
-                                Изменить
+                                {t.visualAidsAdmin?.edit || "Изменить"}
                               </button>
                               <button
                                 onClick={() => handleDeleteMaterial(item.id)}
                                 className="text-sm text-red-600 hover:text-red-700 font-medium"
                               >
-                                Удалить
+                                {t.visualAidsAdmin?.delete || "Удалить"}
                               </button>
                             </div>
                           ) : (
@@ -526,7 +526,7 @@ export default function AdminVisualsPage() {
                               onClick={() => handleDeleteGroup(item.id)}
                               className="text-sm text-red-600 hover:text-red-700 font-medium"
                             >
-                              Удалить пакет
+                              {t.visualAidsAdmin?.deleteGroup || "Удалить пакет"}
                             </button>
                           )}
                         </td>
@@ -557,7 +557,7 @@ export default function AdminVisualsPage() {
                     )}
                     <div className="font-medium text-sm truncate">{item.title}</div>
                     <div className="text-xs text-slate-500 mt-1">
-                      {item.type === "group" ? `${item.material_count} файлов` : formatFileSize(item.file_size || 0)}
+                      {item.type === "group" ? `${item.material_count} ${t.visualAidsAdmin?.filesCount || "файлов"}` : formatFileSize(item.file_size || 0)}
                     </div>
                     <div className="flex gap-2 mt-2">
                       {item.type === "material" && (
@@ -580,13 +580,13 @@ export default function AdminVisualsPage() {
                             }}
                             className="text-xs text-blue-600 hover:text-blue-700"
                           >
-                            Изменить
+                            {t.visualAidsAdmin?.edit || "Изменить"}
                           </button>
                           <button
                             onClick={() => handleDeleteMaterial(item.id)}
                             className="text-xs text-red-600 hover:text-red-700"
                           >
-                            Удалить
+                            {t.visualAidsAdmin?.delete || "Удалить"}
                           </button>
                         </>
                       )}
@@ -595,7 +595,7 @@ export default function AdminVisualsPage() {
                           onClick={() => handleDeleteGroup(item.id)}
                           className="text-xs text-red-600 hover:text-red-700"
                         >
-                          Удалить
+                          {t.visualAidsAdmin?.delete || "Удалить"}
                         </button>
                       )}
                     </div>
@@ -612,10 +612,10 @@ export default function AdminVisualsPage() {
                   disabled={offset === 0}
                   className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Назад
+                  {t.visualAidsAdmin?.back || "Назад"}
                 </button>
                 <span className="text-sm text-slate-600">
-                  {offset + 1} - {Math.min(offset + limit, total)} из {total}
+                  {offset + 1} - {Math.min(offset + limit, total)} {t.visualAidsAdmin?.paginationOf || "из"} {total}
                 </span>
                 <button
                   type="button"
@@ -623,7 +623,7 @@ export default function AdminVisualsPage() {
                   disabled={offset + limit >= total}
                   className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Вперед
+                  {t.visualAidsAdmin?.forward || "Вперед"}
                 </button>
               </div>
             )}
@@ -635,12 +635,12 @@ export default function AdminVisualsPage() {
       {activeTab === "categories" && (
         <div className="glass-card rounded-2xl border border-white/60 p-6 shadow-md">
           <h3 className="text-lg font-semibold text-slate-900 mb-4">
-            {editingCategory ? "Редактировать категорию" : "Создать категорию"}
+            {editingCategory ? (t.visualAidsAdmin?.editCategory || "Редактировать категорию") : (t.visualAidsAdmin?.createCategory || "Создать категорию")}
           </h3>
           <form onSubmit={editingCategory ? handleUpdateCategory : handleCreateCategory}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Название (RU) *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t.visualAidsAdmin?.nameRuLabel || "Название (RU) *"}</label>
                 <input
                   type="text"
                   value={categoryName}
@@ -650,7 +650,7 @@ export default function AdminVisualsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Название (KK)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t.visualAidsAdmin?.nameKkLabel || "Название (KK)"}</label>
                 <input
                   type="text"
                   value={categoryNameKk}
@@ -667,7 +667,7 @@ export default function AdminVisualsPage() {
                 type="submit"
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
               >
-                {editingCategory ? "Обновить" : "Создать"}
+                {editingCategory ? (t.visualAidsAdmin?.update || "Обновить") : (t.visualAidsAdmin?.create || "Создать")}
               </button>
               <button
                 type="button"
@@ -678,12 +678,12 @@ export default function AdminVisualsPage() {
                 }}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Отмена
+                {t.visualAidsAdmin?.cancel || "Отмена"}
               </button>
             </div>
           </form>
 
-          <h4 className="text-sm font-semibold text-slate-700 mb-2">Категории:</h4>
+          <h4 className="text-sm font-semibold text-slate-700 mb-2">{t.visualAidsAdmin?.categoriesList || "Категории:"}</h4>
           <div className="space-y-2">
             {categories.map((cat) => (
               <div
@@ -704,10 +704,10 @@ export default function AdminVisualsPage() {
                     }}
                     className="text-blue-600 hover:text-blue-700"
                   >
-                    Изменить
+                    {t.visualAidsAdmin?.edit || "Изменить"}
                   </button>
                   <button onClick={() => handleDeleteCategory(cat.id)} className="text-red-600 hover:text-red-700">
-                    Удалить
+                    {t.visualAidsAdmin?.delete || "Удалить"}
                   </button>
                 </div>
               </div>
@@ -739,9 +739,9 @@ export default function AdminVisualsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
               <p className="mt-3 text-base font-medium text-slate-700">
-                {dragOver ? "Отпустите файлы" : "Перетащите файлы сюда или нажмите"}
+                {dragOver ? (t.visualAidsAdmin?.dropFiles || "Отпустите файлы") : (t.visualAidsAdmin?.dropFilesOrClick || "Перетащите файлы сюда или нажмите")}
               </p>
-              <p className="mt-1 text-sm text-slate-500">Один или несколько — при нескольких будет ZIP</p>
+              <p className="mt-1 text-sm text-slate-500">{t.visualAidsAdmin?.multipleWillZip || "Один или несколько — при нескольких будет ZIP"}</p>
             </div>
           </div>
 
@@ -749,18 +749,18 @@ export default function AdminVisualsPage() {
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-4">
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Название {uploadFiles.length > 1 ? "(пакета)" : ""} *
+                  {t.visualAidsAdmin?.titleLabel || "Название"} {uploadFiles.length > 1 ? "(пакета)" : ""} *
                 </label>
                 <input
                   type="text"
                   value={uploadTitle}
                   onChange={(e) => setUploadTitle(e.target.value)}
-                  placeholder={uploadFiles.length > 1 ? "Например: Плакаты по биологии" : "Название материала"}
+                  placeholder={uploadFiles.length > 1 ? (t.visualAidsAdmin?.titlePackagePlaceholder || "Например: Плакаты по биологии") : (t.visualAidsAdmin?.titleMaterialPlaceholder || "Название материала")}
                   className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
               <div className="mb-4">
-                <label className="mb-2 block text-sm font-medium text-slate-700">Категории *</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">{t.visualAidsAdmin?.categoriesRequired || "Категории *"}</label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {categories.map((cat) => (
                     <button
@@ -780,7 +780,7 @@ export default function AdminVisualsPage() {
                   ))}
                 </div>
                 <div className="flex flex-wrap gap-2 items-center rounded-xl border border-slate-200 bg-slate-50/50 p-3">
-                  <span className="text-xs text-slate-500 mr-1">Нет нужной категории?</span>
+                  <span className="text-xs text-slate-500 mr-1">{t.visualAidsAdmin?.noCategoryNeeded || "Нет нужной категории?"}</span>
                   <input
                     type="text"
                     value={newCategoryName}
@@ -791,7 +791,7 @@ export default function AdminVisualsPage() {
                         handleQuickCreateCategory();
                       }
                     }}
-                    placeholder="Название (RU)"
+                    placeholder={t.visualAidsAdmin?.categoryNameRuPlaceholder || "Название (RU)"}
                     className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm w-40 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <input
@@ -804,7 +804,7 @@ export default function AdminVisualsPage() {
                         handleQuickCreateCategory();
                       }
                     }}
-                    placeholder="Название (KK)"
+                    placeholder={t.visualAidsAdmin?.categoryNameKkPlaceholder || "Название (KK)"}
                     className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm w-32 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <button
@@ -813,11 +813,11 @@ export default function AdminVisualsPage() {
                     disabled={creatingCategory || !newCategoryName.trim()}
                     className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {creatingCategory ? "..." : "+ Создать"}
+                    {creatingCategory ? "..." : (t.visualAidsAdmin?.createQuick || "+ Создать")}
                   </button>
                 </div>
               </div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Файлы ({uploadFiles.length})</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">{t.visualAidsAdmin?.filesLabel || "Файлы"} ({uploadFiles.length})</label>
               <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                 {uploadFiles.map((file, i) => (
                   <FilePreviewCard key={`${file.name}-${i}`} file={file} onRemove={() => removeUploadFile(i)} compact />
@@ -829,7 +829,7 @@ export default function AdminVisualsPage() {
                 disabled={uploading || !uploadTitle || uploadCategoryIds.length === 0}
                 className="w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {uploading ? "Загрузка..." : uploadFiles.length > 1 ? "Загрузить пакет" : "Загрузить"}
+                {uploading ? (t.visualAidsAdmin?.uploading || "Загрузка...") : uploadFiles.length > 1 ? (t.visualAidsAdmin?.uploadPackage || "Загрузить пакет") : (t.visualAidsAdmin?.uploadButton || "Загрузить")}
               </button>
             </div>
           )}

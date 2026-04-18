@@ -112,7 +112,7 @@ export default function AdminPage() {
       setUsers(data.users);
       setTotal(data.total);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка загрузки пользователей");
+      setError(err instanceof Error ? err.message : t.admin?.loadUsersError || "Ошибка загрузки пользователей");
     } finally {
       setLoading(false);
     }
@@ -121,13 +121,13 @@ export default function AdminPage() {
   const handleAddTokens = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedUser || !tokensAmount) {
-      setError("Заполните все поля");
+      setError(t.admin?.fillAllFields || "Заполните все поля");
       return;
     }
 
     const amount = parseInt(tokensAmount, 10);
     if (isNaN(amount) || amount <= 0) {
-      setError("Количество токенов должно быть положительным числом");
+      setError(t.admin?.tokensPositiveNumber || "Количество токенов должно быть положительным числом");
       return;
     }
 
@@ -136,7 +136,7 @@ export default function AdminPage() {
     try {
       const payload: AddTokensPayload = {
         amount,
-        description: tokensDescription || "Начисление токенов администратором",
+        description: tokensDescription || t.admin?.defaultTokenDescription || "Начисление токенов администратором",
       };
       await addTokensToUser(selectedUser.user_id, payload);
       setShowAddTokensModal(false);
@@ -145,7 +145,7 @@ export default function AdminPage() {
       setSelectedUser(null);
       fetchUsers(); // Refresh users list
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка начисления токенов");
+      setError(err instanceof Error ? err.message : t.admin?.addTokensError || "Ошибка начисления токенов");
     } finally {
       setAddingTokens(false);
     }
@@ -164,7 +164,7 @@ export default function AdminPage() {
       const data = await getAdminUserTransactions(userId, 50, 0);
       setTransactions(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка загрузки транзакций");
+      setError(err instanceof Error ? err.message : t.admin?.loadTransactionsError || "Ошибка загрузки транзакций");
     } finally {
       setLoadingTransactions(false);
     }
@@ -173,13 +173,13 @@ export default function AdminPage() {
   const handleAddSubscription = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedUserForSubscription || !subscriptionDays) {
-      setError("Заполните все поля");
+      setError(t.admin?.fillAllFields || "Заполните все поля");
       return;
     }
 
     const days = parseInt(subscriptionDays, 10);
     if (isNaN(days) || days <= 0) {
-      setError("Количество дней должно быть положительным числом");
+      setError(t.admin?.daysPositiveNumber || "Количество дней должно быть положительным числом");
       return;
     }
 
@@ -195,7 +195,7 @@ export default function AdminPage() {
       setSelectedUserForSubscription(null);
       fetchUsers(); // Refresh users list
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка выдачи подписки");
+      setError(err instanceof Error ? err.message : t.admin?.subscriptionError || "Ошибка выдачи подписки");
     } finally {
       setAddingSubscription(false);
     }
@@ -221,7 +221,7 @@ export default function AdminPage() {
       fetchVideos(); // Обновляем список
     } catch (err) {
       console.error("Video deletion error:", err);
-      const errorMessage = err instanceof Error ? err.message : "Ошибка удаления видео";
+      const errorMessage = err instanceof Error ? err.message : t.admin?.deleteVideoError || "Ошибка удаления видео";
       setError(errorMessage);
     } finally {
       setDeletingVideo(false);
@@ -231,12 +231,12 @@ export default function AdminPage() {
   const handleImportYouTube = async (e: FormEvent) => {
     e.preventDefault();
     if (!youtubeUrl.trim() || !youtubeTitle.trim()) {
-      setError("Заполните все обязательные поля");
+      setError(t.admin?.fillAllFields || "Заполните все обязательные поля");
       return;
     }
 
     if (youtubeTitle.length > 255) {
-      setError("Название видео не должно превышать 255 символов");
+      setError(t.admin?.videoTitleMaxLength || "Название видео не должно превышать 255 символов");
       return;
     }
 
@@ -255,7 +255,7 @@ export default function AdminPage() {
       fetchVideos();
     } catch (err) {
       console.error("YouTube import error:", err);
-      const errorMessage = err instanceof Error ? err.message : "Ошибка импорта видео с YouTube";
+      const errorMessage = err instanceof Error ? err.message : t.admin?.videos?.youtubeImportError || "Ошибка импорта видео с YouTube";
       setError(errorMessage);
     } finally {
       setImportingYouTube(false);
@@ -265,12 +265,12 @@ export default function AdminPage() {
   const handleUploadVideo = async (e: FormEvent) => {
     e.preventDefault();
     if (!videoTitle.trim() || !selectedFile) {
-      setError("Заполните все поля");
+      setError(t.admin?.fillAllFields || "Заполните все поля");
       return;
     }
 
     if (videoTitle.length > 255) {
-      setError("Название видео не должно превышать 255 символов");
+      setError(t.admin?.videoTitleMaxLength || "Название видео не должно превышать 255 символов");
       return;
     }
 
@@ -331,13 +331,13 @@ export default function AdminPage() {
       fetchVideos();
     } catch (err) {
       console.error("Video upload error:", err);
-      const errorMessage = err instanceof Error ? err.message : "Ошибка загрузки видео";
-      
+      const errorMessage = err instanceof Error ? err.message : t.admin?.videoUploadError || "Ошибка загрузки видео";
+
       // Provide more specific error messages
       if (errorMessage.includes("401") || errorMessage.includes("Unauthorized")) {
-        setError("Ошибка авторизации при загрузке. Проверьте настройки Bunny CDN на сервере.");
+        setError(t.admin?.videoUploadAuthError || "Ошибка авторизации при загрузке. Проверьте настройки Bunny CDN на сервере.");
       } else if (errorMessage.includes("403")) {
-        setError("Доступ запрещен. Убедитесь, что у вас есть права администратора.");
+        setError(t.admin?.videoUploadAccessError || "Доступ запрещен. Убедитесь, что у вас есть права администратора.");
       } else {
         setError(errorMessage);
       }
@@ -353,7 +353,7 @@ export default function AdminPage() {
       const data = await getAllVideos(); // Get all videos for admin (regardless of status)
       setUploadedVideos(data.videos);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка загрузки списка видео");
+      setError(err instanceof Error ? err.message : t.admin?.videoListLoadError || "Ошибка загрузки списка видео");
     } finally {
       setLoadingVideos(false);
     }
@@ -376,7 +376,7 @@ export default function AdminPage() {
       // Refresh videos list after sync
       await fetchVideos();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка синхронизации статусов");
+      setError(err instanceof Error ? err.message : t.admin?.syncError || "Ошибка синхронизации статусов");
     } finally {
       setSyncingStatuses(false);
     }
@@ -395,7 +395,7 @@ export default function AdminPage() {
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[color:var(--primary)] border-r-transparent"></div>
-          <p className="text-sm font-semibold text-slate-700">Загрузка...</p>
+          <p className="text-sm font-semibold text-slate-700">{t.admin?.loading || "Загрузка..."}</p>
         </div>
       </div>
     );
@@ -476,7 +476,7 @@ export default function AdminPage() {
             {t.admin?.usersList || "Список пользователей"}
           </h2>
           <div className="text-sm text-slate-600">
-            Всего: {total}
+            {t.admin?.total || "Всего"}: {total}
           </div>
         </div>
 
@@ -494,7 +494,7 @@ export default function AdminPage() {
         {loading ? (
           <div className="text-center py-8">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[color:var(--primary)] border-r-transparent"></div>
-            <p className="mt-2 text-sm text-slate-600">Загрузка...</p>
+            <p className="mt-2 text-sm text-slate-600">{t.admin?.loading || "Загрузка..."}</p>
           </div>
         ) : users.length === 0 ? (
           <div className="text-center py-8 text-slate-500">
@@ -621,7 +621,7 @@ export default function AdminPage() {
               {t.admin?.previous || "Назад"}
             </button>
             <span className="text-sm text-slate-600">
-              {offset + 1} - {Math.min(offset + limit, total)} из {total}
+              {offset + 1} - {Math.min(offset + limit, total)} {t.presentationsPage?.paginationOf || "из"} {total}
             </span>
             <button
               type="button"
@@ -657,7 +657,7 @@ export default function AdminPage() {
           {loadingTransactions ? (
             <div className="text-center py-8">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[color:var(--primary)] border-r-transparent"></div>
-              <p className="mt-2 text-sm text-slate-600">Загрузка...</p>
+              <p className="mt-2 text-sm text-slate-600">{t.admin?.loading || "Загрузка..."}</p>
             </div>
           ) : transactions.length === 0 ? (
             <div className="text-center py-8 text-slate-500">
@@ -790,8 +790,8 @@ export default function AdminPage() {
                 />
                 <p className="mt-1 text-xs text-slate-500">
                   {selectedUserForSubscription.has_subscription
-                    ? "Подписка будет продлена от текущей даты окончания"
-                    : "Будет создана новая подписка на указанное количество дней"}
+                    ? t.admin?.subscriptionExtendNote || "Подписка будет продлена от текущей даты окончания"
+                    : t.admin?.subscriptionNewNote || "Будет создана новая подписка на указанное количество дней"}
                 </p>
               </div>
               <div className="flex items-center gap-3 pt-2">
@@ -870,7 +870,7 @@ export default function AdminPage() {
                 />
                 {selectedThumbnail && (
                   <p className="mt-1 text-xs text-slate-500">
-                    Выбрано: {selectedThumbnail.name}
+                    {t.admin?.selectedFile || "Выбрано"}: {selectedThumbnail.name}
                   </p>
                 )}
               </div>
@@ -919,25 +919,25 @@ export default function AdminPage() {
           {/* Import YouTube Video Form */}
           <div className="glass-card rounded-3xl border border-white/60 p-6 shadow-xl">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">
-              Импорт видео с YouTube
+              {t.admin?.videos?.youtubeImportTitle || "Импорт видео с YouTube"}
             </h2>
             <form onSubmit={handleImportYouTube} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Ссылка на YouTube
+                  {t.admin?.videos?.youtubeUrlLabel || "Ссылка на YouTube"}
                 </label>
                 <input
                   type="url"
                   value={youtubeUrl}
                   onChange={(e) => setYoutubeUrl(e.target.value)}
                   required
-                  placeholder="https://www.youtube.com/watch?v=... или https://youtu.be/..."
+                  placeholder={t.admin?.videos?.youtubeUrlPlaceholder || "https://www.youtube.com/watch?v=... или https://youtu.be/..."}
                   className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Название видео
+                  {t.admin?.videos?.youtubeVideoTitle || "Название видео"}
                 </label>
                 <input
                   type="text"
@@ -945,13 +945,13 @@ export default function AdminPage() {
                   onChange={(e) => setYoutubeTitle(e.target.value)}
                   required
                   maxLength={255}
-                  placeholder="Введите название видео"
+                  placeholder={t.admin?.videos?.youtubeVideoTitlePlaceholder || "Введите название видео"}
                   className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Превью (необязательно)
+                  {t.admin?.videos?.youtubeThumbnailLabel || "Превью (необязательно)"}
                 </label>
                 <input
                   type="file"
@@ -961,7 +961,7 @@ export default function AdminPage() {
                 />
                 {youtubeThumbnail && (
                   <p className="mt-1 text-xs text-slate-500">
-                    Выбрано: {youtubeThumbnail.name}
+                    {t.admin?.selectedFile || "Выбрано"}: {youtubeThumbnail.name}
                   </p>
                 )}
               </div>
@@ -969,7 +969,7 @@ export default function AdminPage() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <div className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-[color:var(--primary)] border-r-transparent"></div>
-                    <span>Импорт видео с YouTube...</span>
+                    <span>{t.admin?.videos?.youtubeImporting || "Импорт видео с YouTube..."}</span>
                   </div>
                 </div>
               )}
@@ -979,7 +979,7 @@ export default function AdminPage() {
                   disabled={importingYouTube}
                   className="flex-1 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
                 >
-                  {importingYouTube ? "Импорт..." : "Импортировать с YouTube"}
+                  {importingYouTube ? (t.admin?.videos?.youtubeImporting || "Импорт...") : (t.admin?.videos?.youtubeImportButton || "Импортировать с YouTube")}
                 </button>
                 {importingYouTube && (
                   <button
@@ -989,7 +989,7 @@ export default function AdminPage() {
                     }}
                     className="rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
                   >
-                    Отмена
+                    {t.admin?.cancel || "Отмена"}
                   </button>
                 )}
               </div>
@@ -1027,7 +1027,7 @@ export default function AdminPage() {
             {loadingVideos ? (
               <div className="text-center py-8">
                 <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[color:var(--primary)] border-r-transparent"></div>
-                <p className="mt-2 text-sm text-slate-600">Загрузка...</p>
+                <p className="mt-2 text-sm text-slate-600">{t.admin?.loading || "Загрузка..."}</p>
               </div>
             ) : uploadedVideos.length === 0 ? (
               <div className="text-center py-8 text-slate-500">
@@ -1039,16 +1039,16 @@ export default function AdminPage() {
                   <thead>
                     <tr className="border-b border-slate-200">
                       <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
-                        Название
+                        {t.admin?.videos?.tableName || "Название"}
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
                         {t.admin?.videos?.status || "Статус"}
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
-                        Дата создания
+                        {t.admin?.videos?.tableCreatedAt || "Дата создания"}
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
-                        Действия
+                        {t.admin?.videos?.tableActions || "Действия"}
                       </th>
                     </tr>
                   </thead>
@@ -1086,7 +1086,7 @@ export default function AdminPage() {
                             onClick={() => setVideoToDelete(video)}
                             className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700"
                           >
-                            Удалить
+                            {t.admin?.videos?.delete || "Удалить"}
                           </button>
                         </td>
                       </tr>
@@ -1104,13 +1104,13 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="glass-card rounded-3xl border border-white/60 p-6 shadow-xl max-w-md w-full mx-4">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">
-              Подтверждение удаления
+              {t.admin?.videos?.deleteConfirmTitle || "Подтверждение удаления"}
             </h2>
             <p className="text-sm text-slate-600 mb-6">
-              Вы уверены, что хотите удалить видео &quot;{videoToDelete.title}&quot;?
+              {t.admin?.videos?.deleteConfirmMessage || "Вы уверены, что хотите удалить видео"} &quot;{videoToDelete.title}&quot;?
               <br />
               <span className="text-xs text-slate-500 mt-2 block">
-                Это действие нельзя отменить. Видео будет удалено из Bunny CDN и базы данных.
+                {t.admin?.videos?.deleteConfirmWarning || "Это действие нельзя отменить. Видео будет удалено из Bunny CDN и базы данных."}
               </span>
             </p>
             <div className="flex items-center gap-3">
@@ -1120,7 +1120,7 @@ export default function AdminPage() {
                 disabled={deletingVideo}
                 className="flex-1 rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-red-700 disabled:opacity-50"
               >
-                {deletingVideo ? "Удаление..." : "Удалить"}
+                {deletingVideo ? (t.admin?.videos?.deleting || "Удаление...") : (t.admin?.videos?.delete || "Удалить")}
               </button>
               <button
                 type="button"
@@ -1128,7 +1128,7 @@ export default function AdminPage() {
                 disabled={deletingVideo}
                 className="flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
               >
-                Отмена
+                {t.admin?.cancel || "Отмена"}
               </button>
             </div>
           </div>
