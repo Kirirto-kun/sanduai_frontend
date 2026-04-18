@@ -14,16 +14,13 @@ import {
 import { LatexRenderer } from "../../../../components/LatexRenderer";
 import { useTokens } from "../../../../hooks/useTokens";
 
-const TASK_TYPES_OPTIONS = [
-  { id: "multiple_choice", label: "Тест (один/несколько ответов)" },
-  { id: "matching", label: "Соотнесение" },
-  { id: "fill_in_blank", label: "Заполнение пропусков" },
-  { id: "true_false", label: "Истина/Ложь" },
-  { id: "text_open", label: "Открытый вопрос / Задача" },
-  // { id: "practical", label: "Тәжірибелік тапсырма (Практическая)" },
-  // { id: "creative", label: "Шығармашылық тапсырма (Творческая)" },
-  // { id: "critical", label: "Сыни ойлау (Критическое мышление)" },
-];
+const TASK_TYPE_IDS = [
+  "multiple_choice",
+  "matching",
+  "fill_in_blank",
+  "true_false",
+  "text_open",
+] as const;
 
 export default function ExamPage() {
   const t = useTranslations();
@@ -360,21 +357,21 @@ export default function ExamPage() {
             {/* Task Types */}
             <div>
                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Тапсырма түрлері (бос қалдырсаңыз - автоматты түрде таңдалады)
+                  {t.exam.form.taskTypesLabel || "Типы заданий (оставьте пустым — будет выбрано автоматически)"}
                </label>
                <div className="flex flex-wrap gap-2">
-                 {TASK_TYPES_OPTIONS.map((type) => (
+                 {TASK_TYPE_IDS.map((typeId) => (
                     <button
-                       key={type.id}
+                       key={typeId}
                        type="button"
-                       onClick={() => toggleTaskType(type.id)}
+                       onClick={() => toggleTaskType(typeId)}
                        className={`rounded-full px-4 py-2 text-xs font-medium transition-all ${
-                          (form.allowed_task_types || []).includes(type.id)
+                          (form.allowed_task_types || []).includes(typeId)
                              ? "bg-[color:var(--primary)] text-white shadow-md"
                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                        }`}
                     >
-                       {type.label}
+                       {t.exam.taskTypes?.[typeId] || typeId}
                     </button>
                  ))}
                </div>
@@ -610,7 +607,7 @@ function TaskCard({ task, index, t, onScoreChange, onDescriptorChange }: TaskCar
     matching: t.exam.widgets.matching,
     true_false: t.exam.widgets.trueFalse,
     text_open: t.exam.widgets.textOpen,
-    fill_in_blank: "Заполнение пропусков",
+    fill_in_blank: t.exam.widgets.fillInBlank,
   }[task.widget_type] || task.widget_type;
 
   return (
