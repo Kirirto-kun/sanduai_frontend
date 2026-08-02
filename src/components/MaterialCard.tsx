@@ -4,6 +4,7 @@
  */
 
 import Image from "next/image";
+import { useState } from "react";
 import type { MaterialListItem } from "../lib/api";
 import { useTranslations } from "../i18n/LanguageContext";
 
@@ -15,6 +16,7 @@ interface MaterialCardProps {
 
 export function MaterialCard({ material, onClick, isPremiumLocked = false }: MaterialCardProps) {
   const t = useTranslations();
+  const [failedPreview, setFailedPreview] = useState<string | null>(null);
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -42,7 +44,7 @@ export function MaterialCard({ material, onClick, isPremiumLocked = false }: Mat
       )}
 
       {/* Preview */}
-      {material.preview_image ? (
+      {material.preview_image && failedPreview !== material.preview_image ? (
         <div className="relative w-full rounded-xl mb-3 aspect-video overflow-hidden bg-slate-100">
           <Image
             src={material.preview_image}
@@ -51,6 +53,7 @@ export function MaterialCard({ material, onClick, isPremiumLocked = false }: Mat
             className="object-cover"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             unoptimized
+            onError={() => setFailedPreview(material.preview_image ?? null)}
           />
         </div>
       ) : (

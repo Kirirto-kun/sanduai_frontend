@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect, FormEvent, useCallback } from "react";
+import { useState, useEffect, FormEvent, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "../../../i18n/LanguageContext";
+import { useLanguage, useTranslations } from "../../../i18n/LanguageContext";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
   getAdminUsers,
   addTokensToUser,
   getAdminUserTransactions,
   addSubscriptionToUser,
-  uploadVideoToken,
-  uploadVideoToBunny,
+  uploadAdminVideo,
   uploadVideoThumbnail,
   getAllVideos,
   syncAllVideoStatuses,
@@ -20,13 +19,13 @@ import {
   type AddTokensPayload,
   type AddSubscriptionPayload,
   type TokenTransaction,
-  type UploadVideoTokenPayload,
   type Video,
 } from "../../../lib/api";
 import { formatSubscriptionDate } from "../../../lib/utils";
 
 export default function AdminPage() {
   const t = useTranslations();
+  const { language } = useLanguage();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -57,12 +56,13 @@ export default function AdminPage() {
   const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   // Video upload state
-  const [activeTab, setActiveTab] = useState<"users" | "videos" | "visuals" | "materials">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "videos" | "visuals" | "materials" | "library">("users");
   const [videoTitle, setVideoTitle] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedThumbnail, setSelectedThumbnail] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const uploadAbortRef = useRef<AbortController | null>(null);
   const [uploadedVideos, setUploadedVideos] = useState<Video[]>([]);
   const [loadingVideos, setLoadingVideos] = useState(false);
   const [syncingStatuses, setSyncingStatuses] = useState(false);
@@ -77,12 +77,28 @@ export default function AdminPage() {
   const [videoToDelete, setVideoToDelete] = useState<Video | null>(null);
   const [deletingVideo, setDeletingVideo] = useState(false);
 
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getAdminUsers(limit, offset, debouncedSearch || undefined);
+      setUsers(data.users);
+      setTotal(data.total);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.admin?.loadUsersError || "Ошибка загрузки пользователей");
+    } finally {
+      setLoading(false);
+    }
+  }, [debouncedSearch, limit, offset, t.admin?.loadUsersError]);
+
   // Redirect non-admin users
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) {
       router.replace("/dashboard");
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => () => uploadAbortRef.current?.abort(), []);
 
   // Debounce search query
   useEffect(() => {
@@ -102,21 +118,7 @@ export default function AdminPage() {
     if (user?.role === "admin") {
       fetchUsers();
     }
-  }, [offset, debouncedSearch, user]);
-
-  const fetchUsers = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getAdminUsers(limit, offset, debouncedSearch || undefined);
-      setUsers(data.users);
-      setTotal(data.total);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t.admin?.loadUsersError || "Ошибка загрузки пользователей");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchUsers, user?.role]);
 
   const handleAddTokens = async (e: FormEvent) => {
     e.preventDefault();
@@ -277,71 +279,47 @@ export default function AdminPage() {
     setUploading(true);
     setError(null);
     setUploadProgress(0);
+    const uploadController = new AbortController();
+    uploadAbortRef.current = uploadController;
 
     try {
-      // Step 1: Get upload token
-      const payload: UploadVideoTokenPayload = {
-        title: videoTitle.trim(),
-      };
-      const tokenData = await uploadVideoToken(payload);
-
-      // Parse URL to check if it contains auth token in query params
-      const urlObj = new URL(tokenData.presigned_upload_url);
-      const hasTokenInUrl = urlObj.searchParams.has("token") || 
-                           urlObj.searchParams.has("access_key") ||
-                           urlObj.searchParams.has("auth");
-      
-      console.log("Upload token received:", {
-        bunny_video_id: tokenData.bunny_video_id,
-        video_db_id: tokenData.video_db_id,
-        url: tokenData.presigned_upload_url.substring(0, 80) + "...",
-        urlHasQueryParams: urlObj.search.length > 0,
-        urlHasTokenInQuery: hasTokenInUrl,
-        authHeaderPreview: tokenData.authorization_header.substring(0, 25) + "...",
-        authHeaderLength: tokenData.authorization_header.length,
-        authHeaderStartsWithAccessKey: tokenData.authorization_header.startsWith("AccessKey "),
-      });
-
-      // Step 2: Upload file to Bunny CDN
-      await uploadVideoToBunny(
-        tokenData.presigned_upload_url,
+      const uploadedVideo = await uploadAdminVideo(
+        videoTitle.trim(),
         selectedFile,
-        tokenData.authorization_header,
         (progress) => {
           setUploadProgress(progress);
-        }
+        },
+        uploadController.signal,
       );
 
-      // Step 3: Upload custom thumbnail if provided
       if (selectedThumbnail) {
         try {
-          await uploadVideoThumbnail(tokenData.video_db_id, selectedThumbnail);
-          console.log("Custom thumbnail uploaded successfully");
+          await uploadVideoThumbnail(uploadedVideo.video_db_id, selectedThumbnail);
         } catch (thumbnailError) {
           console.error("Thumbnail upload failed:", thumbnailError);
-          // Don't block the video upload success, just log the error
         }
       }
 
-      // Step 4: Reset form and refresh videos list
       setVideoTitle("");
       setSelectedFile(null);
       setSelectedThumbnail(null);
       setUploadProgress(0);
       fetchVideos();
     } catch (err) {
-      console.error("Video upload error:", err);
       const errorMessage = err instanceof Error ? err.message : t.admin?.videoUploadError || "Ошибка загрузки видео";
 
       // Provide more specific error messages
-      if (errorMessage.includes("401") || errorMessage.includes("Unauthorized")) {
-        setError(t.admin?.videoUploadAuthError || "Ошибка авторизации при загрузке. Проверьте настройки Bunny CDN на сервере.");
+      if (errorMessage === "Upload aborted") {
+        setError(null);
+      } else if (errorMessage.includes("401") || errorMessage.includes("Unauthorized")) {
+        setError(t.admin?.videoUploadAuthError || "Сессия истекла. Войдите снова и повторите загрузку.");
       } else if (errorMessage.includes("403")) {
         setError(t.admin?.videoUploadAccessError || "Доступ запрещен. Убедитесь, что у вас есть права администратора.");
       } else {
         setError(errorMessage);
       }
     } finally {
+      if (uploadAbortRef.current === uploadController) uploadAbortRef.current = null;
       setUploading(false);
     }
   };
@@ -413,7 +391,7 @@ export default function AdminPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200">
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-200">
         <button
           type="button"
           onClick={() => setActiveTab("users")}
@@ -457,6 +435,17 @@ export default function AdminPage() {
           }`}
         >
           {t.admin?.materials?.title || t.presentationsAdmin?.title || "Интерактивные презентации"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("library")}
+          className={`whitespace-nowrap px-4 py-2 text-sm font-semibold transition ${
+            activeTab === "library"
+              ? "text-[color:var(--primary)] border-b-2 border-[color:var(--primary)]"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          {language === "kk" ? "Материалдар кітапханасы" : "Библиотека материалов"}
         </button>
       </div>
 
@@ -852,7 +841,7 @@ export default function AdminPage() {
                 </label>
                 <input
                   type="file"
-                  accept="video/*"
+                  accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                   required
                   className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
@@ -904,8 +893,7 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setUploading(false);
-                      setUploadProgress(0);
+                      uploadAbortRef.current?.abort();
                     }}
                     className="rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
                   >
@@ -1147,7 +1135,7 @@ export default function AdminPage() {
                 {t.admin?.visuals?.subtitle || "Управление визуальными материалами и категориями"}
               </p>
               <a
-                href="/dashboard/admin/visuals"
+                href="/dashboard/admin/library"
                 className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30"
               >
                 {t.admin?.visuals?.goToPage || "Перейти к управлению"}
@@ -1169,10 +1157,33 @@ export default function AdminPage() {
                 {t.admin?.materials?.subtitle || t.presentationsAdmin?.subtitle || "Загрузка интерактивных презентаций"}
               </p>
               <a
-                href="/dashboard/admin/materials"
+                href="/dashboard/admin/library"
                 className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30"
               >
                 {t.admin?.materials?.goToPage || "Перейти к загрузке"}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "library" && (
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="space-y-4 text-center">
+              <h2 className="text-xl font-semibold text-slate-900">
+                {language === "kk" ? "Дайын материалдар кітапханасы" : "Библиотека готовых материалов"}
+              </h2>
+              <p className="text-sm text-slate-600">
+                {language === "kk"
+                  ? "Көрнекіліктерді, ойындарды, ашық сабақтарды және іс-шараларды бір жерден басқарыңыз."
+                  : "Единое управление наглядными материалами, играми, открытыми уроками и мероприятиями."}
+              </p>
+              <a
+                href="/dashboard/admin/library"
+                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30"
+              >
+                {language === "kk" ? "Кітапхананы ашу" : "Открыть библиотеку"}
               </a>
             </div>
           </div>

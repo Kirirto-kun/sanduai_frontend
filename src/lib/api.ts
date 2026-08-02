@@ -178,7 +178,7 @@ export type LessonPlanDocxRequest = LessonPlanResponse;
 export type WidgetType = "multiple_choice" | "matching" | "true_false" | "text_open" | "fill_in_blank";
 
 export type TaskGrading = {
-  correct_answer: any;
+  correct_answer: unknown;
   descriptor: string;
   score: number;
 };
@@ -560,6 +560,18 @@ export class InsufficientTokensError extends Error {
   }
 }
 
+export class ApiRequestError extends Error {
+  readonly status: number;
+  readonly details: unknown;
+
+  constructor(message: string, status: number, details?: unknown) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+    this.details = details;
+  }
+}
+
 async function request<T>(
   path: string,
   options: RequestInit & { auth?: boolean } = {},
@@ -596,10 +608,17 @@ async function request<T>(
     }
     let message = data && (data.detail || data.error || data.message);
     if (Array.isArray(message)) {
-      message = message.map((e: any) => e.msg || JSON.stringify(e)).join("; ");
+      message = message
+        .map((entry: unknown) => {
+          if (entry && typeof entry === "object" && "msg" in entry) {
+            return String((entry as { msg: unknown }).msg);
+          }
+          return JSON.stringify(entry);
+        })
+        .join("; ");
     }
     message = message || `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw new ApiRequestError(String(message), res.status, data);
   }
   return data as T;
 }
@@ -1167,9 +1186,9 @@ export function chatWithYbyraiStream(
           }
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (!aborted) {
-        callbacks.onError(err.message || "Stream error");
+        callbacks.onError(err instanceof Error ? err.message : "Stream error");
       }
     }
   })();
@@ -1346,7 +1365,7 @@ function setCookie(name: string, value: string, days: number = 7) {
 function getCookie(name: string): string | null {
   if (typeof window === "undefined") return null;
   const cookies = document.cookie.split(';');
-  for (let cookie of cookies) {
+  for (const cookie of cookies) {
     const [key, value] = cookie.trim().split('=');
     if (key === name) return value;
   }
@@ -1570,15 +1589,12 @@ export async function addSubscriptionToUser(
 }
 
 // Video types
-export type UploadVideoTokenPayload = {
-  title: string; // Max 255 characters
-};
-
-export type UploadVideoTokenResponse = {
+export type AdminVideoUploadResponse = {
+  video_db_id: string;
   bunny_video_id: string;
-  presigned_upload_url: string;
-  authorization_header: string;
-  video_db_id: string; // UUID
+  title: string;
+  status: "uploading" | "processing" | "ready" | "error";
+  size_bytes: number;
 };
 
 export type Video = {
@@ -1610,25 +1626,29 @@ export type UploadThumbnailResponse = {
   video_id: string;
 };
 
-// Video API functions
-export async function uploadVideoToken(
-  payload: UploadVideoTokenPayload,
-): Promise<UploadVideoTokenResponse> {
-  return request<UploadVideoTokenResponse>("/api/admin/videos/upload-token", {
-    method: "POST",
-    body: JSON.stringify(payload),
-    auth: true,
-  });
-}
-
-export async function uploadVideoToBunny(
-  url: string,
+// Video bytes are sent only to our authenticated backend. Bunny credentials never
+// cross the server boundary.
+export async function uploadAdminVideo(
+  title: string,
   file: File,
-  authHeader: string,
   onProgress?: (progress: number) => void,
-): Promise<void> {
+  signal?: AbortSignal,
+): Promise<AdminVideoUploadResponse> {
   return new Promise((resolve, reject) => {
+    const token = getToken();
+    if (!token) {
+      reject(new Error("Authentication required"));
+      return;
+    }
+
     const xhr = new XMLHttpRequest();
+    const abortUpload = () => xhr.abort();
+    const cleanup = () => signal?.removeEventListener("abort", abortUpload);
+    if (signal?.aborted) {
+      reject(new Error("Upload aborted"));
+      return;
+    }
+    signal?.addEventListener("abort", abortUpload, { once: true });
 
     xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable && onProgress) {
@@ -1638,81 +1658,47 @@ export async function uploadVideoToBunny(
     });
 
     xhr.addEventListener("load", () => {
+      cleanup();
       if (xhr.status >= 200 && xhr.status < 300) {
-        console.log("Video uploaded successfully to Bunny CDN");
-        resolve();
+        try {
+          resolve(JSON.parse(xhr.responseText) as AdminVideoUploadResponse);
+        } catch {
+          reject(new Error("Upload completed, but the server returned an invalid response"));
+        }
       } else {
         let errorText = `Upload failed with status ${xhr.status}`;
-        let errorDetails: any = {};
-
         try {
-          const responseText = xhr.responseText;
-          if (responseText) {
-            const parsed = JSON.parse(responseText);
-            errorText = parsed.Message || parsed.message || parsed.error || responseText;
-            errorDetails = parsed;
+          const parsed = JSON.parse(xhr.responseText) as {
+            detail?: string | Array<{ msg?: string }>;
+            message?: string;
+            error?: string;
+          };
+          if (Array.isArray(parsed.detail)) {
+            errorText = parsed.detail.map((entry) => entry.msg ?? "Validation error").join("; ");
+          } else {
+            errorText = parsed.detail || parsed.message || parsed.error || errorText;
           }
         } catch {
           errorText = xhr.responseText || xhr.statusText || errorText;
         }
-
-        console.error("Bunny CDN upload error:", {
-          status: xhr.status,
-          statusText: xhr.statusText,
-          errorText,
-          errorDetails,
-          responseHeaders: xhr.getAllResponseHeaders(),
-        });
-
         reject(new Error(errorText));
       }
     });
 
-    xhr.addEventListener("error", (e) => {
-      console.error("Network error during upload:", e);
-      reject(new Error("Upload failed - network error"));
+    xhr.addEventListener("error", () => {
+      cleanup();
+      reject(new Error("Upload failed due to a network error"));
     });
 
     xhr.addEventListener("abort", () => {
+      cleanup();
       reject(new Error("Upload aborted"));
     });
 
-    // Use PUT method as required by Bunny CDN for direct uploads
-    xhr.open("PUT", url);
-
-    // Bunny CDN requires header name "AccessKey", not "Authorization"
-    // Backend sends "AccessKey <key>", we need to extract just the key
-    let accessKey: string;
-    if (authHeader.startsWith("AccessKey ")) {
-      // Extract the key after "AccessKey " prefix
-      accessKey = authHeader.substring("AccessKey ".length).trim();
-    } else {
-      // If no prefix, use as-is (shouldn't happen, but just in case)
-      accessKey = authHeader.trim();
-    }
-
-    // Set header with name "AccessKey" (not "Authorization")
-    xhr.setRequestHeader("AccessKey", accessKey);
-
-    // Set Content-Type to application/octet-stream to ensure Bunny recognizes the upload
-    // Without this header, Bunny may accept the file but won't trigger encoding process
-    xhr.setRequestHeader("Content-Type", "application/octet-stream");
-
-    // Log upload details for debugging
-    const urlObj = new URL(url);
-    console.log("Uploading to Bunny CDN:", {
-      method: "PUT",
-      url: url.substring(0, 100) + "...",
-      urlHost: urlObj.hostname,
-      urlPath: urlObj.pathname,
-      urlHasQuery: urlObj.search.length > 0,
-      fileSize: file.size,
-      fileName: file.name,
-      fileType: file.type,
-      originalAuthHeader: authHeader.substring(0, 25) + "...",
-      extractedAccessKey: accessKey.substring(0, 10) + "...",
-      contentType: "application/octet-stream",
-    });
+    const params = new URLSearchParams({ title: title.trim() });
+    xhr.open("POST", `${getApiBase()}/api/admin/videos/upload?${params.toString()}`);
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
 
     xhr.send(file);
   });

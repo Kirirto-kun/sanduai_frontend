@@ -35,6 +35,14 @@ import type {
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 const PREFIX = "/api/v1/presentations/presenton";
+const MAX_PRIVATE_IMAGE_BYTES = 15 * 1024 * 1024;
+const PRIVATE_IMAGE_TYPES = new Set([
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/svg+xml",
+  "image/webp",
+]);
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -408,8 +416,70 @@ export function assetUrl(path: string): string {
     clean = clean.slice("/app_data/".length);
   } else if (clean.startsWith("app_data/")) {
     clean = clean.slice("app_data/".length);
+  } else if (clean.startsWith("/static/")) {
+    clean = clean.slice(1);
   }
   return `${API_BASE}${PREFIX}/assets/${clean}`;
+}
+
+/** Fetch a private Presenton asset without putting the access token in its URL. */
+export async function fetchAssetBlob(
+  path: string,
+  signal?: AbortSignal,
+  maxBytes = MAX_PRIVATE_IMAGE_BYTES,
+): Promise<Blob> {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(assetUrl(path), {
+    headers,
+    cache: "no-store",
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`Asset request failed: ${response.status}`);
+  }
+  const effectiveLimit = Math.min(MAX_PRIVATE_IMAGE_BYTES, Math.max(1, maxBytes));
+  const mediaType = (response.headers.get("content-type") ?? "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+  if (!PRIVATE_IMAGE_TYPES.has(mediaType)) {
+    await response.body?.cancel();
+    throw new Error("Private asset is not a supported image");
+  }
+  const declaredLength = Number(response.headers.get("content-length") ?? 0);
+  if (declaredLength > effectiveLimit) {
+    await response.body?.cancel();
+    throw new Error("Private image exceeds the preview limit");
+  }
+  if (!response.body) throw new Error("Private image response has no body");
+
+  const reader = response.body.getReader();
+  const chunks: ArrayBuffer[] = [];
+  let received = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > effectiveLimit) {
+        await reader.cancel("Private image exceeds the preview limit");
+        throw new Error("Private image exceeds the preview limit");
+      }
+      const copy = new Uint8Array(value.byteLength);
+      copy.set(value);
+      chunks.push(copy.buffer);
+    }
+  } catch (error) {
+    await reader.cancel(error).catch(() => undefined);
+    throw error;
+  } finally {
+    reader.releaseLock();
+  }
+  if (received === 0) throw new Error("Private image is empty");
+  return new Blob(chunks, { type: mediaType });
 }
 
 // ---------------------------------------------------------------------------

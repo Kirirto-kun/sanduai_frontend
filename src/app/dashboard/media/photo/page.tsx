@@ -7,12 +7,13 @@ import {
   InsufficientTokensError,
   downloadImage,
 } from "../../../../lib/api";
-import { useTranslations } from "../../../../i18n/LanguageContext";
+import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
 import { TokenBalance } from "../../../../components/TokenBalance";
 
 export default function PhotoPage() {
   const t = useTranslations();
+  const { language } = useLanguage();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState<GenerateImageResponse | null>(null);
@@ -83,28 +84,16 @@ export default function PhotoPage() {
       <div className="mx-auto max-w-4xl">
         <h1 className="mb-6 text-3xl font-bold text-slate-900">{t.photoPage?.title || "Генерация изображений"}</h1>
 
-        {/* Предупреждение */}
+        {/* Ссылка на изображение теперь постоянная — картинка лежит в CDN,
+            а не во временном хранилище провайдера на 60 минут. */}
         <div className="glass-card mb-6 rounded-3xl border border-white/60 px-6 py-4 shadow-md sm:px-8">
           <div className="flex items-start gap-3">
-            <svg
-              className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange-600"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div>
-              <h3 className="font-semibold text-orange-800">
-                {t.photoPage?.warningTitle || "Внимание: Изображение не сохраняется в истории"}
-              </h3>
-              <p className="mt-1 text-sm text-orange-700">
-                {t.photoPage?.warningText || "Скачайте изображение сразу после генерации. Ссылка действительна только 1 час."}
-              </p>
-            </div>
+            <span className="mt-0.5 text-lg leading-none">💡</span>
+            <p className="text-sm text-slate-600">
+              {language === "kk"
+                ? "Кескін тұрақты сілтемеде сақталады — оны кейін де ашуға болады. Жазуларды қазақ тілінде сұрасаңыз, суретте де қазақша шығады."
+                : "Изображение сохраняется по постоянной ссылке — его можно открыть и позже. Если попросите надписи на казахском, они появятся на картинке на казахском."}
+            </p>
           </div>
         </div>
 

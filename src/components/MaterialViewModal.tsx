@@ -124,6 +124,8 @@ export function MaterialViewModal({
               src={fileUrl}
               className="w-full h-[70vh] min-h-[500px] rounded-xl border border-slate-200"
               title={material.title}
+              sandbox="allow-downloads allow-forms allow-pointer-lock allow-presentation allow-scripts"
+              referrerPolicy="no-referrer"
             />
           ) : isPresentation ? (
             <div className="flex flex-col items-center justify-center py-12">
