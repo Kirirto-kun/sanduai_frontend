@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useTranslations } from "../../i18n/LanguageContext";
 
-const cards: { href: string; key: keyof typeof labels }[] = [
+type CardKey = "kmzh" | "aiDocs" | "library" | "media" | "profile" | "sandubot";
+
+const cards: { href: string; key: CardKey }[] = [
   { href: "/dashboard/ai/lesson-plan", key: "kmzh" },
   { href: "/dashboard/ai-docs", key: "aiDocs" },
   { href: "/dashboard/library", key: "library" },
@@ -12,19 +14,10 @@ const cards: { href: string; key: keyof typeof labels }[] = [
   { href: "/dashboard/sandubot", key: "sandubot" },
 ];
 
-const labels = {
-  kmzh: "kmzh",
-  aiDocs: "aiDocs",
-  library: "library",
-  media: "media",
-  profile: "profile",
-  sandubot: "sandubot",
-} as const;
-
 export default function DashboardHome() {
   const t = useTranslations();
 
-  const getCardTitle = (key: keyof typeof labels) => {
+  const getCardTitle = (key: CardKey) => {
     switch (key) {
       case "kmzh":
         return t.dashboard.menu.aiGenerationItems.kmzh;
@@ -79,7 +72,6 @@ export default function DashboardHome() {
     </div>
   );
 }
-
 
 
 

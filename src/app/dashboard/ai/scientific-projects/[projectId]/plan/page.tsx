@@ -8,6 +8,7 @@ import {
   DraftPlanResponse,
   ProjectState,
 } from "../../../../../../lib/api";
+import { getErrorMessage } from "../../../../../../lib/error-utils";
 
 export default function PlanReviewPage() {
   const t = useTranslations();
@@ -22,28 +23,33 @@ export default function PlanReviewPage() {
   const [editValue, setEditValue] = useState("");
 
   useEffect(() => {
-    loadPlan();
+    let active = true;
+
+    const loadPlan = async () => {
+      try {
+        const state: ProjectState = await getProjectStatus(projectId);
+        if (active) setPlan(state.plan);
+      } catch (err: unknown) {
+        if (active) setError(getErrorMessage(err, "Ошибка загрузки плана"));
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void loadPlan();
+    return () => {
+      active = false;
+    };
   }, [projectId]);
 
-  const loadPlan = async () => {
-    try {
-      const state: ProjectState = await getProjectStatus(projectId);
-      setPlan(state.plan);
-    } catch (err: any) {
-      setError(err.message || "Ошибка загрузки плана");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEdit = (field: string, currentValue: any) => {
+  const handleEdit = (field: string, currentValue: unknown) => {
     setEditing(field);
     if (typeof currentValue === "string") {
       setEditValue(currentValue);
     } else if (Array.isArray(currentValue)) {
       setEditValue(currentValue.join("\n"));
     } else {
-      setEditValue(JSON.stringify(currentValue, null, 2));
+      setEditValue(JSON.stringify(currentValue, null, 2) ?? "");
     }
   };
 
@@ -89,8 +95,8 @@ export default function PlanReviewPage() {
     try {
       // Start generating sections sequentially
       router.push(`/dashboard/ai/scientific-projects/${projectId}/generate`);
-    } catch (err: any) {
-      setError(err.message || "Ошибка");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Ошибка"));
     } finally {
       setLoading(false);
     }

@@ -1,27 +1,24 @@
 "use client";
 
-import { use, useEffect, useState, useRef } from "react";
+import { use, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLanguage } from "../../../../../i18n/LanguageContext";
-import { PHET_SIMULATIONS, PhetSimulation } from "../../../../../lib/phet-simulations";
+import { PHET_SIMULATIONS } from "../../../../../lib/phet-simulations";
 
 export default function SimulationViewPage({ params }: { params: Promise<{ id: string }> }) {
   const t = useTranslations();
   const { language } = useLanguage();
   const router = useRouter();
   const resolvedParams = use(params);
-  const [simulation, setSimulation] = useState<PhetSimulation | null>(null);
+  const simulation = PHET_SIMULATIONS.find((entry) => entry.id === resolvedParams.id) ?? null;
   const iframeContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const found = PHET_SIMULATIONS.find((s) => s.id === resolvedParams.id);
-    if (found) {
-      setSimulation(found);
-    } else {
+    if (!simulation) {
       router.push("/dashboard/library/simulations");
     }
-  }, [resolvedParams.id, router]);
+  }, [router, simulation]);
 
   const toggleFullscreen = () => {
     if (!iframeContainerRef.current) return;

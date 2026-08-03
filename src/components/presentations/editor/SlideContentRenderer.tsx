@@ -1,251 +1,138 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
-import type { Slide } from "@/types/presenton";
-import { fetchAssetBlob } from "@/lib/presenton-api";
+import { useState } from "react";
+import { useLanguage } from "@/i18n/LanguageContext";
+import { useActivateSlideVersion, useRegenerateSlide } from "@/hooks/usePresentations";
+import type { PresentationSlide } from "@/types/presentations";
+import { getPresentationCopy } from "../copy";
+import { presentationErrorMessage, qaWarningMessage } from "../error-copy";
+import { activeVersion, normalizeSlideSpec, qaWarnings } from "../slide-utils";
 
-interface Props {
-  slide: Slide;
-}
+export default function CreativeReviewPanel({
+  presentationId,
+  slide,
+  regenerationActive = false,
+  onJobStarted,
+}: {
+  presentationId: string;
+  slide: PresentationSlide;
+  regenerationActive?: boolean;
+  onJobStarted?: (jobId: string) => void;
+}) {
+  const { language } = useLanguage();
+  const copy = getPresentationCopy(language);
+  const regenerateMutation = useRegenerateSlide();
+  const activateMutation = useActivateSlideVersion();
+  const [error, setError] = useState<string | null>(null);
+  const [instruction, setInstruction] = useState("");
+  const warnings = qaWarnings(slide);
+  const versions = slide.versions ?? [];
+  const current = activeVersion(slide);
+  const normalizedStatus = slide.status.toLowerCase();
+  const failed = normalizedStatus === "failed";
+  const accepted = normalizedStatus === "accepted" || normalizeSlideSpec(slide.spec).review_status === "accepted";
+  const settled = !["planned", "approved", "queued", "generating", "uploading"].includes(normalizedStatus);
+  const canAccept = settled && !failed && Boolean(current?.id);
 
-const MAX_EMBEDDED_SLIDE_IMAGES = 20;
-const MAX_EMBEDDED_SLIDE_BYTES = 30 * 1024 * 1024;
-
-/**
- * Renders a single slide's content.
- *
- * HTML-based slides run in an isolated frame with only the pinned styling runtime.
- * Presentation HTML is generated outside React and must never be inserted into
- * the application DOM.
- * For JSON-based slides, renders structured content (title, body, bullets, image).
- */
-export default function SlideContentRenderer({ slide }: Props) {
-  // If the slide has pre-rendered HTML, use it
-  if (slide.html_content) {
-    return <AuthenticatedHtmlSlide html={slide.html_content} />;
-  }
-
-  const c = slide.content;
-
-  return (
-    <div className="flex h-full w-full flex-col justify-between p-8">
-      {/* Title */}
-      {c.title && (
-        <h2 className="mb-4 text-2xl font-bold text-slate-900">{c.title}</h2>
-      )}
-
-      {/* Subtitle */}
-      {c.subtitle && (
-        <p className="mb-4 text-lg text-slate-600">{c.subtitle}</p>
-      )}
-
-      {/* Body */}
-      <div className="flex flex-1 gap-6">
-        <div className="flex-1">
-          {c.body && <p className="text-sm text-slate-700">{c.body}</p>}
-
-          {/* Bullets */}
-          {c.bullets && c.bullets.length > 0 && (
-            <ul className="mt-3 space-y-2">
-              {c.bullets.map((bullet, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                  <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-indigo-500" />
-                  {bullet}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Image */}
-        {c.image && (
-          <div className="flex w-1/3 flex-shrink-0 items-center justify-center">
-            <AuthenticatedImage path={c.image} />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AuthenticatedImage({ path }: { path: string }) {
-  const { objectUrl, failed } = usePrivateAsset(path);
-
-  if (failed) {
-    return (
-      <div className="flex h-28 w-full items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-500">
-        Image unavailable
-      </div>
-    );
-  }
-  if (!objectUrl) {
-    return <div className="h-28 w-full animate-pulse rounded-lg bg-slate-100" />;
-  }
-  return (
-    <div className="relative h-full min-h-28 w-full">
-      <Image
-        src={objectUrl}
-        alt=""
-        fill
-        unoptimized
-        sizes="33vw"
-        className="rounded-lg object-contain"
-      />
-    </div>
-  );
-}
-
-function AuthenticatedHtmlSlide({ html }: { html: string }) {
-  const [prepared, setPrepared] = useState<{
-    html: string;
-    srcDoc: string;
-  } | null>(null);
-  const srcDoc = prepared?.html === html ? prepared.srcDoc : null;
-
-  useEffect(() => {
-    const controller = new AbortController();
-    let disposed = false;
-
-    async function prepare() {
-      const paths = Array.from(
-        new Set(
-          Array.from(
-            html.matchAll(/src=(["'])((?:\/app_data|\/static)\/[^"']+)\1/g),
-          ).map((match) => match[2]),
-        ),
-      );
-      const replacements = new Map<string, string>();
-      let embeddedBytes = 0;
-      for (const [index, path] of paths.entries()) {
-        const remainingBytes = MAX_EMBEDDED_SLIDE_BYTES - embeddedBytes;
-        if (index >= MAX_EMBEDDED_SLIDE_IMAGES || remainingBytes <= 0) {
-          replacements.set(path, "data:,");
-          continue;
-        }
-        try {
-          const blob = await fetchAssetBlob(path, controller.signal, remainingBytes);
-          embeddedBytes += blob.size;
-          replacements.set(path, await imageBlobToDataUrl(blob, controller.signal));
-        } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError") return;
-          replacements.set(path, "data:,");
-        }
-      }
-
-      if (!disposed) {
-        const rewritten = html.replace(
-          /src=(["'])((?:\/app_data|\/static)\/[^"']+)\1/g,
-          (_match, quote, path) =>
-            `src=${quote}${replacements.get(path) ?? "data:,"}${quote}`,
-        );
-        setPrepared({ html, srcDoc: withSlideRuntime(rewritten) });
-      }
-    }
-
-    void prepare();
-    return () => {
-      disposed = true;
-      controller.abort();
-    };
-  }, [html]);
-
-  if (srcDoc === null) {
-    return <div className="h-full w-full animate-pulse bg-slate-100" />;
-  }
-  return (
-    <iframe
-      className="h-full w-full border-0 bg-white"
-      referrerPolicy="no-referrer"
-      sandbox="allow-scripts"
-      srcDoc={srcDoc}
-      title="Presentation slide preview"
-    />
-  );
-}
-
-function imageBlobToDataUrl(blob: Blob, signal: AbortSignal): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) {
-      reject(new DOMException("Aborted", "AbortError"));
-      return;
-    }
-    const reader = new FileReader();
-    const abort = () => reader.abort();
-    const cleanup = () => signal.removeEventListener("abort", abort);
-    reader.addEventListener("load", () => {
-      cleanup();
-      if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("Could not encode the private slide image"));
-    }, { once: true });
-    reader.addEventListener("error", () => {
-      cleanup();
-      reject(reader.error ?? new Error("Could not read the private slide image"));
-    }, { once: true });
-    reader.addEventListener("abort", () => {
-      cleanup();
-      reject(new DOMException("Aborted", "AbortError"));
-    }, { once: true });
-    signal.addEventListener("abort", abort, { once: true });
-    reader.readAsDataURL(blob);
-  });
-}
-
-function usePrivateAsset(path: string) {
-  const [state, setState] = useState<{
-    path: string;
-    objectUrl: string | null;
-    failed: boolean;
-  }>({ path, objectUrl: null, failed: false });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    let objectUrl: string | null = null;
-    let disposed = false;
-    void fetchAssetBlob(path, controller.signal)
-      .then((blob) => {
-        const url = URL.createObjectURL(blob);
-        if (disposed) {
-          URL.revokeObjectURL(url);
-          return;
-        }
-        objectUrl = url;
-        setState({ path, objectUrl, failed: false });
-      })
-      .catch((error) => {
-        if (!disposed && !(error instanceof DOMException && error.name === "AbortError")) {
-          setState({ path, objectUrl: null, failed: true });
-        }
+  const regenerate = async () => {
+    setError(null);
+    try {
+      const job = await regenerateMutation.mutateAsync({
+        presentationId,
+        slideKey: slide.slide_key,
+        instruction,
       });
+      onJobStarted?.(job.job_id);
+      setInstruction("");
+    } catch (caught) {
+      setError(presentationErrorMessage(caught, copy));
+    }
+  };
 
-    return () => {
-      disposed = true;
-      controller.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [path]);
+  const accept = async () => {
+    setError(null);
+    try {
+      if (!current?.id) return;
+      await activateMutation.mutateAsync({
+        presentationId,
+        slideKey: slide.slide_key,
+        versionId: current.id,
+      });
+    } catch (caught) {
+      setError(presentationErrorMessage(caught, copy));
+    }
+  };
 
-  return state.path === path
-    ? state
-    : { path, objectUrl: null, failed: false };
-}
+  const activate = async (versionId: string) => {
+    setError(null);
+    try {
+      await activateMutation.mutateAsync({ presentationId, slideKey: slide.slide_key, versionId });
+    } catch (caught) {
+      setError(presentationErrorMessage(caught, copy));
+    }
+  };
 
-function withSlideRuntime(html: string): string {
-  const runtimePath = "/api/presenton/tailwind-runtime";
-  const runtimeSource = `${window.location.origin}${runtimePath}`;
-  const runtimeUrl = `${runtimeSource}?v=4.3.3`;
-  const csp =
-    "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; " +
-    "img-src blob: data:; style-src 'unsafe-inline'; font-src blob: data:; " +
-    `script-src ${runtimeSource}; connect-src 'none'; ` +
-    "object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'\">";
-  const runtime = `<script src="${runtimeUrl}"></script>`;
-  const parsed = new DOMParser().parseFromString(html, "text/html");
-  parsed
-    .querySelectorAll("script, iframe, object, embed, form, base, link, meta[http-equiv]")
-    .forEach((element) => element.remove());
-  const inlineStyles = Array.from(parsed.head.querySelectorAll("style"))
-    .map((style) => style.outerHTML)
-    .join("");
-  return `<!doctype html><html><head>${csp}${runtime}${inlineStyles}</head><body>${parsed.body.innerHTML}</body></html>`;
+  return (
+    <aside className="w-full border-t border-slate-200 bg-white p-4 lg:w-80 lg:shrink-0 lg:border-l lg:border-t-0 lg:overflow-y-auto">
+      <h2 className="text-sm font-bold text-slate-900">{copy.selectedSlide}</h2>
+      {failed && (
+        <div role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-900">
+          <p className="text-sm font-bold">{copy.failedSlide}</p>
+          <p className="mt-1 text-xs leading-5 text-rose-700">{copy.failedSlideHelp}</p>
+        </div>
+      )}
+      <p className="mt-2 rounded-xl bg-violet-50 p-3 text-xs leading-5 text-violet-800">{copy.exactTextWarning}</p>
+
+      <section className="mt-5" aria-labelledby="creative-qa-title">
+        <div className="flex items-center justify-between gap-2">
+          <h3 id="creative-qa-title" className="text-xs font-bold uppercase tracking-wide text-slate-500">{copy.qaTitle}</h3>
+          <span className={`h-2.5 w-2.5 rounded-full ${warnings.length ? "bg-amber-500" : "bg-emerald-500"}`} aria-hidden="true" />
+        </div>
+        {warnings.length ? (
+          <ul className="mt-2 space-y-2">
+            {warnings.map((warning, index) => (
+              <li key={warning.id ?? `${warning.code}-${index}`} className={`rounded-xl border p-3 text-xs leading-5 ${warning.severity === "critical" ? "border-rose-200 bg-rose-50 text-rose-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+                <span className="font-bold">{copy.qaWarning}</span>
+                <span className="mt-1 block">{qaWarningMessage(warning, copy)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 rounded-xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">{copy.qaClean}</p>
+        )}
+      </section>
+
+      {versions.length > 0 && (
+        <section className="mt-5" aria-labelledby="creative-versions-title">
+          <h3 id="creative-versions-title" className="text-xs font-bold uppercase tracking-wide text-slate-500">{copy.versions}</h3>
+          <div className="mt-2 space-y-2">
+            {versions.map((version, index) => {
+              const active = version.id === (slide.active_version_id ?? current?.id);
+              return (
+                <div key={version.id} className={`flex min-h-12 items-center justify-between gap-3 rounded-xl border px-3 ${active ? "border-violet-300 bg-violet-50" : "border-slate-200 bg-white"}`}>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">{copy.version} {version.version ?? index + 1}</p>
+                    {version.created_at && <p className="text-[10px] text-slate-400">{new Intl.DateTimeFormat(language === "kk" ? "kk-KZ" : "ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(version.created_at))}</p>}
+                  </div>
+                  {active ? (
+                    <span className="rounded-full bg-violet-100 px-2 py-1 text-[10px] font-bold text-violet-800">{copy.activeVersion}</span>
+                  ) : (
+                    <button type="button" onClick={() => void activate(version.id)} disabled={activateMutation.isPending || regenerationActive} className="min-h-11 rounded-lg px-3 text-xs font-bold text-violet-700 hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-50">{copy.useVersion}</button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {error && <p role="alert" className="mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-800">{error}</p>}
+      <div className="mt-5 space-y-2">
+        <button type="button" onClick={() => void accept()} disabled={!canAccept || accepted || activateMutation.isPending || regenerationActive} className="min-h-12 w-full rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-45">{accepted ? copy.accepted : copy.acceptSlide}</button>
+        <label htmlFor="creative-regeneration-instruction" className="block pt-2 text-xs font-bold uppercase tracking-wide text-slate-500">{copy.regenerationInstruction}</label>
+        <textarea id="creative-regeneration-instruction" rows={3} maxLength={2000} value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder={copy.regenerationInstructionPlaceholder} className="min-h-20 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200" />
+        <button type="button" onClick={() => void regenerate()} disabled={!settled || regenerateMutation.isPending || regenerationActive} className={`min-h-12 w-full rounded-xl border px-4 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 disabled:opacity-45 ${failed ? "border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 focus-visible:ring-rose-500" : "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100 focus-visible:ring-violet-500"}`}>{regenerateMutation.isPending || regenerationActive ? copy.regenerating : failed ? copy.retryFailedSlide : copy.regenerate}</button>
+      </div>
+    </aside>
+  );
 }

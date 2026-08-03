@@ -75,28 +75,30 @@ export function useRaceGame(
   // Re-initialize teams when questions are loaded (e.g., when data loads from sessionStorage)
   useEffect(() => {
     if (questions && questions.length > 0) {
-      setGameState((prev) => {
-        // Check if teams need to be initialized (empty questions or wrong count)
-        const needsInitialization =
-          prev.teams.length === 0 ||
-          prev.teams.length !== settings.teams_count ||
-          prev.teams.some((team) => !team.questions || team.questions.length === 0);
+      queueMicrotask(() => {
+        setGameState((prev) => {
+          // Check if teams need to be initialized (empty questions or wrong count)
+          const needsInitialization =
+            prev.teams.length === 0 ||
+            prev.teams.length !== settings.teams_count ||
+            prev.teams.some((team) => !team.questions || team.questions.length === 0);
 
-        if (needsInitialization) {
-          const newTeams = initializeTeams();
-          if (newTeams.length > 0 && newTeams[0].questions.length > 0) {
-            return {
-              ...prev,
-              teams: newTeams,
-              winner: null,
-              isFinished: false,
-            };
+          if (needsInitialization) {
+            const newTeams = initializeTeams();
+            if (newTeams.length > 0 && newTeams[0].questions.length > 0) {
+              return {
+                ...prev,
+                teams: newTeams,
+                winner: null,
+                isFinished: false,
+              };
+            }
           }
-        }
-        return prev;
+          return prev;
+        });
       });
     }
-  }, [questions.length, settings.teams_count, initializeTeams]);
+  }, [initializeTeams, questions, settings.teams_count]);
 
   // Check for blocked teams and unblock them
   useEffect(() => {
@@ -200,4 +202,3 @@ export function useRaceGame(
     stepSize,
   };
 }
-

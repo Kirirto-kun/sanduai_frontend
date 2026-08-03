@@ -1,4 +1,15 @@
 import { getToken } from "@/lib/api";
+import { getApiBase } from "@/lib/api-base";
+import {
+  API_ERROR_CODES,
+  ApiRequestError,
+  apiErrorCodeForStatus,
+  fetchWithPolicy,
+  readResponsePayload,
+  requestJson,
+  type ApiErrorCode,
+  type ApiFailure,
+} from "@/lib/http-client";
 import type {
   ContentCategory,
   ContentItem,
@@ -9,21 +20,15 @@ import type {
   LegacyBackfillResponse,
 } from "./types";
 
-function getApiBase(): string {
-  let base = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
-  if (!/^https?:\/\//i.test(base)) base = `https://${base}`;
-  return base.replace(/\/$/, "");
-}
-
-export class ApiError extends Error {
-  readonly status: number;
-  readonly details: unknown;
-
-  constructor(message: string, status: number, details?: unknown) {
-    super(message);
+export class ApiError extends ApiRequestError {
+  constructor(
+    message: string,
+    status: number,
+    details?: unknown,
+    code: ApiErrorCode = apiErrorCodeForStatus(status),
+  ) {
+    super(message, status, details, code);
     this.name = "ApiError";
-    this.status = status;
-    this.details = details;
   }
 }
 
@@ -46,19 +51,18 @@ export async function fetchAdminLibraryPreviewBlob(
 
   const token = getToken();
   if (!token) throw new ApiError("Authentication required", 401);
-  const response = await fetch(url, {
+  const response = await fetchWithPolicy(url, {
     signal,
     cache: "no-store",
     headers: {
       Accept: "image/*",
       Authorization: `Bearer ${token}`,
     },
+  }, {
+    errorFactory: contentApiError,
   });
   if (!response.ok) {
-    const contentType = response.headers.get("content-type") ?? "";
-    const data: unknown = contentType.includes("application/json")
-      ? await response.json().catch(() => null)
-      : await response.text().catch(() => "");
+    const { data } = await readResponsePayload(response);
     throw new ApiError(extractErrorMessage(data, response.status), response.status, data);
   }
   return response.blob();
@@ -121,9 +125,23 @@ function extractErrorMessage(data: unknown, status: number): string {
   return `Request failed with status ${status}`;
 }
 
+function contentApiError(failure: ApiFailure): ApiError {
+  const message =
+    failure.status === 0 || failure.code === API_ERROR_CODES.INVALID_RESPONSE
+      ? failure.message
+      : extractErrorMessage(failure.details, failure.status);
+  return new ApiError(
+    message,
+    failure.status,
+    failure.details,
+    failure.code,
+  );
+}
+
 async function libraryRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { auth, ...requestInit } = options;
   const headers = new Headers(options.headers);
-  if (options.auth) {
+  if (auth) {
     const token = getToken();
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
@@ -131,21 +149,13 @@ async function libraryRequest<T>(path: string, options: RequestOptions = {}): Pr
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(resolveLibraryUrl(path), {
-    ...options,
+  return requestJson<T>(resolveLibraryUrl(path), {
+    ...requestInit,
     headers,
     cache: "no-store",
+  }, {
+    errorFactory: contentApiError,
   });
-
-  const contentType = response.headers.get("content-type") ?? "";
-  const data: unknown = contentType.includes("application/json")
-    ? await response.json().catch(() => null)
-    : await response.text().catch(() => "");
-
-  if (!response.ok) {
-    throw new ApiError(extractErrorMessage(data, response.status), response.status, data);
-  }
-  return data as T;
 }
 
 function buildQuery(params: ContentListParams): string {
@@ -364,9 +374,13 @@ export async function downloadLibraryFile(downloadUrl: string, fallbackName: str
     throw new ApiError("Invalid library download URL", 400);
   }
 
-  const response = await fetch(resolvedDownload, { headers, cache: "no-store" });
+  const response = await fetchWithPolicy(
+    resolvedDownload,
+    { headers, cache: "no-store" },
+    { errorFactory: contentApiError },
+  );
   if (!response.ok) {
-    const data = await response.json().catch(() => null);
+    const { data } = await readResponsePayload(response);
     throw new ApiError(extractErrorMessage(data, response.status), response.status, data);
   }
 

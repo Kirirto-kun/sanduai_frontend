@@ -1,0 +1,15 @@
+.git
+.github
+.next
+node_modules
+coverage
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+.codex-tmp
+Dockerfile*
+docker-compose*.yml
+README.md

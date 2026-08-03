@@ -8,6 +8,10 @@ import {
   exportWorksheetDocx,
   WorksheetContent,
   WorksheetTaskType,
+  WorksheetMultipleChoiceTask,
+  WorksheetFillInBlankTask,
+  WorksheetMatchingTask,
+  WorksheetOpenQuestionTask,
   InsufficientTokensError,
 } from "../../../../lib/api";
 import { useTokens } from "../../../../hooks/useTokens";
@@ -26,6 +30,13 @@ const TASK_TYPES: { value: WorksheetTaskType; labelKey: "multiple_choice" | "fil
   { value: "open_question", labelKey: "open_question" },
 ];
 
+type EditableSectionKey = "multiple_choice" | "fill_in_blank" | "matching" | "open_questions";
+type EditableSectionContent =
+  | WorksheetMultipleChoiceTask[]
+  | WorksheetFillInBlankTask[]
+  | WorksheetMatchingTask[]
+  | WorksheetOpenQuestionTask[];
+
 export default function WorksheetsPage() {
   const { isAuthenticated } = useAuth();
   const t = useTranslations();
@@ -35,7 +46,7 @@ export default function WorksheetsPage() {
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
   const [grade, setGrade] = useState(GRADES[4]); // Default to 5
-  const [language, setLanguage] = useState<"ru" | "kz" | "en">("ru");
+  const [language, setLanguage] = useState<"ru" | "kk" | "en">("ru");
   const [selectedTaskTypes, setSelectedTaskTypes] = useState<WorksheetTaskType[]>([
     "multiple_choice",
     "fill_in_blank",
@@ -50,8 +61,8 @@ export default function WorksheetsPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Editing State
-  const [editSection, setEditSection] = useState<string | null>(null);
-  const [editedContent, setEditedContent] = useState<any>(null);
+  const [editSection, setEditSection] = useState<EditableSectionKey | null>(null);
+  const [editedContent, setEditedContent] = useState<EditableSectionContent | null>(null);
 
   const handleTaskTypeChange = (type: WorksheetTaskType) => {
     setSelectedTaskTypes((prev) =>
@@ -112,12 +123,12 @@ export default function WorksheetsPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (err) {
+    } catch {
       alert(t.worksheet.errors.generic);
     }
   };
 
-  const startEditing = (sectionKey: string, content: any) => {
+  const startEditing = (sectionKey: EditableSectionKey, content: EditableSectionContent) => {
     setEditSection(sectionKey);
     setEditedContent(JSON.parse(JSON.stringify(content))); // Deep copy
   };
@@ -127,7 +138,7 @@ export default function WorksheetsPage() {
       setWorksheetData({
         ...worksheetData,
         [editSection]: editedContent,
-      });
+      } as WorksheetContent);
       setEditSection(null);
       setEditedContent(null);
     }
@@ -202,7 +213,7 @@ export default function WorksheetsPage() {
                     <button
                       key={lang.value}
                       type="button"
-                      onClick={() => setLanguage(lang.value as any)}
+                      onClick={() => setLanguage(lang.value)}
                       className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                         language === lang.value
                           ? "bg-orange-100 text-orange-700 ring-1 ring-orange-300"
@@ -349,14 +360,14 @@ export default function WorksheetsPage() {
                       <button onClick={cancelEditing} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">{t.worksheet.results.cancel}</button>
                     </div>
                   ) : (
-                    <button onClick={() => startEditing("multiple_choice", worksheetData.multiple_choice)} className="text-xs text-orange-600 hover:text-orange-700 font-medium">
+                    <button onClick={() => startEditing("multiple_choice", worksheetData.multiple_choice ?? [])} className="text-xs text-orange-600 hover:text-orange-700 font-medium">
                       {t.worksheet.results.editBlock}
                     </button>
                   )}
                 </div>
 
                 <div className="space-y-4">
-                  {(editSection === "multiple_choice" ? editedContent : worksheetData.multiple_choice).map((task: any, idx: number) => (
+                  {((editSection === "multiple_choice" ? editedContent : worksheetData.multiple_choice) as WorksheetMultipleChoiceTask[]).map((task, idx) => (
                     <div key={idx} className="bg-white/50 p-4 rounded-xl border border-slate-100">
                       {editSection === "multiple_choice" ? (
                          <div className="space-y-2">
@@ -364,19 +375,19 @@ export default function WorksheetsPage() {
                               type="text" 
                               value={task.question} 
                               onChange={(e) => {
-                                const newContent = [...editedContent];
+                                const newContent = [...(editedContent as WorksheetMultipleChoiceTask[])];
                                 newContent[idx].question = e.target.value;
                                 setEditedContent(newContent);
                               }}
                               className="w-full p-2 border rounded"
                            />
-                           {task.options.map((opt: any, oIdx: number) => (
+                           {task.options.map((opt, oIdx) => (
                              <div key={oIdx} className="flex gap-2 items-center">
                                <input 
                                  type="text" 
                                  value={opt.text}
                                  onChange={(e) => {
-                                    const newContent = [...editedContent];
+                                    const newContent = [...(editedContent as WorksheetMultipleChoiceTask[])];
                                     newContent[idx].options[oIdx].text = e.target.value;
                                     setEditedContent(newContent);
                                  }}
@@ -386,7 +397,7 @@ export default function WorksheetsPage() {
                                   type="checkbox"
                                   checked={opt.is_correct}
                                   onChange={(e) => {
-                                    const newContent = [...editedContent];
+                                    const newContent = [...(editedContent as WorksheetMultipleChoiceTask[])];
                                     newContent[idx].options[oIdx].is_correct = e.target.checked;
                                     setEditedContent(newContent);
                                   }}
@@ -398,7 +409,7 @@ export default function WorksheetsPage() {
                         <>
                           <p className="font-medium text-slate-900 mb-2">{idx + 1}. {task.question}</p>
                           <ul className="space-y-1">
-                            {task.options.map((opt: any, oIdx: number) => (
+                            {task.options.map((opt, oIdx) => (
                               <li key={oIdx} className={`flex items-start gap-2 text-sm ${opt.is_correct ? "text-emerald-700 font-medium" : "text-slate-600"}`}>
                                 <span className="w-5 h-5 flex items-center justify-center rounded-full border text-xs shrink-0 bg-white">
                                   {opt.key}
@@ -429,20 +440,20 @@ export default function WorksheetsPage() {
                       <button onClick={cancelEditing} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">{t.worksheet.results.cancel}</button>
                     </div>
                   ) : (
-                    <button onClick={() => startEditing("fill_in_blank", worksheetData.fill_in_blank)} className="text-xs text-orange-600 hover:text-orange-700 font-medium">
+                    <button onClick={() => startEditing("fill_in_blank", worksheetData.fill_in_blank ?? [])} className="text-xs text-orange-600 hover:text-orange-700 font-medium">
                       {t.worksheet.results.editBlock}
                     </button>
                   )}
                 </div>
                 <div className="space-y-3">
-                   {(editSection === "fill_in_blank" ? editedContent : worksheetData.fill_in_blank).map((task: any, idx: number) => (
+                   {((editSection === "fill_in_blank" ? editedContent : worksheetData.fill_in_blank) as WorksheetFillInBlankTask[]).map((task, idx) => (
                     <div key={idx} className="bg-white/50 p-3 rounded-xl border border-slate-100">
                        {editSection === "fill_in_blank" ? (
                          <div className="space-y-2">
                             <textarea
                               value={task.text_with_gaps}
                               onChange={(e) => {
-                                const newContent = [...editedContent];
+                                const newContent = [...(editedContent as WorksheetFillInBlankTask[])];
                                 newContent[idx].text_with_gaps = e.target.value;
                                 setEditedContent(newContent);
                               }}
@@ -473,17 +484,17 @@ export default function WorksheetsPage() {
                       <button onClick={cancelEditing} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">{t.worksheet.results.cancel}</button>
                     </div>
                   ) : (
-                    <button onClick={() => startEditing("matching", worksheetData.matching)} className="text-xs text-orange-600 hover:text-orange-700 font-medium">
+                    <button onClick={() => startEditing("matching", worksheetData.matching ?? [])} className="text-xs text-orange-600 hover:text-orange-700 font-medium">
                       {t.worksheet.results.editBlock}
                     </button>
                   )}
                 </div>
                 <div className="space-y-4">
-                  {(editSection === "matching" ? editedContent : worksheetData.matching).map((task: any, idx: number) => (
+                  {((editSection === "matching" ? editedContent : worksheetData.matching) as WorksheetMatchingTask[]).map((task, idx) => (
                     <div key={idx} className="bg-white/50 p-4 rounded-xl border border-slate-100">
                        <p className="text-sm font-medium text-slate-500 mb-2">Group {idx + 1}</p>
                        <div className="grid grid-cols-2 gap-4">
-                          {task.pairs.map((pair: any, pIdx: number) => (
+                          {task.pairs.map((pair, pIdx) => (
                             <div key={pIdx} className="contents">
                                {editSection === "matching" ? (
                                  <>
@@ -491,7 +502,7 @@ export default function WorksheetsPage() {
                                       type="text" 
                                       value={pair.left} 
                                       onChange={(e) => {
-                                         const newContent = [...editedContent];
+                                         const newContent = [...(editedContent as WorksheetMatchingTask[])];
                                          newContent[idx].pairs[pIdx].left = e.target.value;
                                          setEditedContent(newContent);
                                       }}
@@ -501,7 +512,7 @@ export default function WorksheetsPage() {
                                       type="text" 
                                       value={pair.right} 
                                       onChange={(e) => {
-                                         const newContent = [...editedContent];
+                                         const newContent = [...(editedContent as WorksheetMatchingTask[])];
                                          newContent[idx].pairs[pIdx].right = e.target.value;
                                          setEditedContent(newContent);
                                       }}
@@ -536,13 +547,13 @@ export default function WorksheetsPage() {
                       <button onClick={cancelEditing} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">{t.worksheet.results.cancel}</button>
                     </div>
                   ) : (
-                    <button onClick={() => startEditing("open_questions", worksheetData.open_questions)} className="text-xs text-orange-600 hover:text-orange-700 font-medium">
+                    <button onClick={() => startEditing("open_questions", worksheetData.open_questions ?? [])} className="text-xs text-orange-600 hover:text-orange-700 font-medium">
                       {t.worksheet.results.editBlock}
                     </button>
                   )}
                 </div>
                 <div className="space-y-4">
-                  {(editSection === "open_questions" ? editedContent : worksheetData.open_questions).map((task: any, idx: number) => (
+                  {((editSection === "open_questions" ? editedContent : worksheetData.open_questions) as WorksheetOpenQuestionTask[]).map((task, idx) => (
                     <div key={idx} className="bg-white/50 p-4 rounded-xl border border-slate-100">
                        {editSection === "open_questions" ? (
                           <div className="space-y-2">
@@ -551,7 +562,7 @@ export default function WorksheetsPage() {
                               type="text"
                               value={task.question}
                               onChange={(e) => {
-                                const newContent = [...editedContent];
+                                const newContent = [...(editedContent as WorksheetOpenQuestionTask[])];
                                 newContent[idx].question = e.target.value;
                                 setEditedContent(newContent);
                               }}
@@ -561,7 +572,7 @@ export default function WorksheetsPage() {
                              <textarea
                               value={task.model_answer}
                               onChange={(e) => {
-                                const newContent = [...editedContent];
+                                const newContent = [...(editedContent as WorksheetOpenQuestionTask[])];
                                 newContent[idx].model_answer = e.target.value;
                                 setEditedContent(newContent);
                               }}

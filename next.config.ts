@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Produce a self-contained runtime tree for the production container. This
+  // avoids shipping the compiler, source tree, and development dependencies.
+  output: "standalone",
+  // Codex/browser smoke tests and developers commonly open the local app via
+  // 127.0.0.1 while Next binds to localhost. Without this allow-list Next 16
+  // blocks its own dev assets, leaving server-rendered forms unhydrated.
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   async headers() {
     return [
       {

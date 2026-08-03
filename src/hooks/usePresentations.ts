@@ -1,296 +1,388 @@
-/**
- * React Query hooks for Presenton presentation integration.
- */
+"use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as api from "@/lib/presenton-api";
+import * as api from "@/lib/presentations-api";
 import type {
-  AsyncGeneratePayload,
-  CreatePresentationPayload,
-  CreateThemePayload,
-  EditSlideHtmlPayload,
-  EditSlidePayload,
-  ExportPayload,
-  GenerateThemePayload,
-  PreparePresentationPayload,
-  UpdateThemePayload,
-} from "@/types/presenton";
+  CreateExportInput,
+  CreatePresentationInput,
+  JobRef,
+  JobState,
+  PlanJobInput,
+  PresentationPlan,
+  PresentationProject,
+  SlideSpec,
+  UpdatePlanInput,
+} from "@/types/presentations";
 
-// ---------------------------------------------------------------------------
-// Query keys
-// ---------------------------------------------------------------------------
-
-const keys = {
-  presentations: ["presenton", "presentations"] as const,
-  presentation: (id: string) => ["presenton", "presentation", id] as const,
-  templates: ["presenton", "templates"] as const,
-  layouts: ["presenton", "layouts"] as const,
-  themes: ["presenton", "themes"] as const,
-  fonts: ["presenton", "fonts"] as const,
-  generatedImages: ["presenton", "images", "generated"] as const,
-  uploadedImages: ["presenton", "images", "uploaded"] as const,
-  taskStatus: (id: string) => ["presenton", "task", id] as const,
+export const presentationKeys = {
+  all: ["presentations-v2"] as const,
+  list: () => [...presentationKeys.all, "list"] as const,
+  detail: (id: string) => [...presentationKeys.all, "detail", id] as const,
+  job: (id: string) => [...presentationKeys.all, "job", id] as const,
+  exports: (id: string) => [...presentationKeys.all, "exports", id] as const,
 };
 
-// ---------------------------------------------------------------------------
-// Queries
-// ---------------------------------------------------------------------------
+const terminalJobStatuses = new Set([
+  "completed",
+  "completed_with_errors",
+  "failed",
+  "error",
+  "cancelled",
+]);
 
 export function usePresentationsList() {
   return useQuery({
-    queryKey: keys.presentations,
-    queryFn: api.listPresentations,
+    queryKey: presentationKeys.list(),
+    queryFn: ({ signal }) => api.listPresentations(signal),
   });
 }
 
-export function usePresentation(id: string | null) {
+export function usePresentation(id: string | null | undefined) {
   return useQuery({
-    queryKey: keys.presentation(id || ""),
-    queryFn: () => api.getPresentation(id!),
-    enabled: !!id,
-  });
-}
-
-export function useTemplates() {
-  return useQuery({
-    queryKey: keys.templates,
-    queryFn: api.listTemplates,
-    staleTime: 30 * 60 * 1000, // 30 min — templates rarely change
-  });
-}
-
-export function useLayouts() {
-  return useQuery({
-    queryKey: keys.layouts,
-    queryFn: api.listLayouts,
-    staleTime: 30 * 60 * 1000,
-  });
-}
-
-export function useThemes() {
-  return useQuery({
-    queryKey: keys.themes,
-    queryFn: api.listThemes,
-  });
-}
-
-export function useFonts() {
-  return useQuery({
-    queryKey: keys.fonts,
-    queryFn: api.listFonts,
-  });
-}
-
-export function useGeneratedImages() {
-  return useQuery({
-    queryKey: keys.generatedImages,
-    queryFn: api.listGeneratedImages,
-  });
-}
-
-export function useUploadedImages() {
-  return useQuery({
-    queryKey: keys.uploadedImages,
-    queryFn: api.listUploadedImages,
-  });
-}
-
-export function useTaskStatus(taskId: string | null, enabled = true) {
-  return useQuery({
-    queryKey: keys.taskStatus(taskId || ""),
-    queryFn: () => api.getGenerationStatus(taskId!),
-    enabled: !!taskId && enabled,
+    queryKey: presentationKeys.detail(id ?? ""),
+    queryFn: ({ signal }) => api.getPresentation(id!, signal),
+    enabled: Boolean(id),
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      if (status === "completed" || status === "error") return false;
-      return 5000; // poll every 5s while pending/processing
+      return status === "planning" || status === "queued" || status === "generating"
+        ? 2500
+        : false;
     },
   });
 }
 
-// ---------------------------------------------------------------------------
-// Mutations
-// ---------------------------------------------------------------------------
+export function useJob(jobId: string | null | undefined) {
+  return useQuery({
+    queryKey: presentationKeys.job(jobId ?? ""),
+    queryFn: ({ signal }) => api.getJob(jobId!, signal),
+    enabled: Boolean(jobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && terminalJobStatuses.has(status) ? false : 2000;
+    },
+  });
+}
+
+export function usePresentationExports(presentationId: string | null | undefined) {
+  return useQuery({
+    queryKey: presentationKeys.exports(presentationId ?? ""),
+    queryFn: ({ signal }) => api.listExports(presentationId!, signal),
+    enabled: Boolean(presentationId),
+    refetchInterval: (query) =>
+      query.state.data?.some((item) =>
+        item.status === "queued" || item.status === "running" || item.status === "processing",
+      )
+        ? 2500
+        : false,
+  });
+}
+
+function useInvalidatePresentation() {
+  const queryClient = useQueryClient();
+  return async (id: string) => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: presentationKeys.detail(id) }),
+      queryClient.invalidateQueries({ queryKey: presentationKeys.list() }),
+    ]);
+  };
+}
 
 export function useCreatePresentation() {
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: CreatePresentationPayload) =>
-      api.createPresentation(payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.presentations });
+    mutationFn: (input: CreatePresentationInput) => api.createPresentation(input),
+    onSuccess: (project) => {
+      queryClient.setQueryData(presentationKeys.detail(project.id), project);
+      queryClient.invalidateQueries({ queryKey: presentationKeys.list() });
     },
+  });
+}
+
+export function useUpdatePresentation() {
+  const invalidate = useInvalidatePresentation();
+  return useMutation({
+    mutationFn: ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: Partial<PresentationProject> & Record<string, unknown>;
+    }) => api.updatePresentation(id, patch),
+    onSuccess: (project) => invalidate(project.id),
   });
 }
 
 export function useDeletePresentation() {
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.deletePresentation(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.presentations });
+    onSuccess: (_result, id) => {
+      queryClient.removeQueries({ queryKey: presentationKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: presentationKeys.list() });
     },
   });
 }
 
-export function usePreparePresentation() {
-  const qc = useQueryClient();
+export function useStartPlanJob() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: PreparePresentationPayload) =>
-      api.preparePresentation(payload),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({
-        queryKey: keys.presentation(vars.presentation_id),
+    mutationFn: ({ id, input }: { id: string; input?: PlanJobInput }) =>
+      api.startPlanJob(id, input),
+    onSuccess: (job, variables) => {
+      queryClient.setQueryData<JobState>(presentationKeys.job(job.job_id), {
+        id: job.job_id,
+        job_id: job.job_id,
+        kind: "plan",
+        status: "queued",
       });
+      queryClient.invalidateQueries({ queryKey: presentationKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: presentationKeys.list() });
     },
   });
 }
 
-export function useEditSlide() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: EditSlidePayload) => api.editSlide(payload),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({
-        queryKey: keys.presentation(vars.presentation_id),
-      });
-    },
-  });
-}
-
-export function useEditSlideHtml() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: EditSlideHtmlPayload) => api.editSlideHtml(payload),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({
-        queryKey: keys.presentation(vars.presentation_id),
-      });
-    },
-  });
-}
-
-export function useStartAsyncGeneration() {
-  return useMutation({
-    mutationFn: (payload: AsyncGeneratePayload) =>
-      api.startAsyncGeneration(payload),
-  });
-}
-
-export function useExportPresentation() {
-  return useMutation({
-    mutationFn: (payload: ExportPayload) => api.exportPresentation(payload),
-  });
-}
-
-export function useDerivePresentation() {
-  const qc = useQueryClient();
+export function useUpdatePlan() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
       presentationId,
-      overrides,
+      planId,
+      input,
     }: {
       presentationId: string;
-      overrides?: Partial<CreatePresentationPayload>;
-    }) => api.derivePresentation(presentationId, overrides),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.presentations });
+      planId: string;
+      input: UpdatePlanInput;
+    }) => api.updatePlan(presentationId, planId, input),
+    onSuccess: (plan, variables) => {
+      queryClient.setQueryData<PresentationProject>(
+        presentationKeys.detail(variables.presentationId),
+        (current) => (current ? { ...current, title: plan.title, active_plan: plan } : current),
+      );
     },
   });
 }
 
-// Theme mutations
-
-export function useCreateTheme() {
-  const qc = useQueryClient();
+export function useApprovePlan() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: CreateThemePayload) => api.createTheme(payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.themes });
+    mutationFn: ({
+      presentationId,
+      planId,
+      revision,
+    }: {
+      presentationId: string;
+      planId: string;
+      revision: number;
+    }) => api.approvePlan(presentationId, planId, revision),
+    onSuccess: (plan, variables) => {
+      queryClient.setQueryData<PresentationProject>(
+        presentationKeys.detail(variables.presentationId),
+        (current) =>
+          current
+            ? { ...current, status: "approved", active_plan: plan, approved_plan: plan }
+            : current,
+      );
+      queryClient.invalidateQueries({ queryKey: presentationKeys.list() });
     },
   });
 }
 
-export function useUpdateTheme() {
-  const qc = useQueryClient();
+export function useCostEstimate() {
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: UpdateThemePayload }) =>
-      api.updateTheme(id, payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.themes });
+    mutationFn: ({ presentationId, planVersionId }: { presentationId: string; planVersionId: string }) =>
+      api.estimateCost(presentationId, planVersionId),
+  });
+}
+
+export function useStartGeneration() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ presentationId, planVersionId }: { presentationId: string; planVersionId: string }) =>
+      api.startGeneration(presentationId, planVersionId),
+    onSuccess: (job, variables) => {
+      queryClient.setQueryData<JobState>(presentationKeys.job(job.job_id), {
+        id: job.job_id,
+        job_id: job.job_id,
+        kind: "generate",
+        status: "queued",
+      });
+      queryClient.invalidateQueries({ queryKey: presentationKeys.detail(variables.presentationId) });
+      queryClient.invalidateQueries({ queryKey: presentationKeys.list() });
     },
   });
 }
 
-export function useDeleteTheme() {
-  const qc = useQueryClient();
+export function useCancelJob() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.deleteTheme(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.themes });
+    mutationFn: (jobId: string) => api.cancelJob(jobId),
+    onSuccess: (job) => {
+      queryClient.setQueryData(presentationKeys.job(job.id ?? job.job_id ?? ""), job);
+      queryClient.invalidateQueries({ queryKey: presentationKeys.all });
     },
   });
 }
 
-export function useGenerateThemeColors() {
+export function useUpdateSlide() {
+  const queryClient = useQueryClient();
+  const invalidate = useInvalidatePresentation();
   return useMutation({
-    mutationFn: (payload: GenerateThemePayload) =>
-      api.generateThemeColors(payload),
-  });
-}
-
-// Image mutations
-
-export function useGenerateImage() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ prompt, style }: { prompt: string; style?: string }) =>
-      api.generateImage(prompt, style),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.generatedImages });
+    mutationFn: ({
+      presentationId,
+      slideKey,
+      spec,
+    }: {
+      presentationId: string;
+      slideKey: string;
+      spec: SlideSpec;
+    }) => api.updateSlide(presentationId, slideKey, spec),
+    onSuccess: (job, variables) => {
+      queryClient.setQueryData<JobState>(presentationKeys.job(job.job_id), {
+        id: job.job_id,
+        job_id: job.job_id,
+        kind: "regenerate",
+        status: "queued",
+      });
+      return invalidate(variables.presentationId);
     },
   });
 }
 
-export function useUploadImage() {
-  const qc = useQueryClient();
+export function useRegenerateSlide() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (file: File) => api.uploadImage(file),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.uploadedImages });
+    mutationFn: ({
+      presentationId,
+      slideKey,
+      instruction,
+    }: {
+      presentationId: string;
+      slideKey: string;
+      instruction?: string;
+    }) => api.regenerateSlide(presentationId, slideKey, instruction),
+    onSuccess: (job, variables) => {
+      queryClient.setQueryData<JobState>(presentationKeys.job(job.job_id), {
+        id: job.job_id,
+        job_id: job.job_id,
+        kind: "regenerate",
+        status: "queued",
+      });
+      queryClient.invalidateQueries({ queryKey: presentationKeys.detail(variables.presentationId) });
     },
   });
 }
 
-export function useDeleteImage() {
-  const qc = useQueryClient();
+export function useActivateSlideVersion() {
+  const invalidate = useInvalidatePresentation();
   return useMutation({
-    mutationFn: (id: string) => api.deleteImage(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.generatedImages });
-      qc.invalidateQueries({ queryKey: keys.uploadedImages });
+    mutationFn: ({
+      presentationId,
+      slideKey,
+      versionId,
+    }: {
+      presentationId: string;
+      slideKey: string;
+      versionId: string;
+    }) => api.activateSlideVersion(presentationId, slideKey, versionId),
+    onSuccess: (_result, variables) => invalidate(variables.presentationId),
+  });
+}
+
+export function useCreateExport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      presentationId,
+      input,
+    }: {
+      presentationId: string;
+      input: CreateExportInput;
+    }) => api.createExport(presentationId, input),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: presentationKeys.exports(variables.presentationId) });
     },
   });
 }
 
-// Font mutations
+export function useJobEventStream(jobId: string | null | undefined, presentationId?: string) {
+  const queryClient = useQueryClient();
+  const [connected, setConnected] = useState(false);
+  const [streamError, setStreamError] = useState(false);
+  const lastEventId = useRef<string | undefined>(undefined);
 
-export function useUploadFont() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (file: File) => api.uploadFont(file),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.fonts });
-    },
-  });
+  useEffect(() => {
+    if (!jobId) return;
+    lastEventId.current = undefined;
+    const controller = new AbortController();
+    let disposed = false;
+
+    async function consume() {
+      try {
+        for await (const event of api.streamJobEvents(jobId!, controller.signal, lastEventId.current)) {
+          if (disposed) return;
+          setConnected(true);
+          setStreamError(false);
+          if (event.id) lastEventId.current = event.id;
+          const payload = event.data as Partial<JobState> | null;
+          if (payload && typeof payload === "object") {
+            queryClient.setQueryData<JobState>(presentationKeys.job(jobId!), (current) => {
+              const status =
+                typeof payload.status === "string"
+                  ? payload.status
+                  : current?.status ?? "processing";
+              return {
+                ...current,
+                ...payload,
+                id: jobId!,
+                status,
+              };
+            });
+          }
+          if (presentationId) {
+            queryClient.invalidateQueries({ queryKey: presentationKeys.detail(presentationId) });
+          }
+          const eventStatus =
+            payload && typeof payload.status === "string" ? payload.status.toLowerCase() : "";
+          const eventName = event.event.toLowerCase();
+          if (
+            eventName === "completed" ||
+            eventName === "completed_with_errors" ||
+            eventName === "failed" ||
+            eventName === "cancelled" ||
+            eventName.endsWith(".completed") ||
+            eventName.endsWith(".failed") ||
+            eventName.endsWith(".cancelled") ||
+            terminalJobStatuses.has(eventStatus)
+          ) {
+            break;
+          }
+        }
+      } catch (error) {
+        if (!disposed && !(error instanceof DOMException && error.name === "AbortError")) {
+          setStreamError(true);
+        }
+      } finally {
+        if (!disposed) setConnected(false);
+      }
+    }
+
+    void consume();
+    return () => {
+      disposed = true;
+      controller.abort();
+    };
+  }, [jobId, presentationId, queryClient]);
+
+  return { connected, streamError };
 }
 
-export function useDeleteFont() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => api.deleteFont(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.fonts });
-    },
-  });
+export function planVersionId(plan: PresentationPlan | null | undefined) {
+  if (!plan) return "";
+  const value = plan.plan_version_id ?? plan.version_id ?? plan.id;
+  return typeof value === "string" ? value : plan.id;
+}
+
+export function jobIdFrom(ref: JobRef | null | undefined) {
+  return ref?.job_id ?? "";
 }

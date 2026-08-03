@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useTranslations } from "../../../../../../i18n/LanguageContext";
 import { useRaceGame } from "../../../../../../hooks/useRaceGame";
 import { RaceTrack } from "../../../../../../components/games/RaceTrack";
 import { TeamColumn } from "../../../../../../components/games/TeamColumn";
@@ -18,16 +17,14 @@ interface GameData {
 export default function AtZharysGamePage() {
   const params = useParams();
   const router = useRouter();
-  const t = useTranslations();
   const gameId = params.gameId as string;
   const gameContainerRef = useRef<HTMLDivElement>(null);
 
   const [gameData, setGameData] = useState<GameData | null>(null);
-  const [showVictoryModal, setShowVictoryModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
+    let active = true;
     // Load game data from sessionStorage
     const stored = sessionStorage.getItem(`atZharys_${gameId}`);
     if (!stored) {
@@ -52,12 +49,16 @@ export default function AtZharysGamePage() {
         return;
       }
 
-      setGameData(data);
-      setIsLoading(false);
+      queueMicrotask(() => {
+        if (active) setGameData(data);
+      });
     } catch (err) {
       console.error("Error parsing game data:", err);
       router.push("/dashboard/library/games/at-zharys");
     }
+    return () => {
+      active = false;
+    };
   }, [gameId, router]);
 
   // Only initialize game hook when data is loaded
@@ -73,13 +74,6 @@ export default function AtZharysGamePage() {
     },
     gameData?.questions || [],
   );
-
-  // Show victory modal when winner is determined
-  useEffect(() => {
-    if (gameState.winner && !showVictoryModal) {
-      setShowVictoryModal(true);
-    }
-  }, [gameState.winner, showVictoryModal]);
 
   // Handle fullscreen API
   useEffect(() => {
@@ -108,14 +102,13 @@ export default function AtZharysGamePage() {
   const handlePlayAgain = () => {
     if (!gameData) return;
     resetGame();
-    setShowVictoryModal(false);
   };
 
   const handleGoToLibrary = () => {
     router.push("/dashboard/library/games");
   };
 
-  if (isLoading || !gameData) {
+  if (!gameData) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[color:var(--primary)] border-r-transparent"></div>
@@ -230,7 +223,7 @@ export default function AtZharysGamePage() {
       </div>
 
       {/* Victory Modal */}
-      {showVictoryModal && winnerTeam && (
+      {winnerTeam && (
         <VictoryModal
           winnerName={winnerTeam.name}
           onPlayAgain={handlePlayAgain}
@@ -240,4 +233,3 @@ export default function AtZharysGamePage() {
     </div>
   );
 }
-

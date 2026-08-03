@@ -9,6 +9,7 @@ import {
   InsufficientTokensError,
 } from "../../../../lib/api";
 import { useTokens } from "../../../../hooks/useTokens";
+import { getErrorMessage } from "../../../../lib/error-utils";
 
 export default function ScientificProjectPage() {
   const t = useTranslations();
@@ -53,14 +54,14 @@ export default function ScientificProjectPage() {
       const res = await createProjectPlan(payload);
       refreshBalance();
       router.push(`/dashboard/ai/scientific-projects/${res.project_id}/plan`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       if (err instanceof InsufficientTokensError) {
         setError(
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(err.message || t.scientificProject.errors.generic);
+        setError(getErrorMessage(err, t.scientificProject.errors.generic));
       }
     } finally {
       setLoading(false);
@@ -248,7 +249,7 @@ export default function ScientificProjectPage() {
                           name="language"
                           value={opt.val}
                           checked={language === opt.val}
-                          onChange={(e) => setLanguage(e.target.value as any)}
+                          onChange={(e) => setLanguage(e.target.value as typeof language)}
                           className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
                         />
                         <span className="text-sm font-medium text-slate-900">{opt.label}</span>

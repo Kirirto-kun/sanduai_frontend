@@ -93,9 +93,10 @@ const AI_PRESENTATIONS: NavItem = {
   key: "presentations",
   href: "/dashboard/ai/presentations",
   label: {
-    ru: "Творческая презентация",
-    kk: "Шығармашылық презентация",
+    ru: "ИИ-презентации",
+    kk: "ЖИ презентациялар",
   },
+  isNew: true,
 };
 
 const AI_SCENARIO: NavItem = {

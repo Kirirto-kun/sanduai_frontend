@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useTranslations } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
 import { useVideos } from "../../../../hooks/useVideos";
@@ -8,6 +9,7 @@ import { getVideoWatchToken, type Video, type VideoWatchTokenResponse } from "..
 import { formatVideoDuration } from "../../../../lib/utils";
 import { VideoPlayer } from "../../../../components/VideoPlayer";
 import { VideoCardSkeleton } from "../../../../components/VideoCardSkeleton";
+import { getErrorMessage, getErrorStatus } from "../../../../lib/error-utils";
 
 export default function CoursesPage() {
   const t = useTranslations();
@@ -40,15 +42,16 @@ export default function CoursesPage() {
         has_embed_url: !!tokenData.embed_url,
       });
       setWatchToken(tokenData);
-    } catch (err: any) {
-      if (err.response?.status === 403) {
+    } catch (err: unknown) {
+      const status = getErrorStatus(err);
+      if (status === 403) {
         setTokenError("subscription_required");
-      } else if (err.response?.status === 400) {
+      } else if (status === 400) {
         setTokenError("video_not_ready");
-      } else if (err.response?.status === 404) {
+      } else if (status === 404) {
         setTokenError("video_not_found");
       } else {
-        setTokenError(err.message || t.videos?.watchTokenError || "Ошибка загрузки токена просмотра");
+        setTokenError(getErrorMessage(err, t.videos?.watchTokenError || "Ошибка загрузки токена просмотра"));
       }
     } finally {
       setLoadingToken(false);
@@ -142,11 +145,12 @@ export default function CoursesPage() {
                 className="glass-card rounded-2xl border border-white/60 p-4 shadow-sm transition hover:shadow-md text-left"
               >
                 {video.thumbnail_url ? (
-                  <img
+                  <Image
                     src={video.thumbnail_url}
                     alt={video.title}
-                    loading="lazy"
-                    decoding="async"
+                    width={640}
+                    height={360}
+                    unoptimized
                     className="w-full rounded-xl mb-3 aspect-video object-cover"
                   />
                 ) : (

@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import type { VisualItem, VisualMaterial } from "../lib/api";
 import { downloadVisualGroupZip, getVisualGroup } from "../lib/api";
 
@@ -81,15 +82,18 @@ export function VisualGroupModal({ item, onClose }: VisualGroupModalProps) {
           </p>
           {materials.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {materials.map((m, i) => {
+              {materials.map((m) => {
                 const isImage = m.mime_type?.startsWith("image/");
                 return (
                   <div key={m.id} className="flex flex-col rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
                     <div className="aspect-video bg-slate-200 flex items-center justify-center overflow-hidden">
                       {isImage && m.url ? (
-                        <img
+                        <Image
                           src={m.url}
                           alt={m.title}
+                          width={640}
+                          height={360}
+                          unoptimized
                           className="w-full h-full object-cover"
                         />
                       ) : (

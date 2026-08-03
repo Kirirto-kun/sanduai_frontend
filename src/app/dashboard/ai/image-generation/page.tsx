@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Image from "next/image";
 import {
   generateImage,
   GenerateImageResponse,
@@ -159,9 +160,12 @@ export default function ImageGenerationPage() {
             </div>
 
             <div className="mb-4">
-              <img
+              <Image
                 src={result.temp_url}
                 alt="Generated image"
+                width={1024}
+                height={1024}
+                unoptimized
                 className="w-full rounded-lg border border-slate-200"
               />
             </div>

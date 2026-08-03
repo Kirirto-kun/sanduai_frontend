@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "../../../../../../i18n/LanguageContext";
 import {
@@ -9,6 +9,7 @@ import {
   DraftPlanResponse,
   ProjectState,
 } from "../../../../../../lib/api";
+import { getErrorMessage } from "../../../../../../lib/error-utils";
 
 const SECTIONS = ["introduction", "chapter_1", "chapter_2", "conclusion"] as const;
 
@@ -19,70 +20,73 @@ export default function GenerateProgressPage() {
   const projectId = params.projectId as string;
 
   const [currentStep, setCurrentStep] = useState(0);
-  const [generatedSections, setGeneratedSections] = useState<Record<string, string>>({});
   const [plan, setPlan] = useState<DraftPlanResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const generationInFlight = useRef(false);
 
   useEffect(() => {
-    loadState();
+    let active = true;
+
+    const loadState = async () => {
+      try {
+        const state: ProjectState = await getProjectStatus(projectId);
+        if (!active) return;
+        setPlan(state.plan);
+
+        const nextStep = SECTIONS.findIndex(
+          (section) => !state.sections || !state.sections[section],
+        );
+        setCurrentStep(nextStep >= 0 ? nextStep : SECTIONS.length);
+      } catch (err: unknown) {
+        if (active) setError(getErrorMessage(err, "Ошибка загрузки"));
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void loadState();
+    return () => {
+      active = false;
+    };
   }, [projectId]);
 
   useEffect(() => {
-    if (plan && currentStep < SECTIONS.length && !isGenerating) {
-      generateNextSection();
-    } else if (currentStep >= SECTIONS.length) {
+    if (!plan) return;
+    if (currentStep >= SECTIONS.length) {
       router.push(`/dashboard/ai/scientific-projects/${projectId}/edit`);
+      return;
     }
-  }, [currentStep, plan]);
-
-  const loadState = async () => {
-    try {
-      const state: ProjectState = await getProjectStatus(projectId);
-      setPlan(state.plan);
-      setGeneratedSections(state.sections || {});
-      
-      // Find current step based on generated sections
-      const nextStep = SECTIONS.findIndex(
-        (sec) => !state.sections || !state.sections[sec]
-      );
-      setCurrentStep(nextStep >= 0 ? nextStep : SECTIONS.length);
-    } catch (err: any) {
-      setError(err.message || "Ошибка загрузки");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateNextSection = async () => {
-    if (!plan || currentStep >= SECTIONS.length || isGenerating) return;
-
     const sectionType = SECTIONS[currentStep];
-    setIsGenerating(true);
-    setLoading(true);
-    setError(null);
+    let active = true;
 
-    try {
-      const res = await generateSection({
-        project_id: projectId,
-        section_type: sectionType,
-        approved_plan: plan,
-      });
+    const generateNextSection = async () => {
+      if (!active || generationInFlight.current) return;
+      generationInFlight.current = true;
+      setLoading(true);
+      setError(null);
 
-      setGeneratedSections((prev) => ({
-        ...prev,
-        [sectionType]: res.content,
-      }));
+      try {
+        await generateSection({
+          project_id: projectId,
+          section_type: sectionType,
+          approved_plan: plan,
+        });
 
-      setCurrentStep((prev) => prev + 1);
-    } catch (err: any) {
-      setError(err.message || "Ошибка генерации");
-    } finally {
-      setLoading(false);
-      setIsGenerating(false);
-    }
-  };
+        if (active) setCurrentStep((previous) => previous + 1);
+      } catch (err: unknown) {
+        if (active) setError(getErrorMessage(err, "Ошибка генерации"));
+      } finally {
+        generationInFlight.current = false;
+        if (active) setLoading(false);
+      }
+    };
+
+    queueMicrotask(() => void generateNextSection());
+    return () => {
+      active = false;
+    };
+  }, [currentStep, plan, projectId, router]);
 
   const sectionLabels: Record<string, string> = {
     introduction: t.scientificProject.wizard.progress.introduction,

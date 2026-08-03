@@ -1,10 +1,9 @@
 "use client";
 
-import { useLanguage, useTranslations } from "../../i18n/LanguageContext";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 export default function TermsOfServicePage() {
   const { language } = useLanguage();
-  const t = useTranslations();
 
   const isKazakh = language === "kk";
 

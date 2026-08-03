@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -16,11 +17,15 @@ import {
   getToken,
   getUser,
   login as apiLogin,
+  logoutSession as apiLogoutSession,
+  refreshSession,
   register as apiRegister,
   saveToken,
   saveUser,
   UserData,
 } from "../lib/api";
+import { subscribeToUnauthorized } from "../lib/auth-session";
+import { resolveBootstrapUser } from "../lib/auth-token";
 
 type User = {
   userId: string;
@@ -59,80 +64,112 @@ export function AuthProvider({ children }: ProviderProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
-    if (token) {
-      const userData = getUser();
-      if (userData) {
-        // Ensure role is set from token if not in userData
-        if (!userData.role) {
-          const decoded = decodeJWT(token);
-          if (decoded?.role) {
-            userData.role = decoded.role;
-            saveUser(userData);
-          }
-        }
-        setUser(userData);
+    let cancelled = false;
+    const unsubscribe = subscribeToUnauthorized(() => {
+      clearToken();
+      clearUser();
+      setUser((currentUser) => (currentUser === null ? currentUser : null));
+      setLoading(false);
+      void apiLogoutSession();
+    });
+
+    void (async () => {
+      let token = getToken();
+      const cachedUser = getUser();
+      let restoredUser = resolveBootstrapUser(token, cachedUser);
+
+      if (!restoredUser) {
+        const refreshed = await refreshSession();
+        token = refreshed?.token ?? null;
+        const fallbackUser = refreshed
+          ? {
+              ...(cachedUser?.userId === refreshed.user_id ? cachedUser : {}),
+              userId: refreshed.user_id,
+            }
+          : null;
+        restoredUser = resolveBootstrapUser(token, fallbackUser);
       }
-    }
-    setLoading(false);
+
+      if (cancelled) return;
+      if (restoredUser) {
+        saveUser(restoredUser);
+        setUser(restoredUser);
+      } else {
+        clearToken();
+        clearUser();
+        setUser(null);
+      }
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
-  const handleAuthSuccess = (
-    data: AuthResponse,
-    extra?: { phone?: string; email?: string; full_name?: string },
-  ) => {
-    saveToken(data.token);
-    // Decode role from token
-    const decoded = decodeJWT(data.token);
-    const userData: UserData = {
-      userId: data.user_id,
-      phone: extra?.phone,
-      email: extra?.email,
-      fullName: extra?.full_name,
-      role: decoded?.role,
-    };
-    saveUser(userData);
-    setUser(userData);
-  };
+  const handleAuthSuccess = useCallback(
+    (
+      data: AuthResponse,
+      extra?: { phone?: string; email?: string; full_name?: string },
+    ) => {
+      saveToken(data.token);
+      // Decode role from token
+      const decoded = decodeJWT(data.token);
+      const userData: UserData = {
+        userId: data.user_id,
+        phone: extra?.phone,
+        email: extra?.email,
+        fullName: extra?.full_name,
+        role: decoded?.role,
+      };
+      saveUser(userData);
+      setUser(userData);
+    },
+    [],
+  );
 
-  const login = async (payload: {
-    phone?: string;
-    email?: string;
-    password: string;
-  }) => {
-    setLoading(true);
-    try {
-      const data = await apiLogin(payload);
-      handleAuthSuccess(data, { phone: payload.phone, email: payload.email });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const login = useCallback(
+    async (payload: { phone?: string; email?: string; password: string }) => {
+      setLoading(true);
+      try {
+        const data = await apiLogin(payload);
+        handleAuthSuccess(data, { phone: payload.phone, email: payload.email });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [handleAuthSuccess],
+  );
 
-  const register = async (payload: {
-    phone: string; // Обязательное поле - телефон должен быть верифицирован через Firebase
-    email: string;
-    password: string;
-    full_name: string;
-  }) => {
-    setLoading(true);
-    try {
-      const data = await apiRegister(payload);
-      handleAuthSuccess(data, {
-        phone: payload.phone,
-        email: payload.email,
-        full_name: payload.full_name,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const register = useCallback(
+    async (payload: {
+      phone: string; // Обязательное поле - телефон должен быть верифицирован через Firebase
+      email: string;
+      password: string;
+      full_name: string;
+    }) => {
+      setLoading(true);
+      try {
+        const data = await apiRegister(payload);
+        handleAuthSuccess(data, {
+          phone: payload.phone,
+          email: payload.email,
+          full_name: payload.full_name,
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [handleAuthSuccess],
+  );
 
-  const logout = () => {
+  const logout = useCallback(() => {
     clearToken();
     clearUser();
-    setUser(null);
-  };
+    setUser((currentUser) => (currentUser === null ? currentUser : null));
+    void apiLogoutSession();
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -143,7 +180,7 @@ export function AuthProvider({ children }: ProviderProps) {
       register,
       logout,
     }),
-    [user, loading],
+    [user, loading, login, register, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -156,5 +193,3 @@ export function useAuth() {
   }
   return ctx;
 }
-
-

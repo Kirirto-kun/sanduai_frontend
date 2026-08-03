@@ -1,19 +1,19 @@
 /**
  * API генерации визуальных материалов и сценариев.
  *
- * Вынесено из `api.ts` (2345 строк) отдельным модулем — так же, как это уже
- * сделано для `presenton-api.ts`.
+ * Вынесено из `api.ts` в отдельный модуль, чтобы визуальные инструменты имели
+ * собственный типизированный API-клиент.
  */
 
 import { getToken, InsufficientTokensError } from "./api";
-
-const getApiBase = () => {
-  let base = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
-  if (!base.startsWith("http://") && !base.startsWith("https://")) {
-    base = `https://${base}`;
-  }
-  return base;
-};
+import { getApiBase } from "./api-base";
+import {
+  API_ERROR_CODES,
+  ApiRequestError,
+  requestJson,
+  type ApiFailure,
+} from "./http-client";
+import { withIdempotencyKey } from "./idempotency";
 
 const API_BASE = getApiBase();
 
@@ -84,76 +84,59 @@ export type ScenarioResult = {
 
 // --- Транспорт ---------------------------------------------------------------
 
-/** Разбирает ответ, поднимая InsufficientTokensError на 402 — как в api.ts. */
-async function handleResponse<T>(res: Response): Promise<T> {
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    if (res.status === 402) {
-      const detail: string = data?.detail || "";
-      const required = Number(detail.match(/Required:\s*(\d+)/i)?.[1] ?? 0);
-      const available = Number(detail.match(/Available:\s*(\d+)/i)?.[1] ?? 0);
-      throw new InsufficientTokensError(
-        detail || "Insufficient tokens",
-        required,
-        available
-      );
-    }
-    const raw = data?.detail ?? data?.error ?? data?.message;
-    const message =
-      typeof raw === "string"
-        ? raw
-        : raw
-          ? JSON.stringify(raw)
-          : `Запрос завершился с ошибкой ${res.status}`;
-    throw new Error(message);
-  }
-
-  return data as T;
-}
-
 function authHeaders(): Record<string, string> {
   const token = getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-/** Понятное сообщение вместо голого «Failed to fetch». */
-function toReadableError(err: unknown): never {
-  if (err instanceof TypeError) {
-    throw new Error(
-      "Не удалось связаться с сервером. Проверьте, что бэкенд запущен, и попробуйте ещё раз."
+function visualApiError(failure: ApiFailure): Error {
+  if (failure.status === 402) {
+    const detail =
+      failure.details && typeof failure.details === "object"
+        ? String((failure.details as Record<string, unknown>).detail ?? failure.message)
+        : failure.message;
+    const required = Number(detail.match(/Required:\s*(\d+)/i)?.[1] ?? 0);
+    const available = Number(detail.match(/Available:\s*(\d+)/i)?.[1] ?? 0);
+    return new InsufficientTokensError(
+      detail || "Insufficient tokens",
+      required,
+      available,
     );
   }
-  throw err;
+
+  const message = failure.code === API_ERROR_CODES.NETWORK_ERROR
+    ? "Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз."
+    : failure.message;
+  return new ApiRequestError(message, failure.status, failure.details, failure.code);
 }
 
 async function postForm<T>(path: string, form: FormData): Promise<T> {
   // Content-Type не задаём — браузер сам проставит boundary для multipart.
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
+  return requestJson<T>(
+    `${API_BASE}${path}`,
+    {
       method: "POST",
-      headers: authHeaders(),
+      headers: withIdempotencyKey({ Accept: "application/json", ...authHeaders() }),
       body: form,
-    });
-  } catch (err) {
-    toReadableError(err);
-  }
-  return handleResponse<T>(res);
+    },
+    { errorFactory: visualApiError },
+  );
 }
 
 async function postJson<T>(path: string, payload: unknown): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
+  return requestJson<T>(
+    `${API_BASE}${path}`,
+    {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: withIdempotencyKey({
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      }),
       body: JSON.stringify(payload),
-    });
-  } catch (err) {
-    toReadableError(err);
-  }
-  return handleResponse<T>(res);
+    },
+    { errorFactory: visualApiError },
+  );
 }
 
 // --- Көрнекілік --------------------------------------------------------------

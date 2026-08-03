@@ -19,11 +19,6 @@ type MaterialItem = {
   image: string;
 };
 
-type Step = {
-  title: string;
-  items: string[];
-};
-
 type Translations = {
   hero: HeroTexts;
   featuresSection: {

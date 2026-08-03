@@ -1,10 +1,17 @@
-const getApiBase = () => {
-  let base = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
-  if (!base.startsWith("http://") && !base.startsWith("https://")) {
-    base = `https://${base}`;
-  }
-  return base;
-};
+import { getApiBase } from "./api-base";
+import { markAuthSessionActive } from "./auth-session";
+import { decodeJwtPayload, isUsableJwt } from "./auth-token";
+import {
+  ApiRequestError,
+  configureAuthRefresh,
+  fetchWithPolicy,
+  refreshAccessToken,
+  requestJson,
+  type ApiFailure,
+} from "./http-client";
+import { withIdempotencyKey } from "./idempotency";
+
+export { ApiRequestError } from "./http-client";
 
 const API_BASE = getApiBase();
 const TOKEN_KEY = "sanduai_token";
@@ -25,31 +32,6 @@ type LoginPayload = {
   phone?: string;
   email?: string;
   password: string;
-};
-
-export type KmzhLesson = {
-  lesson_topic: string;
-  learning_objective: string;
-  hours: number;
-  date: string;
-  adal_azamat_value: string;
-};
-
-export type KmzhGeneratePayload = {
-  subject: string;
-  grade: string;
-  period: string;
-  hours_total: number;
-  teacher_name: string;
-  user_input: string;
-};
-
-export type KmzhDocxPayload = {
-  subject: string;
-  grade: string;
-  period: string;
-  teacher_name: string;
-  lessons: KmzhLesson[];
 };
 
 export type EssayGeneratePayload = {
@@ -440,7 +422,7 @@ export type WorksheetGeneratePayload = {
   subject: string;
   topic: string;
   grade: string;
-  language: "ru" | "kz" | "en";
+  language: "ru" | "kz" | "kk" | "en";
   task_types: WorksheetTaskType[];
   user_comment?: string;
 };
@@ -560,73 +542,69 @@ export class InsufficientTokensError extends Error {
   }
 }
 
-export class ApiRequestError extends Error {
-  readonly status: number;
-  readonly details: unknown;
-
-  constructor(message: string, status: number, details?: unknown) {
-    super(message);
-    this.name = "ApiRequestError";
-    this.status = status;
-    this.details = details;
+function requestError(failure: ApiFailure): Error {
+  if (failure.status === 402) {
+    const detail =
+      failure.details && typeof failure.details === "object"
+        ? String((failure.details as Record<string, unknown>).detail ?? failure.message)
+        : failure.message;
+    const required = Number(detail.match(/Required:\s*(\d+)/i)?.[1] ?? 0);
+    const available = Number(detail.match(/Available:\s*(\d+)/i)?.[1] ?? 0);
+    return new InsufficientTokensError(detail, required, available);
   }
+
+  return new ApiRequestError(
+    failure.message,
+    failure.status,
+    failure.details,
+    failure.code,
+  );
 }
 
 async function request<T>(
   path: string,
-  options: RequestInit & { auth?: boolean } = {},
+  options: RequestInit & { auth?: boolean; skipAuthRefresh?: boolean } = {},
 ): Promise<T> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(options.headers as Record<string, string> | undefined),
-  };
+  const { auth, skipAuthRefresh, ...requestInit } = options;
+  const headers = new Headers(options.headers);
+  headers.set("Accept", "application/json");
+  if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
 
-  if (options.auth) {
+  if (auth) {
     const token = getToken();
     if (token) {
-      headers.Authorization = `Bearer ${token}`;
+      headers.set("Authorization", `Bearer ${token}`);
     }
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
+  return requestJson<T>(`${API_BASE}${path}`, {
+    ...requestInit,
     headers,
     cache: "no-store",
+    credentials: "include",
+  }, {
+    attemptAuthRefresh: !skipAuthRefresh,
+    errorFactory: requestError,
   });
+}
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    // Handle 402 Payment Required (insufficient tokens)
-    if (res.status === 402) {
-      const detail = data?.detail || "";
-      // Parse: "Insufficient tokens. Required: X, Available: Y"
-      const requiredMatch = detail.match(/Required:\s*(\d+)/i);
-      const availableMatch = detail.match(/Available:\s*(\d+)/i);
-      const required = requiredMatch ? parseInt(requiredMatch[1], 10) : 0;
-      const available = availableMatch ? parseInt(availableMatch[1], 10) : 0;
-      throw new InsufficientTokensError(detail, required, available);
-    }
-    let message = data && (data.detail || data.error || data.message);
-    if (Array.isArray(message)) {
-      message = message
-        .map((entry: unknown) => {
-          if (entry && typeof entry === "object" && "msg" in entry) {
-            return String((entry as { msg: unknown }).msg);
-          }
-          return JSON.stringify(entry);
-        })
-        .join("; ");
-    }
-    message = message || `Request failed with status ${res.status}`;
-    throw new ApiRequestError(String(message), res.status, data);
-  }
-  return data as T;
+async function paidRequest<T>(
+  path: string,
+  options: RequestInit & { auth?: boolean } = {},
+): Promise<T> {
+  return request<T>(path, {
+    ...options,
+    headers: withIdempotencyKey(options.headers),
+  });
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthResponse> {
   return request<AuthResponse>("/auth/register", {
     method: "POST",
     body: JSON.stringify(payload),
+    skipAuthRefresh: true,
   });
 }
 
@@ -634,6 +612,7 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
   return request<AuthResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
+    skipAuthRefresh: true,
   });
 }
 
@@ -655,43 +634,10 @@ export async function getProfile(): Promise<UserProfile> {
   });
 }
 
-export async function generateKmzh(
-  payload: KmzhGeneratePayload,
-): Promise<{ lessons: KmzhLesson[] }> {
-  return request<{ lessons: KmzhLesson[] }>("/api/generate/kmzh", {
-    method: "POST",
-    body: JSON.stringify(payload),
-    auth: true,
-  });
-}
-
-export async function downloadKmzhDocx(payload: KmzhDocxPayload): Promise<Blob> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const res = await fetch(`${API_BASE}/api/generate/kmzh/docx`, {
-    method: "POST",
-    headers,
-    cache: "no-store",
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    const message =
-      (data && (data.error || data.message)) ||
-      `Request failed with status ${res.status}`;
-    throw new Error(message);
-  }
-  return res.blob();
-}
-
 export async function generateEssay(
   payload: EssayGeneratePayload,
 ): Promise<EssayGenerateResponse> {
-  return request<EssayGenerateResponse>("/api/essay/generate", {
+  return paidRequest<EssayGenerateResponse>("/api/essay/generate", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -701,7 +647,7 @@ export async function generateEssay(
 export async function reviseEssay(
   payload: EssayRevisePayload,
 ): Promise<EssayGenerateResponse> {
-  return request<EssayGenerateResponse>("/api/essay/revise", {
+  return paidRequest<EssayGenerateResponse>("/api/essay/revise", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -719,7 +665,7 @@ export async function exportEssayDocx(payload: {
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}/api/essay/export/docx`, {
+  const res = await fetchWithPolicy(`${API_BASE}/api/essay/export/docx`, {
     method: "POST",
     headers,
     cache: "no-store",
@@ -739,7 +685,7 @@ export async function exportEssayDocx(payload: {
 export async function generateArticle(
   payload: ArticleGeneratePayload,
 ): Promise<ArticleResponse> {
-  return request<ArticleResponse>("/api/article/generate", {
+  return paidRequest<ArticleResponse>("/api/article/generate", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -749,7 +695,7 @@ export async function generateArticle(
 export async function reviseArticle(
   payload: ArticleRevisePayload,
 ): Promise<ArticleResponse> {
-  return request<ArticleResponse>("/api/article/revise", {
+  return paidRequest<ArticleResponse>("/api/article/revise", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -763,7 +709,7 @@ export async function exportArticleDocx(payload: ArticleResponse): Promise<Blob>
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}/api/article/export/docx`, {
+  const res = await fetchWithPolicy(`${API_BASE}/api/article/export/docx`, {
     method: "POST",
     headers,
     cache: "no-store",
@@ -783,7 +729,7 @@ export async function exportArticleDocx(payload: ArticleResponse): Promise<Blob>
 export async function generateExam(
   payload: ExamGeneratePayload,
 ): Promise<ExamGenerateResponse> {
-  return request<ExamGenerateResponse>("/api/bjb/generate", {
+  return paidRequest<ExamGenerateResponse>("/api/bjb/generate", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -797,7 +743,7 @@ export async function exportExamDocx(payload: ExamExportPayload): Promise<Blob> 
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}/api/bjb/export/docx`, {
+  const res = await fetchWithPolicy(`${API_BASE}/api/bjb/export/docx`, {
     method: "POST",
     headers,
     cache: "no-store",
@@ -817,7 +763,7 @@ export async function exportExamDocx(payload: ExamExportPayload): Promise<Blob> 
 export async function generateClassHour(
   payload: ClassHourGeneratePayload,
 ): Promise<ClassHourResponse> {
-  return request<ClassHourResponse>("/api/class-hour/generate", {
+  return paidRequest<ClassHourResponse>("/api/class-hour/generate", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -827,7 +773,7 @@ export async function generateClassHour(
 export async function regenerateClassHourBlock(
   payload: ClassHourRegeneratePayload,
 ): Promise<ClassHourBlock> {
-  return request<ClassHourBlock>("/api/class-hour/regenerate-block", {
+  return paidRequest<ClassHourBlock>("/api/class-hour/regenerate-block", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -843,7 +789,7 @@ export async function exportClassHourDocx(
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}/api/class-hour/export-docx`, {
+  const res = await fetchWithPolicy(`${API_BASE}/api/class-hour/export-docx`, {
     method: "POST",
     headers,
     cache: "no-store",
@@ -863,7 +809,7 @@ export async function exportClassHourDocx(
 export async function generateQuiz(
   payload: QuizGeneratePayload,
 ): Promise<QuizGenerateResponse> {
-  return request<QuizGenerateResponse>("/api/quiz/generate", {
+  return paidRequest<QuizGenerateResponse>("/api/quiz/generate", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -879,7 +825,7 @@ export async function exportQuizDocx(
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}/api/quiz/export`, {
+  const res = await fetchWithPolicy(`${API_BASE}/api/quiz/export`, {
     method: "POST",
     headers,
     cache: "no-store",
@@ -899,7 +845,7 @@ export async function exportQuizDocx(
 export async function generateVoiceover(
   payload: VoiceoverGeneratePayload,
 ): Promise<VoiceoverResponse> {
-  const res = await request<VoiceoverResponse>("/api/v1/ai/text-to-speech", {
+  const res = await paidRequest<VoiceoverResponse>("/api/v1/ai/text-to-speech", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -947,7 +893,7 @@ export async function getSandubotHistory(): Promise<SandubotHistoryResponse> {
 }
 
 export async function sendSandubotMessage(message: string): Promise<SandubotChatResponse> {
-  return request<SandubotChatResponse>("/api/sandubot/chat", {
+  return paidRequest<SandubotChatResponse>("/api/sandubot/chat", {
     method: "POST",
     body: JSON.stringify({ message }),
     auth: true,
@@ -964,12 +910,13 @@ export async function* sendSandubotMessageStream(
   message: string,
 ): AsyncGenerator<SandubotStreamEvent, void, unknown> {
   const token = getToken();
-  const res = await fetch(`${getApiBase()}/api/sandubot/chat/stream`, {
+  const headers = withIdempotencyKey({
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  });
+  const res = await fetchWithPolicy(`${getApiBase()}/api/sandubot/chat/stream`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers,
     body: JSON.stringify({ message }),
   });
 
@@ -1040,12 +987,12 @@ export async function chatWithYbyrai(
   formData.append("language", language);
 
   const token = getToken();
-  const headers: Record<string, string> = {};
+  const headers = withIdempotencyKey();
   if (token) {
-    headers.Authorization = `Bearer ${token}`;
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const res = await fetch(`${getApiBase()}/api/chat/audio`, {
+  const res = await fetchWithPolicy(`${getApiBase()}/api/chat/audio`, {
     method: "POST",
     headers,
     body: formData,
@@ -1053,8 +1000,12 @@ export async function chatWithYbyrai(
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
+    const detailMessage =
+      data?.detail && typeof data.detail === "object"
+        ? data.detail.message
+        : data?.detail;
     const message =
-      (data && (data.error || data.detail || data.message)) ||
+      (data && (data.error || detailMessage || data.message)) ||
       `Request failed with status ${res.status}`;
     throw new Error(message);
   }
@@ -1086,9 +1037,9 @@ export function chatWithYbyraiStream(
   formData.append("language", language);
 
   const token = getToken();
-  const headers: Record<string, string> = {};
+  const headers = withIdempotencyKey();
   if (token) {
-    headers.Authorization = `Bearer ${token}`;
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   // Use EventSource-like approach with fetch + ReadableStream
@@ -1097,7 +1048,7 @@ export function chatWithYbyraiStream(
 
   (async () => {
     try {
-      const res = await fetch(`${getApiBase()}/api/chat/audio/stream`, {
+      const res = await fetchWithPolicy(`${getApiBase()}/api/chat/audio/stream`, {
         method: "POST",
         headers,
         body: formData,
@@ -1105,8 +1056,12 @@ export function chatWithYbyraiStream(
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        const detailMessage =
+          data?.detail && typeof data.detail === "object"
+            ? data.detail.message
+            : data?.detail;
         const message =
-          (data && (data.error || data.detail || data.message)) ||
+          (data && (data.error || detailMessage || data.message)) ||
           `Request failed with status ${res.status}`;
         callbacks.onError(message);
         return;
@@ -1156,8 +1111,10 @@ export function chatWithYbyraiStream(
           try {
             const data = JSON.parse(dataStr);
 
-            if (data.error) {
-              callbacks.onError(data.error);
+            if (eventType === "error" || data.error) {
+              callbacks.onError(
+                data.message || data.error || "Дыбыстық көмекші уақытша қолжетімсіз",
+              );
               return;
             }
 
@@ -1206,7 +1163,7 @@ export function chatWithYbyraiStream(
 export async function generateLessonPlan(
   payload: LessonPlanRequest,
 ): Promise<LessonPlanResponse> {
-  return request<LessonPlanResponse>("/api/generate/kmzh", {
+  return paidRequest<LessonPlanResponse>("/api/generate/kmzh", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -1222,7 +1179,7 @@ export async function exportLessonPlanDocx(
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}/api/generate/kmzh/docx`, {
+  const res = await fetchWithPolicy(`${API_BASE}/api/generate/kmzh/docx`, {
     method: "POST",
     headers,
     cache: "no-store",
@@ -1244,7 +1201,7 @@ export async function exportLessonPlanDocx(
 export async function createProjectPlan(
   payload: CreatePlanPayload,
 ): Promise<DraftPlanResponse> {
-  return request<DraftPlanResponse>("/api/v1/science-project/plan", {
+  return paidRequest<DraftPlanResponse>("/api/v1/science-project/plan", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -1264,7 +1221,7 @@ export async function generateSection(
 export async function regenerateSection(
   payload: RegenerateSectionPayload,
 ): Promise<SectionResponse> {
-  return request<SectionResponse>("/api/v1/science-project/regenerate-section", {
+  return paidRequest<SectionResponse>("/api/v1/science-project/regenerate-section", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -1302,7 +1259,7 @@ export async function exportScientificProjectDocx(
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}/api/v1/science-project/export-docx`, {
+  const res = await fetchWithPolicy(`${API_BASE}/api/v1/science-project/export-docx`, {
     method: "POST",
     headers,
     cache: "no-store",
@@ -1322,7 +1279,7 @@ export async function exportScientificProjectDocx(
 export async function generateWorksheet(
   payload: WorksheetGeneratePayload,
 ): Promise<WorksheetResponse> {
-  return request<WorksheetResponse>("/api/v1/generate/worksheet", {
+  return paidRequest<WorksheetResponse>("/api/v1/generate/worksheet", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -1338,7 +1295,7 @@ export async function exportWorksheetDocx(
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}/api/v1/generate/worksheet/export-docx`, {
+  const res = await fetchWithPolicy(`${API_BASE}/api/v1/generate/worksheet/export-docx`, {
     method: "POST",
     headers,
     cache: "no-store",
@@ -1354,66 +1311,82 @@ export async function exportWorksheetDocx(
   return res.blob();
 }
 
-// Cookie helpers
-function setCookie(name: string, value: string, days: number = 7) {
-  if (typeof window === "undefined") return;
-  const expires = new Date();
-  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-  document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
-}
-
-function getCookie(name: string): string | null {
-  if (typeof window === "undefined") return null;
-  const cookies = document.cookie.split(';');
-  for (const cookie of cookies) {
-    const [key, value] = cookie.trim().split('=');
-    if (key === name) return value;
-  }
-  return null;
-}
-
-function deleteCookie(name: string) {
-  if (typeof window === "undefined") return;
-  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-}
-
 // Token management
 export function saveToken(token: string) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(TOKEN_KEY, token);
-  setCookie(TOKEN_KEY, token, 7);
+  markAuthSessionActive();
 }
 
 export function getToken() {
   if (typeof window === "undefined") return null;
-  const token = window.localStorage.getItem(TOKEN_KEY);
-  if (token) return token;
-  return getCookie(TOKEN_KEY);
+  return window.localStorage.getItem(TOKEN_KEY);
 }
 
 export function clearToken() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(TOKEN_KEY);
-  deleteCookie(TOKEN_KEY);
+}
+
+async function requestNewAccessToken(): Promise<string | null> {
+  try {
+    const data = await requestJson<AuthResponse>(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    }, {
+      attemptAuthRefresh: false,
+      notifyOnUnauthorized: false,
+      timeoutMs: 10_000,
+      errorFactory: requestError,
+    });
+    if (
+      !data ||
+      typeof data.token !== "string" ||
+      typeof data.user_id !== "string" ||
+      !isUsableJwt(data.token) ||
+      decodeJwtPayload(data.token)?.sub !== data.user_id
+    ) {
+      return null;
+    }
+    saveToken(data.token);
+    return data.token;
+  } catch {
+    return null;
+  }
+}
+
+configureAuthRefresh(requestNewAccessToken);
+
+export async function refreshSession(): Promise<AuthResponse | null> {
+  const token = await refreshAccessToken();
+  const userId = token ? decodeJwtPayload(token)?.sub : undefined;
+  return token && typeof userId === "string" ? { token, user_id: userId } : null;
+}
+
+export async function logoutSession(): Promise<void> {
+  try {
+    await requestJson<void>(`${API_BASE}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      keepalive: true,
+      headers: { Accept: "application/json" },
+    }, {
+      attemptAuthRefresh: false,
+      notifyOnUnauthorized: false,
+      timeoutMs: 10_000,
+      errorFactory: requestError,
+    });
+  } finally {
+    clearToken();
+  }
 }
 
 // JWT token decoding
 export function decodeJWT(token: string): { sub?: string; role?: string; exp?: number } | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-
-    // Decode base64url payload (second part)
-    const payload = parts[1];
-    // Replace base64url characters
-    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-    // Add padding if needed
-    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-    const decoded = atob(padded);
-    return JSON.parse(decoded);
-  } catch {
-    return null;
-  }
+  return decodeJwtPayload(token);
 }
 
 // User data management
@@ -1770,7 +1743,7 @@ export async function uploadVideoThumbnail(
   }
 
   // НЕ ставим Content-Type, браузер сам поставит multipart/form-data с boundary
-  const res = await fetch(`${getApiBase()}/api/admin/videos/${videoDbId}/thumbnail`, {
+  const res = await fetchWithPolicy(`${getApiBase()}/api/admin/videos/${videoDbId}/thumbnail`, {
     method: "POST",
     headers,
     body: formData,
@@ -1813,7 +1786,7 @@ export async function importYouTubeVideo(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${getApiBase()}/api/admin/videos/import-youtube`, {
+  const res = await fetchWithPolicy(`${getApiBase()}/api/admin/videos/import-youtube`, {
     method: "POST",
     headers,
     body: formData,
@@ -1838,7 +1811,7 @@ export async function deleteVideo(videoDbId: string): Promise<void> {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${getApiBase()}/api/admin/videos/${videoDbId}`, {
+  const res = await fetchWithPolicy(`${getApiBase()}/api/admin/videos/${videoDbId}`, {
     method: "DELETE",
     headers,
   });
@@ -1856,7 +1829,7 @@ export async function deleteVideo(videoDbId: string): Promise<void> {
 export async function generateRace(
   payload: GenerateRacePayload,
 ): Promise<GenerateRaceResponse> {
-  return request<GenerateRaceResponse>("/api/games/generate-race", {
+  return paidRequest<GenerateRaceResponse>("/api/games/generate-race", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -1961,7 +1934,7 @@ export async function downloadVisualGroupZip(slug: string): Promise<void> {
   const token = getToken();
   if (!token) throw new Error("Not authenticated");
 
-  const res = await fetch(`${getApiBase()}/api/visuals/groups/${slug}/download`, {
+  const res = await fetchWithPolicy(`${getApiBase()}/api/visuals/groups/${slug}/download`, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -2062,7 +2035,7 @@ export async function deleteMaterial(id: string): Promise<void> {
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${getApiBase()}/api/admin/materials/${id}`, {
+  const res = await fetchWithPolicy(`${getApiBase()}/api/admin/materials/${id}`, {
     method: "DELETE",
     headers,
   });
@@ -2092,7 +2065,7 @@ export async function uploadMaterial(data: {
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${getApiBase()}/api/admin/materials/upload`, {
+  const res = await fetchWithPolicy(`${getApiBase()}/api/admin/materials/upload`, {
     method: "POST",
     headers,
     body: formData,
@@ -2123,7 +2096,7 @@ export async function uploadVisualMaterial(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${getApiBase()}/api/admin/visuals/upload`, {
+  const res = await fetchWithPolicy(`${getApiBase()}/api/admin/visuals/upload`, {
     method: "POST",
     headers,
     body: formData,
@@ -2189,7 +2162,7 @@ export async function uploadBatchToGroup(
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${getApiBase()}/api/admin/visuals/upload-batch`, {
+  const res = await fetchWithPolicy(`${getApiBase()}/api/admin/visuals/upload-batch`, {
     method: "POST",
     headers,
     body: formData,
@@ -2293,7 +2266,7 @@ export type GenerateImageResponse = {
 export async function generateImage(
   payload: GenerateImagePayload
 ): Promise<GenerateImageResponse> {
-  return request<GenerateImageResponse>("/api/media/generate-image", {
+  return paidRequest<GenerateImageResponse>("/api/media/generate-image", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -2310,7 +2283,7 @@ export async function downloadImage(imageUrl: string): Promise<Blob> {
     throw new Error("Not authenticated");
   }
 
-  const response = await fetch(`${API_BASE}/api/media/proxy-image`, {
+  const response = await fetchWithPolicy(`${API_BASE}/api/media/proxy-image`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -2326,6 +2299,3 @@ export async function downloadImage(imageUrl: string): Promise<Blob> {
 
   return response.blob();
 }
-
-// Presenton API moved to @/lib/presenton-api.ts
-// Old functions removed — use imports from presenton-api.ts instead.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "../../../../i18n/LanguageContext";
 import { generateVoiceover } from "../../../../lib/api";
 
@@ -78,8 +78,10 @@ function filterVoices(
 
 export default function VoiceoverPage() {
   const t = useTranslations();
-  const getVoiceLabel = (nameKey: VoiceKey) =>
-    t.voiceover.voices[nameKey] ?? nameKey;
+  const getVoiceLabel = useCallback(
+    (nameKey: VoiceKey) => t.voiceover.voices[nameKey] ?? nameKey,
+    [t.voiceover.voices]
+  );
 
   const [genderFilter, setGenderFilter] = useState<GenderFilter>("all");
   const [voiceSearch, setVoiceSearch] = useState("");
@@ -92,7 +94,7 @@ export default function VoiceoverPage() {
 
   const filteredVoices = useMemo(
     () => filterVoices(VOICES, genderFilter, voiceSearch, getVoiceLabel),
-    [genderFilter, voiceSearch, t]
+    [genderFilter, voiceSearch, getVoiceLabel]
   );
 
   const defaultVoiceId = useMemo(() => {

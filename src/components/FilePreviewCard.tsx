@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 interface FilePreviewCardProps {
   file: File;
@@ -25,8 +26,14 @@ export function FilePreviewCard({
   useEffect(() => {
     if (isImage) {
       const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
+      let active = true;
+      queueMicrotask(() => {
+        if (active) setPreviewUrl(url);
+      });
+      return () => {
+        active = false;
+        URL.revokeObjectURL(url);
+      };
     }
   }, [file, isImage]);
 
@@ -38,7 +45,14 @@ export function FilePreviewCard({
     return (
       <div className="group relative rounded-xl border border-slate-200 bg-white p-2 shadow-sm transition hover:shadow-md">
         {isImage && previewUrl ? (
-          <img src={previewUrl} alt={file.name} className="aspect-square w-full rounded-lg object-cover" />
+          <Image
+            src={previewUrl}
+            alt={file.name}
+            width={400}
+            height={400}
+            unoptimized
+            className="aspect-square w-full rounded-lg object-cover"
+          />
         ) : (
           <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-slate-100">
             <svg className="h-10 w-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,7 +80,14 @@ export function FilePreviewCard({
     <div className="group flex gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
       <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100">
         {isImage && previewUrl ? (
-          <img src={previewUrl} alt={file.name} className="h-full w-full object-cover" />
+          <Image
+            src={previewUrl}
+            alt={file.name}
+            width={80}
+            height={80}
+            unoptimized
+            className="h-full w-full object-cover"
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <svg className="h-10 w-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

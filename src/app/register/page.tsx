@@ -12,6 +12,7 @@ import {
   cleanupRecaptcha,
   type ConfirmationResult,
 } from "../../lib/phoneVerification";
+import { getErrorCode, getErrorMessage } from "../../lib/error-utils";
 
 type RegisterStep = "phone" | "code" | "register";
 
@@ -24,7 +25,6 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [isCodeSent, setIsCodeSent] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [verifiedPhone, setVerifiedPhone] = useState<string>("");
@@ -62,13 +62,13 @@ export default function RegisterPage() {
           console.log("reCAPTCHA expired");
           setError("reCAPTCHA истек. Пожалуйста, попробуйте снова.");
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to initialize reCAPTCHA:", err);
 
         let errorMessage = "Ошибка инициализации reCAPTCHA. ";
-        if (err.code === "auth/network-request-failed") {
+        if (getErrorCode(err) === "auth/network-request-failed") {
           errorMessage += "Проверьте подключение к интернету. Убедитесь, что домен добавлен в настройках Firebase Authentication (Firebase Console > Authentication > Settings > Authorized domains).";
-        } else if (err.message) {
+        } else if (err instanceof Error && err.message) {
           errorMessage += err.message;
         } else {
           errorMessage += "Попробуйте обновить страницу.";
@@ -115,19 +115,19 @@ export default function RegisterPage() {
     try {
       const result = await sendVerificationCode(phone.trim());
       setConfirmationResult(result);
-      setIsCodeSent(true);
       setStep("code");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error sending verification code:", err);
       resetRecaptcha();
 
       let errorMessage = t.auth.errors.generic;
-      if (err.code === "auth/invalid-phone-number") {
+      const errorCode = getErrorCode(err);
+      if (errorCode === "auth/invalid-phone-number") {
         errorMessage = t.auth.register.invalidPhoneFormat;
-      } else if (err.code === "auth/too-many-requests") {
+      } else if (errorCode === "auth/too-many-requests") {
         errorMessage = "Слишком много запросов. Попробуйте позже.";
-      } else if (err.message) {
-        errorMessage = err.message;
+      } else {
+        errorMessage = getErrorMessage(err, errorMessage);
       }
 
       setError(errorMessage);
@@ -156,18 +156,18 @@ export default function RegisterPage() {
       await verifyCode(confirmationResult, verificationCode.trim());
       setVerifiedPhone(phone);
       setStep("register");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error verifying code:", err);
 
       let errorMessage = t.auth.register.invalidCode;
-      if (err.code === "auth/invalid-verification-code") {
+      const errorCode = getErrorCode(err);
+      if (errorCode === "auth/invalid-verification-code") {
         errorMessage = t.auth.register.invalidCode;
-      } else if (err.code === "auth/code-expired") {
+      } else if (errorCode === "auth/code-expired") {
         errorMessage = "Код истек. Пожалуйста, запросите новый код.";
-        setIsCodeSent(false);
         setStep("phone");
-      } else if (err.message) {
-        errorMessage = err.message;
+      } else {
+        errorMessage = getErrorMessage(err, errorMessage);
       }
 
       setError(errorMessage);
@@ -222,7 +222,6 @@ export default function RegisterPage() {
   const handleResendCode = async () => {
     setError(null);
     setVerificationCode("");
-    setIsCodeSent(false);
     setStep("phone");
 
     // Re-initialize reCAPTCHA

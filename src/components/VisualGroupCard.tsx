@@ -4,6 +4,7 @@
  */
 
 import type { VisualItem } from "../lib/api";
+import Image from "next/image";
 
 interface VisualGroupCardProps {
   item: VisualItem;
@@ -25,11 +26,12 @@ export function VisualGroupCard({ item, onClick }: VisualGroupCardProps) {
       {/* Preview */}
       {previewUrl && isImage ? (
         <div className="relative">
-          <img
+          <Image
             src={previewUrl}
             alt={item.title}
-            loading="lazy"
-            decoding="async"
+            width={640}
+            height={360}
+            unoptimized
             className="w-full rounded-xl mb-3 aspect-video object-cover bg-slate-100"
           />
           <span className="absolute top-2 right-2 inline-block px-2 py-0.5 text-xs font-medium bg-amber-500/90 text-white rounded-full">

@@ -1,9 +1,6 @@
-import KmzhPage from "../../kmzh/page";
+import { redirect } from "next/navigation";
 
-export default KmzhPage;
-
-
-
-
-
+export default function LegacyDashboardKmzhPage() {
+  redirect("/dashboard/ai/kmzh");
+}
 

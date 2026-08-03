@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { chatWithYbyraiStream, YbyraiLanguage } from "../../../../../lib/api";
+import { errorMessageIncludes, getErrorMessage } from "../../../../../lib/error-utils";
 
 interface AudioRecorderProps {
   language: YbyraiLanguage;
@@ -128,7 +129,7 @@ export function AudioRecorder({
           mediaRecorder.stop();
         }
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error starting recording:", err);
       onError("Не удалось получить доступ к микрофону. Проверьте разрешения.");
     }
@@ -206,16 +207,16 @@ export function AudioRecorder({
           }
         },
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error processing audio:", err);
       onSpeaking?.(false);
       setIsProcessing(false);
       onProcessing(false);
 
-      if (err.message?.includes("Insufficient tokens")) {
+      if (errorMessageIncludes(err, "Insufficient tokens")) {
         onError("Недостаточно токенов. Пожалуйста, пополните баланс.");
       } else {
-        onError(err.message || "Ошибка при обработке аудио. Попробуйте еще раз.");
+        onError(getErrorMessage(err, "Ошибка при обработке аудио. Попробуйте еще раз."));
       }
     }
   };

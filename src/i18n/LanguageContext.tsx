@@ -29,10 +29,16 @@ export function LanguageProvider({ children }: ProviderProps) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    let active = true;
     const saved = window.localStorage.getItem(STORAGE_KEY) as Language | null;
     if (saved === "ru" || saved === "kk") {
-      setLanguageState(saved);
+      queueMicrotask(() => {
+        if (active) setLanguageState(saved);
+      });
     }
+    return () => {
+      active = false;
+    };
   }, []);
 
   const setLanguage = (lang: Language) => {
@@ -61,4 +67,3 @@ export function useTranslations() {
   const { language } = useLanguage();
   return translations[language];
 }
-

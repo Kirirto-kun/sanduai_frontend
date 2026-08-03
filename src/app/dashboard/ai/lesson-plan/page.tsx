@@ -8,18 +8,19 @@ import {
   type LessonPlanRequest,
   type LessonPlanResponse,
   type LessonMeta,
-  type LessonStage,
   type LessonTask,
+  type NeuroExercise,
   InsufficientTokensError,
 } from "../../../../lib/api";
 import { useTokens } from "../../../../hooks/useTokens";
+import { errorMessageIncludes, getErrorMessage } from "../../../../lib/error-utils";
 
 export default function LessonPlanPage() {
   const t = useTranslations();
   const { costs, balance, checkBalance, refreshBalance } = useTokens();
 
   // Helper function to safely render neuro_exercise
-  const renderNeuroExercise = (neuroExercise: any): string => {
+  const renderNeuroExercise = (neuroExercise: NeuroExercise): string => {
     if (!neuroExercise) return "";
     if (typeof neuroExercise === "string") return neuroExercise;
     if (typeof neuroExercise === "object" && neuroExercise.name) {
@@ -31,12 +32,13 @@ export default function LessonPlanPage() {
   };
 
   // Helper to safely convert any value to string
-  const safeString = (value: any): string => {
+  const safeString = (value: unknown): string => {
     if (value === null || value === undefined) return "";
     if (typeof value === "string") return value;
     if (typeof value === "object") {
+      const record = value as Record<string, unknown>;
       // If it's an object with name, return name
-      if (value.name) return value.name;
+      if (typeof record.name === "string") return record.name;
       // Otherwise try to stringify
       return JSON.stringify(value);
     }
@@ -110,7 +112,10 @@ export default function LessonPlanPage() {
   };
 
   // Handle form input changes
-  const handleInputChange = (field: keyof LessonPlanRequest, value: any) => {
+  const handleInputChange = <K extends keyof LessonPlanRequest,>(
+    field: K,
+    value: LessonPlanRequest[K],
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -195,15 +200,15 @@ export default function LessonPlanPage() {
       const response = await generateLessonPlan(cleanedData);
       setLessonPlan(response);
       refreshBalance();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof InsufficientTokensError) {
         setError(
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
-      } else if (err.message?.includes("401") || err.message?.toLowerCase().includes("auth")) {
+      } else if (errorMessageIncludes(err, "401") || errorMessageIncludes(err, "auth")) {
         setError(t.lessonPlan.errors.auth);
       } else {
-        setError(err.message || t.lessonPlan.errors.generic);
+        setError(getErrorMessage(err, t.lessonPlan.errors.generic));
       }
     } finally {
       setIsLoading(false);
@@ -211,7 +216,7 @@ export default function LessonPlanPage() {
   };
 
   // Update meta field
-  const updateMetaField = (field: keyof LessonMeta, value: any) => {
+  const updateMetaField = <K extends keyof LessonMeta,>(field: K, value: LessonMeta[K]) => {
     if (!lessonPlan) return;
     setLessonPlan((prev) => {
       if (!prev) return null;
@@ -223,11 +228,11 @@ export default function LessonPlanPage() {
   };
 
   // Update task field
-  const updateTaskField = (
+  const updateTaskField = <K extends keyof LessonTask,>(
     stageIndex: number,
     taskIndex: number,
-    field: keyof LessonTask,
-    value: any,
+    field: K,
+    value: LessonTask[K],
   ) => {
     if (!lessonPlan) return;
     setLessonPlan((prev) => {
@@ -352,8 +357,8 @@ export default function LessonPlanPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err: any) {
-      setError(err.message || t.lessonPlan.errors.generic);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t.lessonPlan.errors.generic));
     }
   };
 
@@ -529,7 +534,7 @@ export default function LessonPlanPage() {
                         name="language"
                         value="kazakh"
                         checked={formData.language === "kazakh"}
-                        onChange={(e) => handleInputChange("language", e.target.value)}
+                        onChange={() => handleInputChange("language", "kazakh")}
                         className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
                       />
                       <span className="text-sm font-medium text-slate-900">
@@ -548,7 +553,7 @@ export default function LessonPlanPage() {
                         name="language"
                         value="russian"
                         checked={formData.language === "russian"}
-                        onChange={(e) => handleInputChange("language", e.target.value)}
+                        onChange={() => handleInputChange("language", "russian")}
                         className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
                       />
                       <span className="text-sm font-medium text-slate-900">

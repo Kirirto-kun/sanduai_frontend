@@ -1,27 +1,24 @@
 "use client";
 
-import { use, useEffect, useState, useRef } from "react";
+import { use, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLanguage } from "../../../../../i18n/LanguageContext";
-import { WORDWALL_SIMULATIONS, WordwallSimulation } from "../../../../../lib/wordwall";
+import { WORDWALL_SIMULATIONS } from "../../../../../lib/wordwall";
 
 export default function InteractiveGameViewPage({ params }: { params: Promise<{ id: string }> }) {
   const t = useTranslations();
   const { language } = useLanguage();
   const router = useRouter();
   const resolvedParams = use(params);
-  const [game, setGame] = useState<WordwallSimulation | null>(null);
+  const game = WORDWALL_SIMULATIONS.find((entry) => entry.id === resolvedParams.id) ?? null;
   const iframeContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const found = WORDWALL_SIMULATIONS.find((g) => g.id === resolvedParams.id);
-    if (found) {
-      setGame(found);
-    } else {
+    if (!game) {
       router.push("/dashboard/library/interactive-games");
     }
-  }, [resolvedParams.id, router]);
+  }, [game, router]);
 
   const toggleFullscreen = () => {
     if (!iframeContainerRef.current) return;

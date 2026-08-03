@@ -1,130 +1,104 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLanguage } from "@/i18n/LanguageContext";
+import type { JobState } from "@/types/presentations";
+import { getPresentationCopy } from "./copy";
 
-interface Props {
-  show: boolean;
-  status: string | null;
-  message?: string | null;
-  t: Record<string, string>;
-}
-
-const TIPS_KEYS = ["tipMagic", "tipAnalyzing", "tipOrganizing", "tipVisuals", "tipFinishing"] as const;
-
-export default function GenerationOverlay({ show, status, message, t }: Props) {
-  const [tipIndex, setTipIndex] = useState(0);
-  const [progress, setProgress] = useState(0);
-
-  // Rotate tips
-  useEffect(() => {
-    if (!show) return;
-    const interval = setInterval(() => {
-      setTipIndex((i) => (i + 1) % TIPS_KEYS.length);
-    }, 8000);
-    return () => clearInterval(interval);
-  }, [show]);
-
-  // Animate progress (caps at 90% while processing)
-  useEffect(() => {
-    if (!show) {
-      setProgress(0);
-      return;
-    }
-    if (status === "completed") {
-      setProgress(100);
-      return;
-    }
-    const interval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 90) return 90;
-        // Slow down as we approach 90%
-        const increment = p < 30 ? 3 : p < 60 ? 2 : 1;
-        return Math.min(p + increment, 90);
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [show, status]);
-
-  if (!show) return null;
-
-  const statusText =
-    status === "completed"
-      ? t.statusCompleted
-      : status === "error"
-        ? t.statusError
-        : status === "processing"
-          ? t.statusProcessing
-          : t.statusPending;
+export default function GenerationProgress({
+  job,
+  completed,
+  total,
+  onCancel,
+  cancelling,
+}: {
+  job?: JobState | null;
+  completed: number;
+  total: number;
+  onCancel?: () => void;
+  cancelling?: boolean;
+}) {
+  const { language } = useLanguage();
+  const copy = getPresentationCopy(language);
+  if (!job) return null;
+  const status = job.status.toLowerCase();
+  const completedWithErrors = status === "completed_with_errors";
+  const terminal = ["completed", "completed_with_errors", "failed", "error", "cancelled"].includes(status);
+  const displayTotal = job.total ?? (job.kind === "regenerate" ? 1 : total);
+  const displayCompleted = job.completed ?? (
+    job.kind === "regenerate"
+      ? status === "completed" || completedWithErrors ? 1 : 0
+      : completed
+  );
+  const progress = typeof job.progress === "number"
+    ? Math.max(0, Math.min(100, job.progress <= 1 ? job.progress * 100 : job.progress))
+    : displayTotal > 0
+      ? Math.round((displayCompleted / displayTotal) * 100)
+      : 0;
+  const title = completedWithErrors
+    ? copy.partialFailure
+    : status === "completed"
+    ? copy.jobCompleted
+    : status === "failed" || status === "error"
+      ? copy.jobFailed
+      : status === "queued" || status === "pending"
+        ? copy.jobQueued
+        : copy.jobRunning;
+  const hint = completedWithErrors
+    ? copy.jobPartialHint
+    : status === "completed"
+      ? copy.jobCompletedHint
+      : status === "failed" || status === "error"
+        ? copy.jobFailedHint
+        : status === "cancelled"
+          ? copy.jobCancelledHint
+          : copy.refreshSafe;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0a0a0a] p-8 text-center shadow-2xl">
-        {/* Animated icon */}
-        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center">
-          {status === "completed" ? (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20">
-              <svg className="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-          ) : status === "error" ? (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/20">
-              <svg className="h-8 w-8 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-          ) : (
-            <div className="h-16 w-16 animate-spin rounded-full border-4 border-indigo-500/30 border-t-indigo-400" />
-          )}
+    <section
+      aria-live="polite"
+      aria-busy={!terminal}
+      className={`rounded-3xl border p-5 shadow-sm sm:p-6 ${
+        status === "failed" || status === "error"
+          ? "border-rose-200 bg-rose-50"
+          : completedWithErrors
+            ? "border-amber-200 bg-amber-50"
+            : status === "completed"
+            ? "border-emerald-200 bg-emerald-50"
+            : "border-blue-200 bg-gradient-to-br from-blue-50 to-white"
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{copy.generationProgress}</p>
+          <h2 className="mt-1 text-lg font-bold text-slate-950">{title}</h2>
+          <p className="mt-1 text-sm text-slate-600">{hint}</p>
         </div>
-
-        {/* Status text */}
-        <h3 className="text-lg font-semibold text-white">{statusText}</h3>
-
-        {/* Error message detail */}
-        {status === "error" && message && (
-          <p className="mt-2 text-sm text-rose-300">{message}</p>
-        )}
-
-        {/* Processing message */}
-        {status !== "completed" && status !== "error" && message && (
-          <p className="mt-2 text-sm text-white/70">{message}</p>
-        )}
-
-        {/* Rotating tip */}
-        {status !== "completed" && status !== "error" && !message && (
-          <p className="mt-3 min-h-[24px] text-sm text-white/60 transition-opacity duration-500">
-            {t[TIPS_KEYS[tipIndex]]}
-          </p>
-        )}
-
-        {/* Progress bar */}
-        {status !== "error" && (
-          <div className="mt-6">
-            <div className="flex items-center justify-between text-xs text-white/50">
-              <span>{t.status}</span>
-              <span>{Math.round(progress)}%</span>
-            </div>
-            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 transition-all duration-700 ease-out"
-                style={{
-                  width: `${progress}%`,
-                  backgroundSize: "200% 100%",
-                  animation: "shimmer 2s ease-in-out infinite",
-                }}
-              />
-            </div>
-          </div>
+        {!terminal && onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={cancelling}
+            className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-50"
+          >
+            {cancelling ? copy.stopping : copy.stopGeneration}
+          </button>
         )}
       </div>
-
-      <style jsx>{`
-        @keyframes shimmer {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
-    </div>
+      <div className="mt-5">
+        <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+          <span>{copy.generatedOf}: {displayCompleted} / {displayTotal}</span>
+          <span>{Math.round(progress)}%</span>
+        </div>
+        <div
+          className="mt-2 h-2.5 overflow-hidden rounded-full bg-white ring-1 ring-slate-200"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress)}
+        >
+          <div className="h-full rounded-full bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-400 transition-all duration-500" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+    </section>
   );
 }

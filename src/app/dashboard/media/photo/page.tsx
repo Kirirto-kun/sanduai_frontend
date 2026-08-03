@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Image from "next/image";
 import {
   generateImage,
   GenerateImageResponse,
@@ -165,9 +166,12 @@ export default function PhotoPage() {
             </h2>
 
             <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <img
+              <Image
                 src={result.temp_url}
                 alt="Generated image"
+                width={1024}
+                height={1024}
+                unoptimized
                 className="w-full"
               />
             </div>
@@ -210,7 +214,6 @@ export default function PhotoPage() {
     </div>
   );
 }
-
 
 
 

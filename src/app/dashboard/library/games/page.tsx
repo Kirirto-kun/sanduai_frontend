@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "../../../../i18n/LanguageContext";
 
 export default function LibraryGamesPage() {
-  const t = useTranslations();
-
   return (
     <div className="space-y-6">
       <div>
@@ -30,7 +27,6 @@ export default function LibraryGamesPage() {
     </div>
   );
 }
-
 
 
 

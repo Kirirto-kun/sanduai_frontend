@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useTranslations } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
 import {
@@ -15,6 +15,7 @@ import { VisualMaterialModal } from "../../../../components/VisualMaterialModal"
 import { VisualGroupCard } from "../../../../components/VisualGroupCard";
 import { VisualGroupModal } from "../../../../components/VisualGroupModal";
 import { CategoryFilter } from "../../../../components/CategoryFilter";
+import { errorMessageIncludes, getErrorMessage, getErrorStatus } from "../../../../lib/error-utils";
 
 export default function VisualAidsPage() {
   const t = useTranslations();
@@ -36,6 +37,29 @@ export default function VisualAidsPage() {
   const [selectedMaterial, setSelectedMaterial] = useState<VisualMaterial | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<VisualItem | null>(null);
 
+  const fetchMaterials = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getVisuals({
+        limit,
+        offset,
+        category_id: selectedCategoryId || undefined,
+        search: searchQuery || undefined,
+      });
+      setItems(data.items);
+      setTotal(data.total);
+    } catch (err: unknown) {
+      if (errorMessageIncludes(err, "403") || getErrorStatus(err) === 403) {
+        setError("subscription_required");
+      } else {
+        setError(getErrorMessage(err, "Ошибка загрузки материалов"));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [limit, offset, searchQuery, selectedCategoryId]);
+
   // Load categories
   useEffect(() => {
     async function loadCategories() {
@@ -52,34 +76,11 @@ export default function VisualAidsPage() {
   // Load materials
   useEffect(() => {
     if (hasSubscription !== null && hasSubscription) {
-      fetchMaterials();
+      void fetchMaterials();
     } else if (hasSubscription === false) {
       setLoading(false);
     }
-  }, [hasSubscription, offset, selectedCategoryId, searchQuery]);
-
-  const fetchMaterials = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getVisuals({
-        limit,
-        offset,
-        category_id: selectedCategoryId || undefined,
-        search: searchQuery || undefined,
-      });
-      setItems(data.items);
-      setTotal(data.total);
-    } catch (err: any) {
-      if (err.message?.includes("403") || err.response?.status === 403) {
-        setError("subscription_required");
-      } else {
-        setError(err.message || "Ошибка загрузки материалов");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchMaterials, hasSubscription]);
 
   const handleSearch = () => {
     setSearchQuery(searchInput);

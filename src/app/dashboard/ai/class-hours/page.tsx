@@ -13,6 +13,7 @@ import {
 } from "../../../../lib/api";
 import { LatexRenderer } from "../../../../components/LatexRenderer";
 import { useTokens } from "../../../../hooks/useTokens";
+import { errorMessageIncludes, getErrorMessage } from "../../../../lib/error-utils";
 
 export default function ClassHoursPage() {
   const t = useTranslations();
@@ -80,15 +81,15 @@ export default function ClassHoursPage() {
       const response = await generateClassHour(formData);
       setLessonData(response);
       refreshBalance();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof InsufficientTokensError) {
         setError(
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
-      } else if (err.message?.includes("401") || err.message?.toLowerCase().includes("auth")) {
+      } else if (errorMessageIncludes(err, "401") || errorMessageIncludes(err, "auth")) {
         setError(t.classHour.errors.auth);
       } else {
-        setError(err.message || t.classHour.errors.generic);
+        setError(getErrorMessage(err, t.classHour.errors.generic));
       }
     } finally {
       setIsLoading(false);
@@ -167,13 +168,13 @@ export default function ClassHoursPage() {
       updateBlockContent(updatedBlock.id, updatedBlock.content);
       closeRegenerateModal();
       refreshBalance();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof InsufficientTokensError) {
         setError(
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(err.message || t.classHour.errors.generic);
+        setError(getErrorMessage(err, t.classHour.errors.generic));
       }
     } finally {
       setIsRegenerating(false);
@@ -197,8 +198,8 @@ export default function ClassHoursPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err: any) {
-      setError(err.message || t.classHour.errors.generic);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t.classHour.errors.generic));
     }
   };
 

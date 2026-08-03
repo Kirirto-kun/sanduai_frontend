@@ -10,7 +10,6 @@ export default function AvatarPage() {
   const [responseText, setResponseText] = useState<string | null>(null);
   const [transcribedText, setTranscribedText] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [afterConversation, setAfterConversation] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -34,10 +33,12 @@ export default function AvatarPage() {
   };
 
   const handleProcessing = (processing: boolean) => {
-    setIsProcessing(processing);
+    if (processing) setAfterConversation(false);
   };
 
   const handleSpeaking = (speaking: boolean) => {
+    if (prevSpeakingRef.current && !speaking) setAfterConversation(true);
+    prevSpeakingRef.current = speaking;
     setIsSpeaking(speaking);
   };
 
@@ -64,19 +65,6 @@ export default function AvatarPage() {
     document.addEventListener("fullscreenchange", onFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
-
-  // После разговора показываем listen_1; в простое — случайный listen
-  useEffect(() => {
-    if (prevSpeakingRef.current && !isSpeaking) {
-      setAfterConversation(true);
-    }
-    prevSpeakingRef.current = isSpeaking;
-  }, [isSpeaking]);
-  useEffect(() => {
-    if (isProcessing) {
-      setAfterConversation(false);
-    }
-  }, [isProcessing]);
 
   return (
     <div
@@ -193,4 +181,3 @@ export default function AvatarPage() {
     </div>
   );
 }
-

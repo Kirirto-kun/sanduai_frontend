@@ -8,9 +8,9 @@ import {
   type ExamGeneratePayload,
   type ExamGenerateResponse,
   type ExamTask,
-  type WidgetType,
   InsufficientTokensError,
 } from "../../../../lib/api";
+import { getErrorMessage } from "../../../../lib/error-utils";
 import { LatexRenderer } from "../../../../components/LatexRenderer";
 import { useTokens } from "../../../../hooks/useTokens";
 
@@ -81,13 +81,13 @@ export default function ExamPage() {
       setExamProject(response);
       setTasks(response.tasks);
       refreshBalance();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof InsufficientTokensError) {
         setError(
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(err.message || t.exam.errors.generic);
+        setError(getErrorMessage(err, t.exam.errors.generic));
       }
     } finally {
       setLoading(false);
@@ -150,8 +150,8 @@ export default function ExamPage() {
       a.download = `${form.exam_type}_${form.subject}_${form.grade}_${version}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (err: any) {
-      setError(err.message || t.exam.errors.generic);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t.exam.errors.generic));
     }
   };
 
@@ -328,7 +328,10 @@ export default function ExamPage() {
                     </label>
                     <select
                       value={form.complexity || "medium"}
-                      onChange={(e) => setForm((prev) => ({ ...prev, complexity: e.target.value as any }))}
+                      onChange={(e) => setForm((prev) => ({
+                        ...prev,
+                        complexity: e.target.value as NonNullable<ExamGeneratePayload["complexity"]>,
+                      }))}
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none"
                     >
                       <option value="low">⭐ Оңай</option>
@@ -596,7 +599,7 @@ export default function ExamPage() {
 type TaskCardProps = {
   task: ExamTask;
   index: number;
-  t: any;
+  t: ReturnType<typeof useTranslations>;
   onScoreChange: (taskId: string, newScore: number) => void;
   onDescriptorChange: (taskId: string, newDescriptor: string) => void;
 };
@@ -660,7 +663,7 @@ function TaskCard({ task, index, t, onScoreChange, onDescriptorChange }: TaskCar
 // TaskContent Component (No changes needed to structure, just rendering)
 type TaskContentProps = {
   task: ExamTask;
-  t: any;
+  t: ReturnType<typeof useTranslations>;
 };
 
 function TaskContent({ task, t }: TaskContentProps) {

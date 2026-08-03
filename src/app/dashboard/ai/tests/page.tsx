@@ -13,6 +13,7 @@ import {
   type QuizTask,
 } from "../../../../lib/api";
 import { LatexRenderer } from "../../../../components/LatexRenderer";
+import { errorMessageIncludes, getErrorMessage } from "../../../../lib/error-utils";
 
 export default function TestsPage() {
   const t = useTranslations();
@@ -130,11 +131,11 @@ export default function TestsPage() {
       const response = await generateQuiz(payload);
       setTasks(response.tasks);
       setQuizTitle("");
-    } catch (err: any) {
-      if (err.message?.includes("401") || err.message?.toLowerCase().includes("auth")) {
+    } catch (err: unknown) {
+      if (errorMessageIncludes(err, "401") || errorMessageIncludes(err, "auth")) {
         setError(t.quiz.errors.auth);
       } else {
-        setError(err.message || t.quiz.errors.generic);
+        setError(getErrorMessage(err, t.quiz.errors.generic));
       }
     } finally {
       setIsLoading(false);
@@ -231,8 +232,8 @@ export default function TestsPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err: any) {
-      setError(err.message || t.quiz.errors.generic);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t.quiz.errors.generic));
     }
   };
 

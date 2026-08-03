@@ -4,6 +4,7 @@
  */
 
 import type { VisualMaterial } from "../lib/api";
+import Image from "next/image";
 
 interface VisualMaterialModalProps {
   material: VisualMaterial;
@@ -65,9 +66,12 @@ export function VisualMaterialModal({ material, onClose }: VisualMaterialModalPr
         {/* Content */}
         <div className="flex-1 overflow-auto p-4">
           {isImage ? (
-            <img
+            <Image
               src={material.url}
               alt={material.title}
+              width={1600}
+              height={1200}
+              unoptimized
               className="w-full h-auto rounded-xl"
             />
           ) : isPDF ? (

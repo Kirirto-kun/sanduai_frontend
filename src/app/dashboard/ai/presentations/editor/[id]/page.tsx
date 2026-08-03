@@ -1,67 +1,58 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useEffect } from "react";
 import Link from "next/link";
-import { useTranslations } from "@/i18n/LanguageContext";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { usePresentation } from "@/hooks/usePresentations";
 import EditorShell from "@/components/presentations/editor/EditorShell";
+import LegacyPresentationView from "@/components/presentations/LegacyPresentationView";
+import { isLegacyReadOnly } from "@/components/presentations/legacy-utils";
+import { ErrorNotice, PresentationStepper } from "@/components/presentations/PresentationUI";
+import { getPresentationCopy } from "@/components/presentations/copy";
 
 export default function PresentationEditorPage() {
-  const t = useTranslations().aiPresentations;
-  const params = useParams();
-  const presentationId = params.id as string;
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { language } = useLanguage();
+  const copy = getPresentationCopy(language);
+  const projectQuery = usePresentation(params.id);
 
-  const { data: presentation, isLoading, error } = usePresentation(presentationId);
+  useEffect(() => {
+    const canonicalId = projectQuery.data?.id;
+    if (canonicalId && canonicalId !== params.id) {
+      router.replace(`/dashboard/ai/presentations/editor/${canonicalId}`);
+    }
+  }, [params.id, projectQuery.data?.id, router]);
 
-  if (isLoading) {
+  if (projectQuery.isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-r-transparent" />
-          <p className="text-sm text-slate-500">{t.loading}</p>
-        </div>
+      <div className="mx-auto max-w-7xl space-y-4" aria-busy="true">
+        <div className="h-12 animate-pulse rounded-2xl bg-white/70" />
+        <div className="h-[36rem] animate-pulse rounded-3xl bg-white/70" />
       </div>
     );
   }
+  if (projectQuery.isError || !projectQuery.data) {
+    return <div className="mx-auto max-w-4xl"><ErrorNotice message={copy.genericError} onRetry={() => projectQuery.refetch()} /></div>;
+  }
 
-  if (error || !presentation) {
+  const project = projectQuery.data;
+  if (isLegacyReadOnly(project)) {
     return (
-      <div className="space-y-4 py-20 text-center">
-        <p className="text-sm text-rose-600">{t.error}</p>
-        <Link
-          href="/dashboard/ai/presentations"
-          className="text-sm text-indigo-600 hover:underline"
-        >
-          {t.backToList}
-        </Link>
+      <div className="mx-auto max-w-6xl space-y-5 pb-8">
+        <Link href="/dashboard/ai/presentations" className="inline-flex min-h-11 items-center rounded-xl px-2 text-sm font-semibold text-slate-600 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"><span className="mr-2" aria-hidden="true">←</span>{copy.backToPresentations}</Link>
+        <LegacyPresentationView project={project} />
       </div>
     );
   }
-
+  const reviewStage = ["review_required", "needs_review", "ready", "partial_failed"].includes(project.status);
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">
-            {presentation.title || t.editor}
-          </h2>
-          <p className="mt-0.5 text-xs text-slate-500">
-            {presentation.slides.length} {t.slides} &middot; {presentation.language}
-          </p>
-        </div>
-        <Link
-          href="/dashboard/ai/presentations"
-          className="text-sm text-slate-500 hover:text-slate-700"
-        >
-          {t.backToList}
-        </Link>
-      </div>
-
-      <EditorShell
-        presentationId={presentationId}
-        slides={presentation.slides}
-        t={t}
-      />
+    <div className="mx-auto max-w-[100rem] space-y-5 pb-8">
+      <Link href="/dashboard/ai/presentations" className="inline-flex min-h-11 items-center rounded-xl px-2 text-sm font-semibold text-slate-600 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"><span className="mr-2" aria-hidden="true">←</span>{copy.backToPresentations}</Link>
+      <PresentationStepper current={reviewStage ? 4 : 3} />
+      <EditorShell project={project} explicitJobId={searchParams.get("job")} />
     </div>
   );
 }

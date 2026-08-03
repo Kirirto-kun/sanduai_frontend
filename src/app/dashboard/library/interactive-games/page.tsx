@@ -72,11 +72,6 @@ export default function InteractiveGamesPage() {
                     fill
                     className="object-cover"
                     unoptimized
-                    onError={(e) => {
-                      // Fallback or hide? For now, just let it be or show a placeholder logic if we had one.
-                      // Setting src to a placeholder is tricky in SSR.
-                      // We'll rely on unoptimized preventing the server crash.
-                    }}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-slate-400">

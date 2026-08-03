@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useTranslations } from "../../../../../../i18n/LanguageContext";
 import {
   getProjectStatus,
@@ -14,13 +14,13 @@ import {
 import Markdown from "react-markdown";
 import { useTokens } from "../../../../../../hooks/useTokens";
 import { InsufficientTokensError } from "../../../../../../lib/api";
+import { getErrorMessage } from "../../../../../../lib/error-utils";
 
 export default function EditProjectPage() {
   const t = useTranslations();
-  const router = useRouter();
   const params = useParams();
   const projectId = params.projectId as string;
-  const { refreshBalance, costs, balance, checkBalance } = useTokens();
+  const { refreshBalance, costs, checkBalance } = useTokens();
 
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
@@ -31,19 +31,24 @@ export default function EditProjectPage() {
   const [regenerateInstruction, setRegenerateInstruction] = useState("");
 
   useEffect(() => {
-    loadState();
-  }, [projectId]);
+    let active = true;
 
-  const loadState = async () => {
-    try {
-      const state: ProjectState = await getProjectStatus(projectId);
-      setSections(state.sections || {});
-    } catch (err: any) {
-      setError(err.message || "Ошибка загрузки");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const loadState = async () => {
+      try {
+        const state: ProjectState = await getProjectStatus(projectId);
+        if (active) setSections(state.sections || {});
+      } catch (err: unknown) {
+        if (active) setError(getErrorMessage(err, "Ошибка загрузки"));
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void loadState();
+    return () => {
+      active = false;
+    };
+  }, [projectId]);
 
   const handleRegenerate = async (sectionType: string) => {
     if (!regenerateInstruction.trim()) {
@@ -69,13 +74,13 @@ export default function EditProjectPage() {
 
       setRegenerateInstruction("");
       refreshBalance();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof InsufficientTokensError) {
         setError(
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(err.message || "Ошибка перегенерации");
+        setError(getErrorMessage(err, "Ошибка перегенерации"));
       }
     } finally {
       setRegenerating(null);
@@ -91,8 +96,8 @@ export default function EditProjectPage() {
         project_id: projectId,
       });
       setFinalized(res);
-    } catch (err: any) {
-      setError(err.message || "Ошибка финализации");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Ошибка финализации"));
     } finally {
       setFinalizing(false);
     }

@@ -16,7 +16,8 @@ export function VideoPlayer({
   className = "",
 }: VideoPlayerProps) {
   const [isExpired, setIsExpired] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failedEmbedUrl, setFailedEmbedUrl] = useState<string | null>(null);
+  const error = failedEmbedUrl === embedUrl ? "Ошибка загрузки видео плеера" : null;
 
   // Log embed URL for debugging
   useEffect(() => {
@@ -29,16 +30,6 @@ export function VideoPlayer({
       });
     }
   }, [embedUrl, expirationTime]);
-
-  // Validate embedUrl
-  useEffect(() => {
-    if (!embedUrl || embedUrl.trim() === "") {
-      setError("URL для встраивания видео не предоставлен");
-      console.error("VideoPlayer: embedUrl is empty or missing");
-    } else {
-      setError(null);
-    }
-  }, [embedUrl]);
 
   // Check if token is expired
   useEffect(() => {
@@ -121,7 +112,7 @@ export function VideoPlayer({
         title="Video player"
         onError={() => {
           console.error("VideoPlayer: Iframe load error");
-          setError("Ошибка загрузки видео плеера");
+          setFailedEmbedUrl(embedUrl);
         }}
       />
     </div>

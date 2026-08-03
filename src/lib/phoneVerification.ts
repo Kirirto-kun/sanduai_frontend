@@ -6,6 +6,7 @@ import {
   type ConfirmationResult,
 } from "firebase/auth";
 import { auth } from "./firebase";
+import { getErrorCode } from "./error-utils";
 
 // Export ConfirmationResult type for use in components
 export type { ConfirmationResult };
@@ -83,19 +84,19 @@ export function initializeRecaptcha(
         
         // Provide more helpful error messages
         let errorMessage = "Ошибка загрузки reCAPTCHA. ";
-        if (error.code === "auth/network-request-failed") {
+        const errorCode = getErrorCode(error);
+        if (errorCode === "auth/network-request-failed") {
           errorMessage += "Проверьте подключение к интернету и настройки Firebase. Убедитесь, что домен добавлен в Firebase Console.";
-        } else if (error.message) {
+        } else if (error instanceof Error && error.message) {
           errorMessage += error.message;
         } else {
           errorMessage += "Попробуйте обновить страницу.";
         }
         
-        const enhancedError = new Error(errorMessage);
-        (enhancedError as any).code = error.code;
+        const enhancedError = Object.assign(new Error(errorMessage), { code: errorCode });
         reject(enhancedError);
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error initializing reCAPTCHA:", error);
       reject(error);
     }
@@ -120,7 +121,7 @@ export async function sendVerificationCode(
       recaptchaVerifier
     );
     return confirmationResult;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Reset reCAPTCHA on error
     resetRecaptcha();
     throw error;
@@ -136,20 +137,22 @@ export async function verifyCode(
   confirmationResult: ConfirmationResult,
   code: string
 ): Promise<void> {
-  try {
-    await confirmationResult.confirm(code);
-  } catch (error) {
-    throw error;
-  }
+  await confirmationResult.confirm(code);
 }
 
 /**
  * Reset reCAPTCHA verifier
  */
 export function resetRecaptcha(): void {
-  if (recaptchaWidgetId !== null && typeof window !== "undefined" && (window as any).grecaptcha) {
+  type RecaptchaWindow = Window & {
+    grecaptcha?: { reset(widgetId?: number): void };
+  };
+  const grecaptcha = typeof window !== "undefined"
+    ? (window as RecaptchaWindow).grecaptcha
+    : undefined;
+  if (recaptchaWidgetId !== null && grecaptcha) {
     try {
-      (window as any).grecaptcha.reset(recaptchaWidgetId);
+      grecaptcha.reset(recaptchaWidgetId);
     } catch (error) {
       console.error("Error resetting reCAPTCHA:", error);
     }
@@ -177,4 +180,3 @@ export function cleanupRecaptcha(): void {
 export function isRecaptchaInitialized(): boolean {
   return recaptchaVerifier !== null;
 }
-

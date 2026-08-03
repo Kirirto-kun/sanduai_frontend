@@ -291,7 +291,10 @@ export default function ArticlePage() {
                       name="genre"
                       value={option.value}
                       checked={form.genre === option.value}
-                      onChange={(e) => setForm((f) => ({ ...f, genre: e.target.value as any }))}
+                      onChange={(e) => setForm((f) => ({
+                        ...f,
+                        genre: e.target.value as ArticleGeneratePayload["genre"],
+                      }))}
                       className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
                     />
                     <span className="text-sm font-medium text-slate-900">{option.label}</span>

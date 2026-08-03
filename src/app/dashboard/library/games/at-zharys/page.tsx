@@ -6,11 +6,14 @@ import { useTranslations } from "../../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../../hooks/useTokens";
 import { generateRace, type GenerateRacePayload } from "../../../../../lib/api";
 import type { GameSettings } from "../../../../../types/games";
+import { errorMessageIncludes, getErrorMessage } from "../../../../../lib/error-utils";
+
+const TEAM_COUNTS: GameSettings["teams_count"][] = [2, 3, 4];
 
 export default function AtZharysSetupPage() {
   const t = useTranslations();
   const router = useRouter();
-  const { balance, checkBalance } = useTokens();
+  const { balance } = useTokens();
 
   const [formData, setFormData] = useState<GameSettings>({
     topic: "",
@@ -25,7 +28,7 @@ export default function AtZharysSetupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleInputChange = (field: keyof GameSettings, value: any) => {
+  const handleInputChange = <K extends keyof GameSettings,>(field: K, value: GameSettings[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -90,21 +93,21 @@ export default function AtZharysSetupPage() {
 
       // Redirect to game arena
       router.push(`/dashboard/library/games/at-zharys/${response.game_id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error generating race:", err);
-      if (err.message?.includes("401") || err.message?.toLowerCase().includes("auth")) {
+      if (errorMessageIncludes(err, "401") || errorMessageIncludes(err, "auth")) {
         setError(t.atZharys?.errors?.auth || "Авторизуйтесь для создания игры");
-      } else if (err.message?.includes("402") || err.message?.includes("токен")) {
+      } else if (errorMessageIncludes(err, "402") || errorMessageIncludes(err, "токен")) {
         setError(t.atZharys?.errors?.insufficientTokens || "Недостаточно токенов. Нужно 10 токенов.");
-      } else if (err.message?.includes("422")) {
+      } else if (errorMessageIncludes(err, "422")) {
         setError(t.atZharys?.errors?.invalidData || "Невалидные данные");
-      } else if (err.message?.includes("502") || err.message?.includes("502")) {
+      } else if (errorMessageIncludes(err, "502")) {
         setError(
           t.atZharys?.errors?.generationError ||
             "Ошибка генерации игры на сервере. Попробуйте позже или обратитесь к администратору.",
         );
       } else {
-        setError(err.message || t.atZharys?.errors?.generationError || "Ошибка генерации игры");
+        setError(getErrorMessage(err, t.atZharys?.errors?.generationError || "Ошибка генерации игры"));
       }
     } finally {
       setIsLoading(false);
@@ -174,7 +177,7 @@ export default function AtZharysSetupPage() {
               {t.atZharys?.setup?.teamsCount || "Количество команд"}
             </label>
             <div className="flex gap-4">
-              {[2, 3, 4].map((count) => (
+              {TEAM_COUNTS.map((count) => (
                 <label
                   key={count}
                   className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-4 py-2.5 transition hover:border-[color:var(--primary)]"
@@ -304,4 +307,3 @@ export default function AtZharysSetupPage() {
     </div>
   );
 }
-

@@ -4,6 +4,7 @@
  */
 
 import type { VisualMaterial } from "../lib/api";
+import Image from "next/image";
 
 interface VisualMaterialCardProps {
   material: VisualMaterial;
@@ -40,11 +41,12 @@ export function VisualMaterialCard({ material, onClick }: VisualMaterialCardProp
     >
       {/* Preview */}
       {isImage ? (
-        <img
+        <Image
           src={material.url}
           alt={material.title}
-          loading="lazy"
-          decoding="async"
+          width={640}
+          height={360}
+          unoptimized
           className="w-full rounded-xl mb-3 aspect-video object-cover bg-slate-100"
         />
       ) : (

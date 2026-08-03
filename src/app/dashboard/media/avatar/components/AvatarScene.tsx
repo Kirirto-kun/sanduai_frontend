@@ -10,6 +10,11 @@ interface AvatarModelProps {
   isPlaying: boolean;
 }
 
+type WindowWithWebkitAudioContext = Window &
+  typeof globalThis & {
+    webkitAudioContext?: typeof window.AudioContext;
+  };
+
 /**
  * Компонент модели аватара
  */
@@ -111,8 +116,11 @@ function AvatarModel({ audioUrl, isPlaying }: AvatarModelProps) {
       audio.crossOrigin = "anonymous"; // Важно для CORS
       audioRef.current = audio;
       
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioContext();
+      const AudioContextConstructor =
+        window.AudioContext ||
+        (window as WindowWithWebkitAudioContext).webkitAudioContext;
+      if (!AudioContextConstructor) return;
+      const ctx = new AudioContextConstructor();
       const source = ctx.createMediaElementSource(audio);
       const analyser = ctx.createAnalyser();
       
