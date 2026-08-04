@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useLanguage } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
 import { InsufficientTokensError } from "../../../../lib/api";
+import { visualGenerationErrorMessage } from "../../../../lib/visuals-ai-errors";
 import {
   generateKornekilik,
   KornekilikResult,
@@ -137,7 +138,7 @@ export default function KornekilikPage() {
       if (err instanceof InsufficientTokensError) {
         setError(`${t.noTokens}: ${err.required} / ${err.available}`);
       } else {
-        setError(err instanceof Error ? err.message : String(err));
+        setError(visualGenerationErrorMessage(err, language));
       }
     } finally {
       setLoading(false);
