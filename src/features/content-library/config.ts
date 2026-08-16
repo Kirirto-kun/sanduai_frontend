@@ -83,6 +83,20 @@ const previewRule: AssetRule = {
 const visualAssets = [visualRule, planRule(false), presentationRule(false), previewRule];
 const presentationAssets = [presentationRule(true), previewRule];
 
+const openLessonWordRule: AssetRule = {
+  role: "plan",
+  label: { ru: "План урока (Word)", kk: "Сабақ жоспары (Word)" },
+  hint: {
+    ru: "Если есть план урока, загрузите DOCX до 50 МБ. Старый DOC пересохраните в Word как DOCX.",
+    kk: "Сабақ жоспары бар болса, 50 МБ-қа дейінгі DOCX файлын жүктеңіз. Ескі DOC файлын Word-та DOCX түрінде қайта сақтаңыз.",
+  },
+  accept: "application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx",
+  extensions: ["docx"],
+  maxBytes: 50 * MB,
+};
+
+const openLessonAssets = [presentationRule(true), previewRule, openLessonWordRule];
+
 export const MATERIAL_TYPE_CONFIG: Record<MaterialType, MaterialTypeConfig> = {
   visual_aid: {
     label: { ru: "Наглядные материалы", kk: "Көрнекіліктер" },
@@ -128,9 +142,12 @@ export const MATERIAL_TYPE_CONFIG: Record<MaterialType, MaterialTypeConfig> = {
   },
   open_lesson: {
     label: { ru: "Открытые уроки", kk: "Ашық сабақтар" },
-    description: { ru: "Готовые презентации открытых уроков.", kk: "Ашық сабақтардың дайын презентациялары." },
+    description: {
+      ru: "Презентация открытого урока, обложка и план урока в Word (DOCX).",
+      kk: "Ашық сабақтың презентациясы, мұқабасы және Word (DOCX) форматындағы сабақ жоспары.",
+    },
     icon: "🎓",
-    assets: presentationAssets,
+    assets: openLessonAssets,
   },
   event: {
     label: { ru: "Мероприятия", kk: "Іс-шаралар" },
