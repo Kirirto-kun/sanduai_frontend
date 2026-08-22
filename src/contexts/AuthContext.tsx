@@ -18,14 +18,17 @@ import {
   getUser,
   login as apiLogin,
   logoutSession as apiLogoutSession,
+  type LoginPayload,
   refreshSession,
   register as apiRegister,
+  type RegisterPayload,
   saveToken,
   saveUser,
   UserData,
 } from "../lib/api";
 import { subscribeToUnauthorized } from "../lib/auth-session";
 import { resolveBootstrapUser } from "../lib/auth-token";
+import { clearCachedBalance } from "../lib/tokenCache";
 
 type User = {
   userId: string;
@@ -39,17 +42,8 @@ type AuthContextValue = {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (payload: {
-    phone?: string;
-    email?: string;
-    password: string;
-  }) => Promise<void>;
-  register: (payload: {
-    phone: string; // Обязательное поле - телефон должен быть верифицирован через Firebase
-    email: string;
-    password: string;
-    full_name: string;
-  }) => Promise<void>;
+  login: (payload: LoginPayload) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
 };
 
@@ -68,6 +62,7 @@ export function AuthProvider({ children }: ProviderProps) {
     const unsubscribe = subscribeToUnauthorized(() => {
       clearToken();
       clearUser();
+      clearCachedBalance();
       setUser((currentUser) => (currentUser === null ? currentUser : null));
       setLoading(false);
       void apiLogoutSession();
@@ -97,6 +92,7 @@ export function AuthProvider({ children }: ProviderProps) {
       } else {
         clearToken();
         clearUser();
+        clearCachedBalance();
         setUser(null);
       }
       setLoading(false);
@@ -113,6 +109,7 @@ export function AuthProvider({ children }: ProviderProps) {
       data: AuthResponse,
       extra?: { phone?: string; email?: string; full_name?: string },
     ) => {
+      clearCachedBalance();
       saveToken(data.token);
       // Decode role from token
       const decoded = decodeJWT(data.token);
@@ -130,11 +127,11 @@ export function AuthProvider({ children }: ProviderProps) {
   );
 
   const login = useCallback(
-    async (payload: { phone?: string; email?: string; password: string }) => {
+    async (payload: LoginPayload) => {
       setLoading(true);
       try {
         const data = await apiLogin(payload);
-        handleAuthSuccess(data, { phone: payload.phone, email: payload.email });
+        handleAuthSuccess(data, { email: payload.email });
       } finally {
         setLoading(false);
       }
@@ -143,12 +140,7 @@ export function AuthProvider({ children }: ProviderProps) {
   );
 
   const register = useCallback(
-    async (payload: {
-      phone: string; // Обязательное поле - телефон должен быть верифицирован через Firebase
-      email: string;
-      password: string;
-      full_name: string;
-    }) => {
+    async (payload: RegisterPayload) => {
       setLoading(true);
       try {
         const data = await apiRegister(payload);
@@ -167,6 +159,7 @@ export function AuthProvider({ children }: ProviderProps) {
   const logout = useCallback(() => {
     clearToken();
     clearUser();
+    clearCachedBalance();
     setUser((currentUser) => (currentUser === null ? currentUser : null));
     void apiLogoutSession();
   }, []);

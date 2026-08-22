@@ -11,6 +11,7 @@ import {
 } from "../../../lib/api";
 import { useTranslations } from "../../../i18n/LanguageContext";
 import { useTokens } from "../../../hooks/useTokens";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 type PendingRevision = {
   id: string;
@@ -29,6 +30,7 @@ const initialPayload: EssayGeneratePayload = {
 
 export default function AiDocsPage() {
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
   const [form, setForm] = useState<EssayGeneratePayload>(initialPayload);
   const [title, setTitle] = useState("");
@@ -71,7 +73,7 @@ export default function AiDocsPage() {
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(err instanceof Error ? err.message : t.essay.errors.generic);
+        setError(toTeacherErrorMessage(err, t.essay.errors.generic));
       }
     } finally {
       setLoading(false);
@@ -109,7 +111,7 @@ export default function AiDocsPage() {
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(err instanceof Error ? err.message : t.essay.errors.generic);
+        setError(toTeacherErrorMessage(err, t.essay.errors.generic));
       }
     } finally {
       setLoading(false);
@@ -136,7 +138,7 @@ export default function AiDocsPage() {
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.essay.errors.generic);
+      setError(toTeacherErrorMessage(err, t.essay.errors.generic));
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,15 @@
-export function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback;
+import {
+  teacherFacingErrorMessage,
+  type TeacherFacingLanguage,
+} from "./teacher-facing-error";
+
+/** @deprecated Teacher UI should use useTeacherErrorMessage for current RU/KK copy. */
+export function getErrorMessage(
+  error: unknown,
+  fallback: string,
+  language: TeacherFacingLanguage = "ru",
+): string {
+  return teacherFacingErrorMessage(error, language, { fallback });
 }
 
 export function errorMessageIncludes(error: unknown, value: string): boolean {

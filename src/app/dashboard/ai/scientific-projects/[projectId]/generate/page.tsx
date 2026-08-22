@@ -9,12 +9,13 @@ import {
   DraftPlanResponse,
   ProjectState,
 } from "../../../../../../lib/api";
-import { getErrorMessage } from "../../../../../../lib/error-utils";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 const SECTIONS = ["introduction", "chapter_1", "chapter_2", "conclusion"] as const;
 
 export default function GenerateProgressPage() {
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const router = useRouter();
   const params = useParams();
   const projectId = params.projectId as string;
@@ -39,7 +40,7 @@ export default function GenerateProgressPage() {
         );
         setCurrentStep(nextStep >= 0 ? nextStep : SECTIONS.length);
       } catch (err: unknown) {
-        if (active) setError(getErrorMessage(err, "Ошибка загрузки"));
+        if (active) setError(toTeacherErrorMessage(err));
       } finally {
         if (active) setLoading(false);
       }
@@ -49,7 +50,7 @@ export default function GenerateProgressPage() {
     return () => {
       active = false;
     };
-  }, [projectId]);
+  }, [projectId, toTeacherErrorMessage]);
 
   useEffect(() => {
     if (!plan) return;
@@ -75,7 +76,7 @@ export default function GenerateProgressPage() {
 
         if (active) setCurrentStep((previous) => previous + 1);
       } catch (err: unknown) {
-        if (active) setError(getErrorMessage(err, "Ошибка генерации"));
+        if (active) setError(toTeacherErrorMessage(err));
       } finally {
         generationInFlight.current = false;
         if (active) setLoading(false);
@@ -86,7 +87,7 @@ export default function GenerateProgressPage() {
     return () => {
       active = false;
     };
-  }, [currentStep, plan, projectId, router]);
+  }, [currentStep, plan, projectId, router, toTeacherErrorMessage]);
 
   const sectionLabels: Record<string, string> = {
     introduction: t.scientificProject.wizard.progress.introduction,

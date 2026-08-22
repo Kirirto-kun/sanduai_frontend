@@ -7,12 +7,15 @@ import {
   GenerateImageResponse,
   InsufficientTokensError,
 } from "../../../../lib/api";
-import { useTranslations } from "../../../../i18n/LanguageContext";
+import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
 import { TokenBalance } from "../../../../components/TokenBalance";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 export default function ImageGenerationPage() {
   const t = useTranslations();
+  const { language } = useLanguage();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState<GenerateImageResponse | null>(null);
@@ -44,7 +47,7 @@ export default function ImageGenerationPage() {
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(err instanceof Error ? err.message : "Ошибка генерации изображения");
+        setError(toTeacherErrorMessage(err));
       }
     } finally {
       setLoading(false);
@@ -172,7 +175,9 @@ export default function ImageGenerationPage() {
 
             {result.warning && (
               <div className="mb-4 rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800">
-                {result.warning}
+                {language === "kk"
+                  ? "Сурет жасалды, бірақ нәтижені мұқият тексеріңіз."
+                  : "Изображение создано, но внимательно проверьте результат."}
               </div>
             )}
 
@@ -198,7 +203,10 @@ export default function ImageGenerationPage() {
 
       {result && result.status === "error" && (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-red-700">
-          Ошибка генерации: {result.error_message || "Неизвестная ошибка"}
+          {language === "kk" ? "Суретті жасау мүмкін болмады: " : "Не удалось создать изображение: "}
+          {toTeacherErrorMessage(
+            result.error_message ? new Error(result.error_message) : null,
+          )}
         </div>
       )}
     </div>

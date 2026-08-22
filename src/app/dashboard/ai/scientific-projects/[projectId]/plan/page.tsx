@@ -8,10 +8,11 @@ import {
   DraftPlanResponse,
   ProjectState,
 } from "../../../../../../lib/api";
-import { getErrorMessage } from "../../../../../../lib/error-utils";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 export default function PlanReviewPage() {
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const router = useRouter();
   const params = useParams();
   const projectId = params.projectId as string;
@@ -30,7 +31,7 @@ export default function PlanReviewPage() {
         const state: ProjectState = await getProjectStatus(projectId);
         if (active) setPlan(state.plan);
       } catch (err: unknown) {
-        if (active) setError(getErrorMessage(err, "Ошибка загрузки плана"));
+        if (active) setError(toTeacherErrorMessage(err));
       } finally {
         if (active) setLoading(false);
       }
@@ -40,7 +41,7 @@ export default function PlanReviewPage() {
     return () => {
       active = false;
     };
-  }, [projectId]);
+  }, [projectId, toTeacherErrorMessage]);
 
   const handleEdit = (field: string, currentValue: unknown) => {
     setEditing(field);
@@ -96,7 +97,7 @@ export default function PlanReviewPage() {
       // Start generating sections sequentially
       router.push(`/dashboard/ai/scientific-projects/${projectId}/generate`);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, "Ошибка"));
+      setError(toTeacherErrorMessage(err, t.scientificProject.errors.generic));
     } finally {
       setLoading(false);
     }

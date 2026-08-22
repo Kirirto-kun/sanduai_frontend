@@ -10,7 +10,7 @@ import {
   type ExamTask,
   InsufficientTokensError,
 } from "../../../../lib/api";
-import { getErrorMessage } from "../../../../lib/error-utils";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { LatexRenderer } from "../../../../components/LatexRenderer";
 import { useTokens } from "../../../../hooks/useTokens";
 
@@ -24,6 +24,7 @@ const TASK_TYPE_IDS = [
 
 export default function ExamPage() {
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
   
   // BJB/TJB exam generation page
@@ -87,7 +88,7 @@ export default function ExamPage() {
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(getErrorMessage(err, t.exam.errors.generic));
+        setError(toTeacherErrorMessage(err, t.exam.errors.generic));
       }
     } finally {
       setLoading(false);
@@ -151,7 +152,7 @@ export default function ExamPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, t.exam.errors.generic));
+      setError(toTeacherErrorMessage(err, t.exam.errors.generic));
     }
   };
 

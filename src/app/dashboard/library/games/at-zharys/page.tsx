@@ -4,14 +4,19 @@ import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "../../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../../hooks/useTokens";
-import { generateRace, type GenerateRacePayload } from "../../../../../lib/api";
+import {
+  generateRace,
+  InsufficientTokensError,
+  type GenerateRacePayload,
+} from "../../../../../lib/api";
 import type { GameSettings } from "../../../../../types/games";
-import { errorMessageIncludes, getErrorMessage } from "../../../../../lib/error-utils";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 const TEAM_COUNTS: GameSettings["teams_count"][] = [2, 3, 4];
 
 export default function AtZharysSetupPage() {
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const router = useRouter();
   const { balance } = useTokens();
 
@@ -95,19 +100,20 @@ export default function AtZharysSetupPage() {
       router.push(`/dashboard/library/games/at-zharys/${response.game_id}`);
     } catch (err: unknown) {
       console.error("Error generating race:", err);
-      if (errorMessageIncludes(err, "401") || errorMessageIncludes(err, "auth")) {
-        setError(t.atZharys?.errors?.auth || "Авторизуйтесь для создания игры");
-      } else if (errorMessageIncludes(err, "402") || errorMessageIncludes(err, "токен")) {
+      if (err instanceof InsufficientTokensError) {
         setError(t.atZharys?.errors?.insufficientTokens || "Недостаточно токенов. Нужно 10 токенов.");
-      } else if (errorMessageIncludes(err, "422")) {
-        setError(t.atZharys?.errors?.invalidData || "Невалидные данные");
-      } else if (errorMessageIncludes(err, "502")) {
-        setError(
-          t.atZharys?.errors?.generationError ||
-            "Ошибка генерации игры на сервере. Попробуйте позже или обратитесь к администратору.",
-        );
       } else {
-        setError(getErrorMessage(err, t.atZharys?.errors?.generationError || "Ошибка генерации игры"));
+        setError(
+          toTeacherErrorMessage(
+            err,
+            t.atZharys?.errors?.generationError || "Ошибка генерации игры",
+            {
+              insufficientCoins:
+                t.atZharys?.errors?.insufficientTokens ||
+                "Недостаточно токенов. Нужно 10 токенов.",
+            },
+          ),
+        );
       }
     } finally {
       setIsLoading(false);

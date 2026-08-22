@@ -2,6 +2,7 @@ import { getApiBase } from "./api-base";
 import { markAuthSessionActive } from "./auth-session";
 import { decodeJwtPayload, isUsableJwt } from "./auth-token";
 import {
+  apiErrorCodeForStatus,
   ApiRequestError,
   configureAuthRefresh,
   fetchWithPolicy,
@@ -10,28 +11,44 @@ import {
   type ApiFailure,
 } from "./http-client";
 import { withIdempotencyKey } from "./idempotency";
+import {
+  TeacherFacingError,
+  teacherFacingErrorMessage,
+  toTeacherFacingError,
+  type TeacherFacingLanguage,
+} from "./teacher-facing-error";
 
 export { ApiRequestError } from "./http-client";
 
 const API_BASE = getApiBase();
 const TOKEN_KEY = "sanduai_token";
+export const AUTH_HTTP_TIMEOUT_MS = 10_000;
 
 export type AuthResponse = {
   token: string;
   user_id: string;
 };
 
-type RegisterPayload = {
-  phone: string; // Обязательное поле - телефон должен быть верифицирован через Firebase
+export type RegisterPayload = {
   email: string;
   password: string;
+  verification_code: string;
   full_name: string;
+  phone?: string;
 };
 
-type LoginPayload = {
-  phone?: string;
-  email?: string;
+export type LoginPayload = {
+  email: string;
   password: string;
+};
+
+export type RegistrationCodeResponse = {
+  expires_in_seconds: number;
+  resend_after_seconds: number;
+};
+
+export type PasswordResetRequestResponse = {
+  message: string;
 };
 
 export type EssayGeneratePayload = {
@@ -544,12 +561,23 @@ export class InsufficientTokensError extends Error {
 
 function requestError(failure: ApiFailure): Error {
   if (failure.status === 402) {
+    const details = failure.details && typeof failure.details === "object"
+      ? failure.details as Record<string, unknown>
+      : null;
+    const nested = details?.detail && typeof details.detail === "object"
+      ? details.detail as Record<string, unknown>
+      : null;
     const detail =
-      failure.details && typeof failure.details === "object"
-        ? String((failure.details as Record<string, unknown>).detail ?? failure.message)
-        : failure.message;
-    const required = Number(detail.match(/Required:\s*(\d+)/i)?.[1] ?? 0);
-    const available = Number(detail.match(/Available:\s*(\d+)/i)?.[1] ?? 0);
+      (typeof nested?.message === "string" && nested.message) ||
+      (typeof details?.detail === "string" && details.detail) ||
+      (typeof details?.message === "string" && details.message) ||
+      failure.message;
+    const required = Number(
+      nested?.required ?? details?.required ?? detail.match(/Required:\s*(\d+)/i)?.[1] ?? 0,
+    );
+    const available = Number(
+      nested?.available ?? details?.available ?? detail.match(/Available:\s*(\d+)/i)?.[1] ?? 0,
+    );
     return new InsufficientTokensError(detail, required, available);
   }
 
@@ -563,9 +591,13 @@ function requestError(failure: ApiFailure): Error {
 
 async function request<T>(
   path: string,
-  options: RequestInit & { auth?: boolean; skipAuthRefresh?: boolean } = {},
+  options: RequestInit & {
+    auth?: boolean;
+    skipAuthRefresh?: boolean;
+    timeoutMs?: number | null;
+  } = {},
 ): Promise<T> {
-  const { auth, skipAuthRefresh, ...requestInit } = options;
+  const { auth, skipAuthRefresh, timeoutMs, ...requestInit } = options;
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
   if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
@@ -586,6 +618,7 @@ async function request<T>(
     credentials: "include",
   }, {
     attemptAuthRefresh: !skipAuthRefresh,
+    timeoutMs,
     errorFactory: requestError,
   });
 }
@@ -605,6 +638,37 @@ export async function register(payload: RegisterPayload): Promise<AuthResponse> 
     method: "POST",
     body: JSON.stringify(payload),
     skipAuthRefresh: true,
+    timeoutMs: AUTH_HTTP_TIMEOUT_MS,
+  });
+}
+
+function requestErrorFromResponse(status: number, data: unknown): Error {
+  const record = data && typeof data === "object" ? data as Record<string, unknown> : null;
+  const detail = record?.detail;
+  const nestedDetail = detail && typeof detail === "object"
+    ? detail as Record<string, unknown>
+    : null;
+  const rawMessage =
+    (typeof nestedDetail?.message === "string" && nestedDetail.message) ||
+    (typeof detail === "string" && detail) ||
+    (typeof record?.message === "string" && record.message) ||
+    (typeof record?.error === "string" && record.error) ||
+    `Request failed with status ${status}`;
+
+  return requestError({
+    message: rawMessage,
+    status,
+    code: apiErrorCodeForStatus(status),
+    details: data,
+  });
+}
+
+export async function requestRegistrationCode(email: string): Promise<RegistrationCodeResponse> {
+  return request<RegistrationCodeResponse>("/auth/registration-code/request", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+    skipAuthRefresh: true,
+    timeoutMs: AUTH_HTTP_TIMEOUT_MS,
   });
 }
 
@@ -613,6 +677,25 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
     method: "POST",
     body: JSON.stringify(payload),
     skipAuthRefresh: true,
+    timeoutMs: AUTH_HTTP_TIMEOUT_MS,
+  });
+}
+
+export async function requestPasswordReset(email: string): Promise<PasswordResetRequestResponse> {
+  return request<PasswordResetRequestResponse>("/auth/password-reset/request", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+    skipAuthRefresh: true,
+    timeoutMs: AUTH_HTTP_TIMEOUT_MS,
+  });
+}
+
+export async function confirmPasswordReset(token: string, newPassword: string): Promise<void> {
+  return request<void>("/auth/password-reset/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token, new_password: newPassword }),
+    skipAuthRefresh: true,
+    timeoutMs: AUTH_HTTP_TIMEOUT_MS,
   });
 }
 
@@ -631,6 +714,7 @@ export async function getProfile(): Promise<UserProfile> {
   return request<UserProfile>("/auth/me", {
     method: "GET",
     auth: true,
+    timeoutMs: AUTH_HTTP_TIMEOUT_MS,
   });
 }
 
@@ -673,10 +757,7 @@ export async function exportEssayDocx(payload: {
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    const message =
-      (data && (data.error || data.message)) ||
-      `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw requestErrorFromResponse(res.status, data);
   }
   return res.blob();
 }
@@ -717,10 +798,7 @@ export async function exportArticleDocx(payload: ArticleResponse): Promise<Blob>
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    const message =
-      (data && (data.error || data.message)) ||
-      `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw requestErrorFromResponse(res.status, data);
   }
   return res.blob();
 }
@@ -751,10 +829,7 @@ export async function exportExamDocx(payload: ExamExportPayload): Promise<Blob> 
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    const message =
-      (data && (data.error || data.message)) ||
-      `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw requestErrorFromResponse(res.status, data);
   }
   return res.blob();
 }
@@ -797,10 +872,7 @@ export async function exportClassHourDocx(
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    const message =
-      (data && (data.error || data.message)) ||
-      `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw requestErrorFromResponse(res.status, data);
   }
   return res.blob();
 }
@@ -833,10 +905,7 @@ export async function exportQuizDocx(
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    const message =
-      (data && (data.error || data.message)) ||
-      `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw requestErrorFromResponse(res.status, data);
   }
   return res.blob();
 }
@@ -908,72 +977,82 @@ export type SandubotStreamEvent =
 
 export async function* sendSandubotMessageStream(
   message: string,
+  language: TeacherFacingLanguage = "ru",
 ): AsyncGenerator<SandubotStreamEvent, void, unknown> {
-  const token = getToken();
-  const headers = withIdempotencyKey({
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  });
-  const res = await fetchWithPolicy(`${getApiBase()}/api/sandubot/chat/stream`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ message }),
-  });
+  try {
+    const token = getToken();
+    const headers = withIdempotencyKey({
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    });
+    const res = await fetchWithPolicy(`${getApiBase()}/api/sandubot/chat/stream`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ message }),
+    });
 
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    if (res.status === 402) {
-      const detail = data?.detail || "";
-      const requiredMatch = detail.match(/Required:\s*(\d+)/i);
-      const availableMatch = detail.match(/Available:\s*(\d+)/i);
-      throw new InsufficientTokensError(
-        detail,
-        requiredMatch ? parseInt(requiredMatch[1], 10) : 0,
-        availableMatch ? parseInt(availableMatch[1], 10) : 0,
-      );
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const failure = requestErrorFromResponse(res.status, data);
+      if (failure instanceof InsufficientTokensError) throw failure;
+      throw toTeacherFacingError(failure, language);
     }
-    throw new Error(data?.detail || data?.message || `Request failed: ${res.status}`);
-  }
 
-  const reader = res.body?.getReader();
-  if (!reader) throw new Error("No response body");
+    const reader = res.body?.getReader();
+    if (!reader) throw new TeacherFacingError(
+      teacherFacingErrorMessage(null, language),
+    );
 
-  const decoder = new TextDecoder();
-  let buffer = "";
+    const decoder = new TextDecoder();
+    let buffer = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+    const safeEvent = (event: SandubotStreamEvent): SandubotStreamEvent =>
+      event.type === "error"
+        ? {
+            ...event,
+            message: teacherFacingErrorMessage(new Error(event.message), language),
+          }
+        : event;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    for (const line of lines) {
-      if (line.startsWith("data: ")) {
-        const data = line.slice(6);
-        if (data === "[DONE]" || data === "") continue;
-        try {
-          const event = JSON.parse(data) as SandubotStreamEvent;
-          yield event;
-        } catch {
-          // skip invalid JSON
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const data = line.slice(6);
+          if (data === "[DONE]" || data === "") continue;
+          try {
+            const event = JSON.parse(data) as SandubotStreamEvent;
+            yield safeEvent(event);
+          } catch {
+            // Ignore malformed provider events without exposing their contents.
+          }
         }
       }
     }
-  }
 
-  if (buffer.trim()) {
-    const line = buffer.trim();
-    if (line.startsWith("data: ")) {
-      const data = line.slice(6);
-      try {
-        const event = JSON.parse(data) as SandubotStreamEvent;
-        yield event;
-      } catch {
-        // skip
+    if (buffer.trim()) {
+      const line = buffer.trim();
+      if (line.startsWith("data: ")) {
+        const data = line.slice(6);
+        try {
+          const event = JSON.parse(data) as SandubotStreamEvent;
+          yield safeEvent(event);
+        } catch {
+          // Ignore malformed provider events without exposing their contents.
+        }
       }
     }
+  } catch (error) {
+    if (error instanceof InsufficientTokensError || error instanceof TeacherFacingError) {
+      throw error;
+    }
+    throw toTeacherFacingError(error, language);
   }
 }
 
@@ -1000,14 +1079,7 @@ export async function chatWithYbyrai(
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    const detailMessage =
-      data?.detail && typeof data.detail === "object"
-        ? data.detail.message
-        : data?.detail;
-    const message =
-      (data && (data.error || detailMessage || data.message)) ||
-      `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw requestErrorFromResponse(res.status, data);
   }
 
   const data = await res.json();
@@ -1029,8 +1101,9 @@ export function chatWithYbyraiStream(
     onTextChunk: (text: string) => void;
     onAudioChunk: (url: string, text: string) => void;
     onDone: (fullText: string) => void;
-    onError: (error: string) => void;
+    onError: (error: TeacherFacingError) => void;
   },
+  uiLanguage: TeacherFacingLanguage = language === "ru" ? "ru" : "kk",
 ): () => void {
   const formData = new FormData();
   formData.append("audio", audioFile);
@@ -1045,6 +1118,17 @@ export function chatWithYbyraiStream(
   // Use EventSource-like approach with fetch + ReadableStream
   let aborted = false;
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  const unavailableCopy = uiLanguage === "kk"
+    ? "Дыбыстық көмекші уақытша қолжетімсіз. Қайталап көріңіз."
+    : "Голосовой помощник временно недоступен. Попробуйте ещё раз.";
+  const insufficientCopy = uiLanguage === "kk"
+    ? "Монета жеткіліксіз. Балансты толтырып, қайталап көріңіз."
+    : "Недостаточно монет. Пополните баланс и попробуйте снова.";
+  const safeStreamError = (error: unknown, fallback = unavailableCopy) =>
+    teacherFacingErrorMessage(error, uiLanguage, {
+      fallback,
+      insufficientCoins: insufficientCopy,
+    });
 
   (async () => {
     try {
@@ -1056,19 +1140,14 @@ export function chatWithYbyraiStream(
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        const detailMessage =
-          data?.detail && typeof data.detail === "object"
-            ? data.detail.message
-            : data?.detail;
-        const message =
-          (data && (data.error || detailMessage || data.message)) ||
-          `Request failed with status ${res.status}`;
-        callbacks.onError(message);
+        callbacks.onError(
+          new TeacherFacingError(safeStreamError(requestErrorFromResponse(res.status, data))),
+        );
         return;
       }
 
       if (!res.body) {
-        callbacks.onError("No response body");
+        callbacks.onError(new TeacherFacingError(unavailableCopy));
         return;
       }
 
@@ -1113,7 +1192,9 @@ export function chatWithYbyraiStream(
 
             if (eventType === "error" || data.error) {
               callbacks.onError(
-                data.message || data.error || "Дыбыстық көмекші уақытша қолжетімсіз",
+                new TeacherFacingError(
+                  safeStreamError(new Error("Provider stream event failed")),
+                ),
               );
               return;
             }
@@ -1137,15 +1218,14 @@ export function chatWithYbyraiStream(
                 if (data.full_text) callbacks.onDone(data.full_text);
                 break;
             }
-          } catch (e) {
-            // Skip invalid JSON
-            console.error("Failed to parse SSE data:", e, dataStr);
+          } catch {
+            // Ignore malformed provider events without exposing their contents.
           }
         }
       }
     } catch (err: unknown) {
       if (!aborted) {
-        callbacks.onError(err instanceof Error ? err.message : "Stream error");
+        callbacks.onError(new TeacherFacingError(safeStreamError(err)));
       }
     }
   })();
@@ -1187,10 +1267,7 @@ export async function exportLessonPlanDocx(
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    const message =
-      (data && (data.error || data.message)) ||
-      `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw requestErrorFromResponse(res.status, data);
   }
   return res.blob();
 }
@@ -1211,7 +1288,7 @@ export async function createProjectPlan(
 export async function generateSection(
   payload: GenerateSectionPayload,
 ): Promise<SectionResponse> {
-  return request<SectionResponse>("/api/v1/science-project/generate-section", {
+  return paidRequest<SectionResponse>("/api/v1/science-project/generate-section", {
     method: "POST",
     body: JSON.stringify(payload),
     auth: true,
@@ -1240,7 +1317,7 @@ export async function getProjectStatus(
 export async function finalizeProject(
   payload: FinalizeProjectPayload,
 ): Promise<CompleteProjectResponse> {
-  return request<CompleteProjectResponse>(
+  return paidRequest<CompleteProjectResponse>(
     `/api/v1/science-project/${payload.project_id}/finalize`,
     {
       method: "POST",
@@ -1267,10 +1344,7 @@ export async function exportScientificProjectDocx(
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    const message =
-      (data && (data.error || data.message)) ||
-      `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw requestErrorFromResponse(res.status, data);
   }
   return res.blob();
 }
@@ -1303,10 +1377,7 @@ export async function exportWorksheetDocx(
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    const message =
-      (data && (data.error || data.message)) ||
-      `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw requestErrorFromResponse(res.status, data);
   }
   return res.blob();
 }
@@ -1338,7 +1409,7 @@ async function requestNewAccessToken(): Promise<string | null> {
     }, {
       attemptAuthRefresh: false,
       notifyOnUnauthorized: false,
-      timeoutMs: 10_000,
+      timeoutMs: AUTH_HTTP_TIMEOUT_MS,
       errorFactory: requestError,
     });
     if (
@@ -1376,7 +1447,7 @@ export async function logoutSession(): Promise<void> {
     }, {
       attemptAuthRefresh: false,
       notifyOnUnauthorized: false,
-      timeoutMs: 10_000,
+      timeoutMs: AUTH_HTTP_TIMEOUT_MS,
       errorFactory: requestError,
     });
   } finally {

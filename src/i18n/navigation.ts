@@ -1,3 +1,5 @@
+import type { AccessPolicy } from "../lib/access-policy";
+
 /**
  * Структура навигации дашборда.
  *
@@ -18,12 +20,15 @@ export type NavItem = {
   soon?: boolean;
   /** Помечаем новинки, чтобы учитель их заметил. */
   isNew?: boolean;
+  /** Override group access, for example the token-paid At Zharys game. */
+  access?: AccessPolicy;
 };
 
 export type NavGroup = {
   key: string;
   label: Record<Lang, string>;
   items: NavItem[];
+  access: AccessPolicy;
 };
 
 export type NavSegment = {
@@ -116,6 +121,7 @@ const SCHOOL: NavSegment = {
   groups: [
     {
       key: "school-ai",
+      access: "authenticated",
       label: { ru: "ИИ-функции", kk: "ЖИ функциялар" },
       items: [
         AI_KMZH,
@@ -130,6 +136,7 @@ const SCHOOL: NavSegment = {
     },
     {
       key: "school-ai-extra",
+      access: "authenticated",
       label: { ru: "Документы и тексты", kk: "Құжаттар мен мәтіндер" },
       items: [
         {
@@ -157,6 +164,7 @@ const SCHOOL: NavSegment = {
     },
     {
       key: "school-ready",
+      access: "subscription",
       label: { ru: "Готовые материалы", kk: "Дайын материалдар" },
       items: [
         {
@@ -188,6 +196,7 @@ const SCHOOL: NavSegment = {
     },
     {
       key: "school-homeroom",
+      access: "subscription",
       label: { ru: "Классным руководителям", kk: "Сынып жетекшілерге" },
       items: [
         {
@@ -224,6 +233,7 @@ const SCHOOL: NavSegment = {
     },
     {
       key: "school-offline",
+      access: "subscription",
       label: { ru: "Игры без интернета", kk: "Интернетсіз ойындар" },
       items: [
         {
@@ -256,6 +266,7 @@ const SCHOOL: NavSegment = {
         },
         {
           key: "games",
+          access: "authenticated",
           href: "/dashboard/library/games",
           label: { ru: "Игра «Ат жарыс»", kk: "«Ат жарыс» ойыны" },
         },
@@ -274,6 +285,7 @@ const KINDERGARTEN: NavSegment = {
   groups: [
     {
       key: "kg-ai",
+      access: "authenticated",
       label: { ru: "ИИ-функции", kk: "ЖИ функциялар" },
       items: [
         AI_SCENARIO,
@@ -286,6 +298,7 @@ const KINDERGARTEN: NavSegment = {
     },
     {
       key: "kg-ready",
+      access: "subscription",
       label: { ru: "Готовые материалы", kk: "Дайын материалдар" },
       items: [
         {
@@ -337,6 +350,7 @@ const LIBRARY: NavSegment = {
   groups: [
     {
       key: "lib-ai",
+      access: "authenticated",
       label: { ru: "ИИ-функции", kk: "ЖИ функциялар" },
       items: [
         {
@@ -350,6 +364,7 @@ const LIBRARY: NavSegment = {
     },
     {
       key: "lib-ready",
+      access: "subscription",
       label: { ru: "Готовые материалы", kk: "Дайын материалдар" },
       items: [
         {
@@ -375,6 +390,7 @@ export const SEGMENTS: NavSegment[] = [SCHOOL, KINDERGARTEN, LIBRARY];
 export const COMMON_GROUPS: NavGroup[] = [
   {
     key: "common-library",
+    access: "subscription",
     label: { ru: "Библиотека материалов", kk: "Материалдар кітапханасы" },
     items: [
       {
@@ -406,6 +422,7 @@ export const COMMON_GROUPS: NavGroup[] = [
   },
   {
     key: "common-media",
+    access: "authenticated",
     label: { ru: "Медиа", kk: "Медиа" },
     items: [
       {
@@ -447,3 +464,7 @@ export const SOON_LABELS: Record<string, Record<Lang, string>> = Object.fromEntr
 );
 
 export const SEGMENT_STORAGE_KEY = "sanduai_segment";
+
+export function resolveNavAccess(item: NavItem, group: NavGroup): AccessPolicy {
+  return item.access ?? group.access;
+}

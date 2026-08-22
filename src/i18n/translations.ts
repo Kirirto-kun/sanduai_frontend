@@ -64,17 +64,6 @@ type Translations = {
       fullNameLabel: string;
       submit: string;
       switchText: string;
-      phoneVerification: string;
-      sendCode: string;
-      verifyCode: string;
-      codeSent: string;
-      enterCode: string;
-      codePlaceholder: string;
-      invalidCode: string;
-      resendCode: string;
-      phoneRequired: string;
-      invalidPhoneFormat: string;
-      stepIndicator: string;
       termsAgreement: string;
       termsLink: string;
     };
@@ -1371,32 +1360,21 @@ export const translations: Record<Language, Translations> = {
     auth: {
       login: {
         title: "Вход в аккаунт",
-        subtitle: "Используйте Email или телефон и пароль, чтобы войти.",
-        phoneLabel: "Email или телефон",
+        subtitle: "Используйте электронную почту и пароль, чтобы войти.",
+        phoneLabel: "Электронная почта",
         passwordLabel: "Пароль",
         submit: "Войти",
         switchText: "Нет аккаунта? Зарегистрироваться",
       },
       register: {
         title: "Регистрация",
-        subtitle: "Создайте учётную запись, чтобы использовать Sandu AI.",
-        phoneLabel: "Телефон",
+        subtitle: "Подтвердите почту и создайте учётную запись Sandu AI.",
+        phoneLabel: "Телефон (необязательно)",
         emailLabel: "Email",
         passwordLabel: "Пароль",
         fullNameLabel: "Полное имя",
         submit: "Зарегистрироваться",
         switchText: "Уже есть аккаунт? Войти",
-        phoneVerification: "Верификация телефона",
-        sendCode: "Отправить код",
-        verifyCode: "Подтвердить код",
-        codeSent: "Код отправлен на {phone}",
-        enterCode: "Введите код из SMS",
-        codePlaceholder: "123456",
-        invalidCode: "Неверный код",
-        resendCode: "Отправить код повторно",
-        phoneRequired: "Телефон обязателен",
-        invalidPhoneFormat: "Неверный формат телефона. Используйте международный формат: +7...",
-        stepIndicator: "Шаг {current} из {total}",
         termsAgreement: "Регистрируясь, вы принимаете Пользовательское соглашение",
         termsLink: "Пользовательское соглашение",
       },
@@ -1411,10 +1389,10 @@ export const translations: Record<Language, Translations> = {
       errors: {
         required: "Заполните все обязательные поля.",
         invalidEmail: "Неверный формат email.",
-        shortPassword: "Пароль должен быть не короче 6 символов.",
+        shortPassword: "Пароль должен быть не короче 8 символов.",
         generic: "Произошла ошибка. Попробуйте ещё раз.",
         invalidCredentials: "Неправильный логин или пароль.",
-        userExists: "Пользователь с таким email или телефоном уже существует.",
+        userExists: "Пользователь с такой почтой уже существует.",
       },
       loading: "Загрузка...",
     },
@@ -2693,32 +2671,21 @@ export const translations: Record<Language, Translations> = {
     auth: {
       login: {
         title: "Аккаунтқа кіру",
-        subtitle: "Кіру үшін Email немесе телефон және парольді қолданыңыз.",
-        phoneLabel: "Email немесе телефон",
+        subtitle: "Кіру үшін электрондық пошта мен құпиясөзді қолданыңыз.",
+        phoneLabel: "Электрондық пошта",
         passwordLabel: "Пароль",
         submit: "Кіру",
         switchText: "Аккаунт жоқ па? Тіркелу",
       },
       register: {
         title: "Тіркелу",
-        subtitle: "Sandu AI пайдалану үшін аккаунт жасаңыз.",
-        phoneLabel: "Телефон",
+        subtitle: "Поштаңызды растаңыз және Sandu AI аккаунтын ашыңыз.",
+        phoneLabel: "Телефон (міндетті емес)",
         emailLabel: "Email",
         passwordLabel: "Пароль",
         fullNameLabel: "Толық аты-жөні",
         submit: "Тіркелу",
         switchText: "Аккаунт бар ма? Кіру",
-        phoneVerification: "Телефон растау",
-        sendCode: "Код жіберу",
-        verifyCode: "Кодты растау",
-        codeSent: "Код {phone} нөміріне жіберілді",
-        enterCode: "SMS-тен келген кодты енгізіңіз",
-        codePlaceholder: "123456",
-        invalidCode: "Қате код",
-        resendCode: "Кодты қайта жіберу",
-        phoneRequired: "Телефон міндетті",
-        invalidPhoneFormat: "Телефон форматы қате. Халықаралық форматты қолданыңыз: +7...",
-        stepIndicator: "{current}/{total} қадам",
         termsAgreement: "Тіркелу арқылы сіз Пайдаланушы келісімін қабылдайсыз",
         termsLink: "Пайдаланушы келісімі",
       },
@@ -2733,10 +2700,10 @@ export const translations: Record<Language, Translations> = {
       errors: {
         required: "Міндетті өрістерді толтырыңыз.",
         invalidEmail: "Email форматы дұрыс емес.",
-        shortPassword: "Пароль кемінде 6 таңба болуы керек.",
+        shortPassword: "Құпиясөз кемінде 8 таңба болуы керек.",
         generic: "Қате пайда болды. Қайта көріңіз.",
         invalidCredentials: "Логин немесе құпия сөз қате.",
-        userExists: "Бұл email немесе телефон нөмірі қазірдің өзінде тіркелген.",
+        userExists: "Бұл поштаға пайдаланушы тіркелген.",
       },
       loading: "Жүктелуде...",
     },

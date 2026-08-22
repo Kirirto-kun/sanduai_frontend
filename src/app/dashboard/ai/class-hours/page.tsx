@@ -13,10 +13,12 @@ import {
 } from "../../../../lib/api";
 import { LatexRenderer } from "../../../../components/LatexRenderer";
 import { useTokens } from "../../../../hooks/useTokens";
-import { errorMessageIncludes, getErrorMessage } from "../../../../lib/error-utils";
+import { errorMessageIncludes } from "../../../../lib/error-utils";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 export default function ClassHoursPage() {
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
 
   // Form state
@@ -89,7 +91,7 @@ export default function ClassHoursPage() {
       } else if (errorMessageIncludes(err, "401") || errorMessageIncludes(err, "auth")) {
         setError(t.classHour.errors.auth);
       } else {
-        setError(getErrorMessage(err, t.classHour.errors.generic));
+        setError(toTeacherErrorMessage(err, t.classHour.errors.generic));
       }
     } finally {
       setIsLoading(false);
@@ -174,7 +176,7 @@ export default function ClassHoursPage() {
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(getErrorMessage(err, t.classHour.errors.generic));
+        setError(toTeacherErrorMessage(err, t.classHour.errors.generic));
       }
     } finally {
       setIsRegenerating(false);
@@ -199,7 +201,7 @@ export default function ClassHoursPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, t.classHour.errors.generic));
+      setError(toTeacherErrorMessage(err, t.classHour.errors.generic));
     }
   };
 

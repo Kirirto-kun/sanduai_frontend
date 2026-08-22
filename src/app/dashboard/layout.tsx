@@ -8,8 +8,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage, useTranslations } from "../../i18n/LanguageContext";
 import { TokenBalance } from "../../components/TokenBalance";
-import { COMMON_GROUPS, NavGroup, NavItem, SEGMENTS, SegmentKey } from "../../i18n/navigation";
+import { COMMON_GROUPS, NavGroup, NavItem, resolveNavAccess, SEGMENTS, SegmentKey } from "../../i18n/navigation";
 import { useSegment } from "../../hooks/useSegment";
+import { useTokens } from "../../hooks/useTokens";
+import { classifyRouteAccess, decideRouteAccess } from "../../lib/access-policy";
 
 const DESKTOP_MEDIA_QUERY = "(min-width: 768px)";
 
@@ -46,6 +48,12 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
   const syncedQuerySegment = useRef<SegmentKey | null>(null);
   const pendingQuerySegment = useRef<SegmentKey | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const {
+    hasSubscription,
+    loading: subscriptionLoading,
+    error: subscriptionError,
+    refreshBalance,
+  } = useTokens({ requireFreshSubscription: true });
 
   const [queryClient] = useState(
     () =>
@@ -122,6 +130,13 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
 
   if (!isAuthenticated) return null;
 
+  const accessDecision = decideRouteAccess({
+    policy: classifyRouteAccess(pathname),
+    isAuthenticated,
+    isAdmin: user?.role === "admin",
+    hasSubscription,
+  });
+
   const resolveHref = (href: string) => {
     const [hrefPath, hrefQuery = ""] = href.split("?");
     if (hrefPath !== "/dashboard/library/catalog") return href;
@@ -156,15 +171,22 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
     }
   };
 
-  const renderItem = (item: NavItem, onNavigate?: () => void) => {
+  const renderItem = (item: NavItem, group: NavGroup, onNavigate?: () => void) => {
     const href = resolveHref(item.href);
     const active = isActive(href);
+    const subscriptionLocked =
+      resolveNavAccess(item, group) === "subscription" &&
+      user?.role !== "admin" &&
+      hasSubscription !== true;
     return (
       <Link
         key={item.key}
         href={href}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
+        aria-label={subscriptionLocked
+          ? `${item.label[language]} — ${language === "kk" ? "жазылым қажет" : "нужна подписка"}`
+          : undefined}
         className={`group flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-[13px] font-medium transition ${
           active
             ? "bg-[color:var(--primary)] text-white shadow-sm"
@@ -190,6 +212,16 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
             }`}
           >
             {language === "kk" ? "жаңа" : "ново"}
+          </span>
+        )}
+        {subscriptionLocked && !item.soon && (
+          <span
+            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
+              active ? "bg-white/25 text-white" : "bg-amber-100 text-amber-800"
+            }`}
+            aria-hidden="true"
+          >
+            🔒
           </span>
         )}
       </Link>
@@ -244,7 +276,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
             </button>
             {!isCollapsed && (
               <div id={`dashboard-nav-group-${group.key}`} className="mt-0.5 space-y-0.5">
-                {group.items.map((item) => renderItem(item, onNavigate))}
+                {group.items.map((item) => renderItem(item, group, onNavigate))}
               </div>
             )}
           </div>
@@ -336,10 +368,15 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
             </button>
           </div>
 
-          <div className="mt-4 inline-flex w-full rounded-full bg-[rgba(255,255,255,0.9)] p-1 shadow-sm ring-1 ring-black/5">
+          <div
+            role="group"
+            aria-label={language === "kk" ? "Интерфейс тілі" : "Язык интерфейса"}
+            className="mt-4 inline-flex w-full rounded-full bg-[rgba(255,255,255,0.9)] p-1 shadow-sm ring-1 ring-black/5"
+          >
             <button
               type="button"
               onClick={() => setLanguage("ru")}
+              aria-pressed={language === "ru"}
               className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition ${
                 language === "ru"
                   ? "bg-[color:var(--primary)] text-white shadow"
@@ -351,6 +388,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => setLanguage("kk")}
+              aria-pressed={language === "kk"}
               className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition ${
                 language === "kk"
                   ? "bg-[color:var(--secondary)] text-white shadow"
@@ -395,6 +433,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label={t.dashboard.searchPlaceholder}
               placeholder={t.dashboard.searchPlaceholder}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
             />
@@ -427,6 +466,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => setLanguage(language === "ru" ? "kk" : "ru")}
+                aria-label={language === "kk" ? "Тілді ауыстыру" : "Сменить язык"}
                 className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 shadow-sm transition hover:border-[color:var(--primary)] hover:text-[color:var(--primary)] sm:px-3 sm:py-1.5 sm:text-xs"
               >
                 {language === "ru" ? "RU / KZ" : "KZ / RU"}
@@ -451,7 +491,67 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          <main className="px-2 pb-10 pt-4 sm:px-4 md:px-6 lg:px-8">{children}</main>
+          <main className="px-2 pb-10 pt-4 sm:px-4 md:px-6 lg:px-8">
+            {accessDecision === "pending" ? (
+              <section className="mx-auto max-w-2xl rounded-3xl border border-white/70 bg-white/95 px-6 py-12 text-center shadow-sm" aria-live="polite">
+                {subscriptionLoading ? (
+                  <>
+                    <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[color:var(--primary)] border-r-transparent" />
+                    <p className="mt-4 text-sm font-semibold text-slate-700">
+                      {language === "kk" ? "Жазылым тексерілуде…" : "Проверяем подписку…"}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-semibold text-slate-900">
+                      {language === "kk" ? "Жазылымды тексеру мүмкін болмады" : "Не удалось проверить подписку"}
+                    </h2>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      {language === "kk"
+                        ? "Интернет байланысын тексеріп, қайта көріңіз. Дайын материалдар растаудан кейін ашылады."
+                        : "Проверьте интернет и попробуйте снова. Готовые материалы откроются после проверки."}
+                    </p>
+                    {subscriptionError && (
+                      <button
+                        type="button"
+                        onClick={refreshBalance}
+                        className="mt-5 min-h-11 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white"
+                      >
+                        {language === "kk" ? "Қайта тексеру" : "Проверить снова"}
+                      </button>
+                    )}
+                  </>
+                )}
+              </section>
+            ) : accessDecision === "subscribe" ? (
+              <section className="mx-auto max-w-2xl rounded-3xl border border-amber-200 bg-white/95 px-6 py-12 text-center shadow-sm">
+                <div className="text-4xl" aria-hidden="true">🔒</div>
+                <h2 className="mt-4 text-2xl font-semibold text-slate-900">
+                  {language === "kk" ? "Дайын материалдарға жазылым қажет" : "Для готовых материалов нужна подписка"}
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  {language === "kk"
+                    ? "Монеталарыңыз ЖИ арқылы жаңа материалдар жасауға қолжетімді. Дайын кітапхананы ашу үшін жазылымды қосыңыз."
+                    : "Ваши монеты доступны для создания новых материалов с ИИ. Чтобы открыть готовую библиотеку, подключите подписку."}
+                </p>
+                <Link
+                  href="/dashboard/profile"
+                  className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-5 py-2.5 text-sm font-semibold text-white"
+                >
+                  {language === "kk" ? "Профильді ашу" : "Открыть профиль"}
+                </Link>
+              </section>
+            ) : accessDecision === "forbidden" ? (
+              <section className="mx-auto max-w-2xl rounded-3xl border border-red-200 bg-white/95 px-6 py-12 text-center shadow-sm">
+                <h2 className="text-xl font-semibold text-slate-900">
+                  {language === "kk" ? "Бұл бөлімге қол жеткізуге болмайды" : "Нет доступа к этому разделу"}
+                </h2>
+                <Link href="/dashboard" className="mt-5 inline-flex min-h-11 items-center font-semibold text-[color:var(--primary)]">
+                  {language === "kk" ? "Басты бетке оралу" : "Вернуться на главную"}
+                </Link>
+              </section>
+            ) : children}
+          </main>
         </div>
       </div>
     </QueryClientProvider>

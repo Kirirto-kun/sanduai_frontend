@@ -13,10 +13,12 @@ import {
   InsufficientTokensError,
 } from "../../../../lib/api";
 import { useTokens } from "../../../../hooks/useTokens";
-import { errorMessageIncludes, getErrorMessage } from "../../../../lib/error-utils";
+import { errorMessageIncludes } from "../../../../lib/error-utils";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 export default function LessonPlanPage() {
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const { costs, balance, checkBalance, refreshBalance } = useTokens();
 
   // Helper function to safely render neuro_exercise
@@ -99,7 +101,7 @@ export default function LessonPlanPage() {
         textbook_images: [...(prev.textbook_images || []), ...base64Images],
       }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка загрузки изображений");
+      setError(toTeacherErrorMessage(err));
     }
   };
 
@@ -208,7 +210,7 @@ export default function LessonPlanPage() {
       } else if (errorMessageIncludes(err, "401") || errorMessageIncludes(err, "auth")) {
         setError(t.lessonPlan.errors.auth);
       } else {
-        setError(getErrorMessage(err, t.lessonPlan.errors.generic));
+        setError(toTeacherErrorMessage(err, t.lessonPlan.errors.generic));
       }
     } finally {
       setIsLoading(false);
@@ -358,7 +360,7 @@ export default function LessonPlanPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, t.lessonPlan.errors.generic));
+      setError(toTeacherErrorMessage(err, t.lessonPlan.errors.generic));
     }
   };
 

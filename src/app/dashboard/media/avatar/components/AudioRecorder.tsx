@@ -2,7 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { chatWithYbyraiStream, YbyraiLanguage } from "../../../../../lib/api";
-import { errorMessageIncludes, getErrorMessage } from "../../../../../lib/error-utils";
+import { useLanguage } from "@/i18n/LanguageContext";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import type { TeacherFacingError } from "@/lib/teacher-facing-error";
 
 interface AudioRecorderProps {
   language: YbyraiLanguage;
@@ -20,6 +22,8 @@ export function AudioRecorder({
   onProcessing,
   onSpeaking,
 }: AudioRecorderProps) {
+  const { language: uiLanguage } = useLanguage();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -196,28 +200,40 @@ export function AudioRecorder({
             }
           }, 100);
         },
-        onError: (error: string) => {
+        onError: (error: TeacherFacingError) => {
           onSpeaking?.(false);
           setIsProcessing(false);
           onProcessing(false);
-          if (error.includes("Insufficient tokens")) {
-            onError("Недостаточно токенов. Пожалуйста, пополните баланс.");
-          } else {
-            onError(error || "Ошибка при обработке аудио. Попробуйте еще раз.");
-          }
+          onError(
+            toTeacherErrorMessage(error, undefined, {
+              insufficientCoins:
+                uiLanguage === "kk"
+                  ? "Монета жеткіліксіз. Балансты толтырып, қайталап көріңіз."
+                  : "Недостаточно монет. Пополните баланс и попробуйте снова.",
+            }),
+          );
         },
-      });
+      }, uiLanguage);
     } catch (err: unknown) {
       console.error("Error processing audio:", err);
       onSpeaking?.(false);
       setIsProcessing(false);
       onProcessing(false);
 
-      if (errorMessageIncludes(err, "Insufficient tokens")) {
-        onError("Недостаточно токенов. Пожалуйста, пополните баланс.");
-      } else {
-        onError(getErrorMessage(err, "Ошибка при обработке аудио. Попробуйте еще раз."));
-      }
+      onError(
+        toTeacherErrorMessage(
+          err,
+          uiLanguage === "kk"
+            ? "Дыбысты өңдеу мүмкін болмады. Қайталап көріңіз."
+            : "Не удалось обработать аудио. Попробуйте ещё раз.",
+          {
+            insufficientCoins:
+              uiLanguage === "kk"
+                ? "Монета жеткіліксіз. Балансты толтырып, қайталап көріңіз."
+                : "Недостаточно монет. Пополните баланс и попробуйте снова.",
+          },
+        ),
+      );
     }
   };
 
@@ -241,6 +257,7 @@ export function AudioRecorder({
     <div className="flex flex-col items-center gap-4">
       {!isRecording && !isProcessing && (
         <button
+          type="button"
           onClick={startRecording}
           className="flex items-center justify-center w-20 h-20 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-all duration-200 hover:scale-105"
           aria-label="Начать запись"
@@ -262,6 +279,7 @@ export function AudioRecorder({
       {isRecording && (
         <div className="flex items-center gap-4">
           <button
+            type="button"
             onClick={stopRecording}
             className="flex items-center justify-center w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-lg transition-all duration-200 animate-pulse"
             aria-label="Остановить запись"
@@ -278,6 +296,7 @@ export function AudioRecorder({
             <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
           </div>
           <button
+            type="button"
             onClick={handleStop}
             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition-colors"
           >

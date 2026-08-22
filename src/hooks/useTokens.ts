@@ -20,7 +20,8 @@ import {
   clearCachedBalance,
 } from "../lib/tokenCache";
 
-export function useTokens() {
+export function useTokens(options: { requireFreshSubscription?: boolean } = {}) {
+  const requireFreshSubscription = options.requireFreshSubscription === true;
   const [balance, setBalance] = useState<number | null>(null);
   const [costs, setCosts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -33,20 +34,30 @@ export function useTokens() {
     const token = getToken();
     if (!token) {
       setBalance(null);
+      setHasSubscription(null);
+      setSubscriptionEnd(null);
+      setSubscriptionPlan(null);
       setLoading(false);
       return;
     }
+    setLoading(true);
 
     // Сначала загружаем из кэша для мгновенного отображения
     const cachedBalance = getCachedBalance();
     if (cachedBalance) {
       setBalance(cachedBalance.balance);
-      setHasSubscription(cachedBalance.has_subscription);
-      setSubscriptionEnd(cachedBalance.subscription_end);
-      setSubscriptionPlan(cachedBalance.subscription_plan);
+      if (!requireFreshSubscription) {
+        setHasSubscription(cachedBalance.has_subscription);
+        setSubscriptionEnd(cachedBalance.subscription_end);
+        setSubscriptionPlan(cachedBalance.subscription_plan);
+      } else {
+        setHasSubscription(null);
+        setSubscriptionEnd(null);
+        setSubscriptionPlan(null);
+      }
       
       // Если кэш актуален (не старше TTL), не делаем запрос к серверу
-      if (isBalanceCacheValid()) {
+      if (isBalanceCacheValid() && !requireFreshSubscription) {
         setLoading(false);
         return;
       }
@@ -84,9 +95,15 @@ export function useTokens() {
       // Если fetch не удался, используем кэш (если он есть)
       if (cachedBalance) {
         setBalance(cachedBalance.balance);
-        setHasSubscription(cachedBalance.has_subscription);
-        setSubscriptionEnd(cachedBalance.subscription_end);
-        setSubscriptionPlan(cachedBalance.subscription_plan);
+        if (!requireFreshSubscription) {
+          setHasSubscription(cachedBalance.has_subscription);
+          setSubscriptionEnd(cachedBalance.subscription_end);
+          setSubscriptionPlan(cachedBalance.subscription_plan);
+        } else {
+          setHasSubscription(null);
+          setSubscriptionEnd(null);
+          setSubscriptionPlan(null);
+        }
       } else {
         setBalance(null);
         setHasSubscription(null);
@@ -96,7 +113,7 @@ export function useTokens() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [requireFreshSubscription]);
 
   const fetchCosts = useCallback(async () => {
     // Сначала загружаем из кэша для мгновенного отображения
@@ -137,6 +154,9 @@ export function useTokens() {
     } else {
       setLoading(false);
       setBalance(null);
+      setHasSubscription(null);
+      setSubscriptionEnd(null);
+      setSubscriptionPlan(null);
       // Даже если пользователь не залогинен, можем загрузить costs из кэша
       // (они публичные и не требуют авторизации)
       const cachedCosts = getCachedCosts();
@@ -173,4 +193,3 @@ export function useTokens() {
     subscriptionPlan,
   };
 }
-

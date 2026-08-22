@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useLanguage } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { InsufficientTokensError } from "../../../../lib/api";
 import {
   generateScenario,
@@ -115,6 +116,7 @@ const TEXT = {
 
 export default function ScenarioPage() {
   const { language } = useLanguage();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const t = TEXT[language];
   const { costs, balance, refreshBalance } = useTokens();
 
@@ -174,7 +176,7 @@ export default function ScenarioPage() {
       if (err instanceof InsufficientTokensError) {
         setError(`${t.noTokens}: ${err.required} / ${err.available}`);
       } else {
-        setError(err instanceof Error ? err.message : String(err));
+        setError(toTeacherErrorMessage(err));
       }
     } finally {
       setLoading(false);

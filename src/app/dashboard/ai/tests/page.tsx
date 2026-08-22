@@ -13,10 +13,12 @@ import {
   type QuizTask,
 } from "../../../../lib/api";
 import { LatexRenderer } from "../../../../components/LatexRenderer";
-import { errorMessageIncludes, getErrorMessage } from "../../../../lib/error-utils";
+import { errorMessageIncludes } from "../../../../lib/error-utils";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 export default function TestsPage() {
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
 
   // Mode state
   const [activeMode, setActiveMode] = useState<QuizSourceType>("topic");
@@ -135,7 +137,7 @@ export default function TestsPage() {
       if (errorMessageIncludes(err, "401") || errorMessageIncludes(err, "auth")) {
         setError(t.quiz.errors.auth);
       } else {
-        setError(getErrorMessage(err, t.quiz.errors.generic));
+        setError(toTeacherErrorMessage(err, t.quiz.errors.generic));
       }
     } finally {
       setIsLoading(false);
@@ -233,7 +235,7 @@ export default function TestsPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, t.quiz.errors.generic));
+      setError(toTeacherErrorMessage(err, t.quiz.errors.generic));
     }
   };
 

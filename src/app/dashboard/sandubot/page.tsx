@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useTranslations } from "../../../i18n/LanguageContext";
+import { useLanguage, useTranslations } from "../../../i18n/LanguageContext";
 import { useTokens } from "../../../hooks/useTokens";
 import {
   getSandubotHistory,
@@ -10,6 +10,8 @@ import {
   InsufficientTokensError,
 } from "../../../lib/api";
 import { BotMessageRenderer } from "../../../components/BotMessageRenderer";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import { TeacherFacingError } from "@/lib/teacher-facing-error";
 
 type Message = {
   role: "user" | "assistant";
@@ -19,6 +21,8 @@ type Message = {
 
 export default function SandubotPage() {
   const t = useTranslations();
+  const { language } = useLanguage();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const { refreshBalance, costs, balance } = useTokens();
   const [messages, setMessages] = useState<Message[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -59,7 +63,7 @@ export default function SandubotPage() {
       let fullText = "";
       let links: { label: string; href: string }[] | undefined;
 
-      for await (const event of sendSandubotMessageStream(text)) {
+      for await (const event of sendSandubotMessageStream(text, language)) {
         if (event.type === "thinking") {
           setStreamingText(t.sandubot?.thinking || "Думаю...");
         } else if (event.type === "chunk") {
@@ -69,7 +73,7 @@ export default function SandubotPage() {
           links = event.links;
           setStreamingLinks(links);
         } else if (event.type === "error") {
-          throw new Error(event.message);
+          throw new TeacherFacingError(event.message);
         }
       }
 
@@ -86,7 +90,7 @@ export default function SandubotPage() {
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(err instanceof Error ? err.message : "Ошибка");
+        setError(toTeacherErrorMessage(err));
       }
       setMessages((prev) => prev.slice(0, -1));
     } finally {
@@ -197,6 +201,7 @@ export default function SandubotPage() {
         <div className="flex gap-2 max-w-3xl mx-auto">
           <input
             type="text"
+            aria-label={t.sandubot?.inputPlaceholder || "Введите сообщение"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}

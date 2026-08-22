@@ -11,10 +11,12 @@ import {
   generateLessonPlan,
   generateQuiz,
   generateRace,
+  generateSection,
   generateVoiceover,
   generateWorksheet,
   regenerateClassHourBlock,
   regenerateSection,
+  finalizeProject,
   reviseArticle,
   reviseEssay,
   sendSandubotMessage,
@@ -85,7 +87,9 @@ describe("paid request idempotency", () => {
       () => sendSandubotMessage("hello"),
       () => generateLessonPlan({} as Parameters<typeof generateLessonPlan>[0]),
       () => createProjectPlan({} as Parameters<typeof createProjectPlan>[0]),
+      () => generateSection({} as Parameters<typeof generateSection>[0]),
       () => regenerateSection({} as Parameters<typeof regenerateSection>[0]),
+      () => finalizeProject({ project_id: "project-1" }),
       () => generateWorksheet({} as Parameters<typeof generateWorksheet>[0]),
       () => generateRace({} as Parameters<typeof generateRace>[0]),
       () => generateImage({ prompt: "classroom" }),
@@ -124,5 +128,32 @@ describe("paid request idempotency", () => {
     stop();
 
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("sends the backend-required key on science section generation and finalization", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response("{}", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateSection({} as Parameters<typeof generateSection>[0]);
+    await finalizeProject({ project_id: "project-42" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toMatch(
+      /\/api\/v1\/science-project\/generate-section$/,
+    );
+    expect(String(fetchMock.mock.calls[1]?.[0])).toMatch(
+      /\/api\/v1\/science-project\/project-42\/finalize$/,
+    );
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(init?.method).toBe("POST");
+      expect(new Headers(init?.headers).get(IDEMPOTENCY_HEADER)).toMatch(UUID_V4);
+    }
   });
 });

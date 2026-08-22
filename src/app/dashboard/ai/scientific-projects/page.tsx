@@ -9,10 +9,11 @@ import {
   InsufficientTokensError,
 } from "../../../../lib/api";
 import { useTokens } from "../../../../hooks/useTokens";
-import { getErrorMessage } from "../../../../lib/error-utils";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 export default function ScientificProjectPage() {
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const router = useRouter();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
   const [loading, setLoading] = useState(false);
@@ -61,7 +62,7 @@ export default function ScientificProjectPage() {
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(getErrorMessage(err, t.scientificProject.errors.generic));
+        setError(toTeacherErrorMessage(err, t.scientificProject.errors.generic));
       }
     } finally {
       setLoading(false);

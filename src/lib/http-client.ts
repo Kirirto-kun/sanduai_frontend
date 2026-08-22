@@ -1,8 +1,9 @@
 import { notifyUnauthorizedOnce } from "./auth-session";
 
-// AI generation endpoints can legitimately take several minutes, so the
-// shared deadline is finite without being tuned like a conventional CRUD API.
-export const DEFAULT_HTTP_TIMEOUT_MS = 300_000;
+// Backend AI generation may run for up to 600 seconds. Keep the shared client
+// deadline finite but slightly longer so the backend remains authoritative.
+// Authentication refresh/logout use explicit short deadlines in api.ts.
+export const DEFAULT_HTTP_TIMEOUT_MS = 620_000;
 
 export const API_ERROR_CODES = {
   HTTP_ERROR: "HTTP_ERROR",

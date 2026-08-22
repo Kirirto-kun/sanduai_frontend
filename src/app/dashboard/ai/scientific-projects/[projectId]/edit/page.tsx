@@ -14,10 +14,11 @@ import {
 import Markdown from "react-markdown";
 import { useTokens } from "../../../../../../hooks/useTokens";
 import { InsufficientTokensError } from "../../../../../../lib/api";
-import { getErrorMessage } from "../../../../../../lib/error-utils";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 export default function EditProjectPage() {
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const params = useParams();
   const projectId = params.projectId as string;
   const { refreshBalance, costs, checkBalance } = useTokens();
@@ -38,7 +39,7 @@ export default function EditProjectPage() {
         const state: ProjectState = await getProjectStatus(projectId);
         if (active) setSections(state.sections || {});
       } catch (err: unknown) {
-        if (active) setError(getErrorMessage(err, "Ошибка загрузки"));
+        if (active) setError(toTeacherErrorMessage(err));
       } finally {
         if (active) setLoading(false);
       }
@@ -48,7 +49,7 @@ export default function EditProjectPage() {
     return () => {
       active = false;
     };
-  }, [projectId]);
+  }, [projectId, toTeacherErrorMessage]);
 
   const handleRegenerate = async (sectionType: string) => {
     if (!regenerateInstruction.trim()) {
@@ -80,7 +81,7 @@ export default function EditProjectPage() {
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(getErrorMessage(err, "Ошибка перегенерации"));
+        setError(toTeacherErrorMessage(err, t.scientificProject.errors.generic));
       }
     } finally {
       setRegenerating(null);
@@ -97,7 +98,7 @@ export default function EditProjectPage() {
       });
       setFinalized(res);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, "Ошибка финализации"));
+      setError(toTeacherErrorMessage(err, t.scientificProject.errors.generic));
     } finally {
       setFinalizing(false);
     }

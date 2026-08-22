@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "../../../../i18n/LanguageContext";
 import { generateVoiceover } from "../../../../lib/api";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 const ADAM_VOICE_ID = "pNInz6obpgDQGcFmaJgB";
 
@@ -78,6 +79,7 @@ function filterVoices(
 
 export default function VoiceoverPage() {
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const getVoiceLabel = useCallback(
     (nameKey: VoiceKey) => t.voiceover.voices[nameKey] ?? nameKey,
     [t.voiceover.voices]
@@ -137,9 +139,7 @@ export default function VoiceoverPage() {
       if (res.characters_used != null) setCharactersUsed(res.characters_used);
     } catch (err: unknown) {
       console.error(err);
-      setError(
-        err instanceof Error ? err.message : t.voiceover.errors.generic
-      );
+      setError(toTeacherErrorMessage(err, t.voiceover.errors.generic));
     } finally {
       setLoading(false);
     }

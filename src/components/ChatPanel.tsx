@@ -6,6 +6,7 @@ import { useTranslations } from "../i18n/LanguageContext";
 import { useTokens } from "../hooks/useTokens";
 import { sendSandubotMessage, InsufficientTokensError } from "../lib/api";
 import { BotMessageRenderer } from "./BotMessageRenderer";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 type Message = {
   role: "user" | "assistant";
@@ -19,6 +20,7 @@ type ChatPanelProps = {
 
 export function ChatPanel({ onClose }: ChatPanelProps) {
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const { refreshBalance, costs, balance } = useTokens();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -57,7 +59,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(err instanceof Error ? err.message : "Ошибка");
+        setError(toTeacherErrorMessage(err));
       }
       setMessages((prev) => prev.slice(0, -1));
     } finally {
@@ -75,6 +77,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         <button
           type="button"
           onClick={onClose}
+          aria-label="Закрыть / Жабу"
           className="rounded-full p-1.5 text-white/90 hover:bg-white/20 transition"
         >
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,6 +156,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
         <div className="flex gap-2">
           <input
             type="text"
+            aria-label={t.sandubot?.inputPlaceholder || "Введите сообщение"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}

@@ -15,6 +15,7 @@ import {
   InsufficientTokensError,
 } from "../../../../lib/api";
 import { useTokens } from "../../../../hooks/useTokens";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 const GRADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 const LANGUAGES = [
@@ -40,6 +41,7 @@ type EditableSectionContent =
 export default function WorksheetsPage() {
   const { isAuthenticated } = useAuth();
   const t = useTranslations();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const { costs, balance, checkBalance, refreshBalance } = useTokens();
 
   // Form State
@@ -104,7 +106,7 @@ export default function WorksheetsPage() {
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(err instanceof Error ? err.message : t.worksheet.errors.generic);
+        setError(toTeacherErrorMessage(err, t.worksheet.errors.generic));
       }
     } finally {
       setLoading(false);

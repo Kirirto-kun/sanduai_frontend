@@ -11,10 +11,12 @@ import {
 import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
 import { TokenBalance } from "../../../../components/TokenBalance";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 export default function PhotoPage() {
   const t = useTranslations();
   const { language } = useLanguage();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState<GenerateImageResponse | null>(null);
@@ -46,7 +48,12 @@ export default function PhotoPage() {
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
         );
       } else {
-        setError(err instanceof Error ? err.message : (t.photoPage?.generationError || "Ошибка генерации изображения"));
+        setError(
+          toTeacherErrorMessage(
+            err,
+            t.photoPage?.generationError || "Ошибка генерации изображения",
+          ),
+        );
       }
     } finally {
       setLoading(false);
@@ -178,7 +185,9 @@ export default function PhotoPage() {
 
             {result.warning && (
               <div className="mb-4 rounded-xl bg-yellow-50 p-3 text-sm text-yellow-800">
-                {result.warning}
+                {language === "kk"
+                  ? "Сурет жасалды, бірақ нәтижені мұқият тексеріңіз."
+                  : "Изображение создано, но внимательно проверьте результат."}
               </div>
             )}
 
@@ -206,7 +215,11 @@ export default function PhotoPage() {
         {result && result.status === "error" && (
           <div className="glass-card rounded-3xl border border-red-200 bg-red-50 px-6 py-4 shadow-md sm:px-8">
             <div className="text-sm text-red-700">
-              <strong>{t.photoPage?.errorLabel || "Ошибка генерации:"}</strong> {result.error_message || (t.photoPage?.unknownError || "Неизвестная ошибка")}
+              <strong>{t.photoPage?.errorLabel || "Ошибка генерации:"}</strong>{" "}
+              {toTeacherErrorMessage(
+                result.error_message ? new Error(result.error_message) : null,
+                t.photoPage?.generationError || "Ошибка генерации изображения",
+              )}
             </div>
           </div>
         )}

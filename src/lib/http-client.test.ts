@@ -6,6 +6,7 @@ import {
 } from "./auth-session";
 import {
   API_ERROR_CODES,
+  DEFAULT_HTTP_TIMEOUT_MS,
   configureAuthRefresh,
   requestJson,
   resetAuthRefreshForTests,
@@ -22,6 +23,10 @@ describe("requestJson", () => {
     vi.unstubAllGlobals();
     resetAuthSessionNotifications();
     resetAuthRefreshForTests();
+  });
+
+  it("keeps the shared AI deadline just beyond the backend 600 second limit", () => {
+    expect(DEFAULT_HTTP_TIMEOUT_MS).toBe(620_000);
   });
 
   it("returns a stable timeout error when the deadline expires", async () => {
