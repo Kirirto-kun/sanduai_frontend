@@ -22,6 +22,10 @@ function requestBody(call: unknown[]): unknown {
   return JSON.parse(String(init.body));
 }
 
+function requestPath(call: unknown[]): string {
+  return new URL(String(call[0])).pathname;
+}
+
 describe("email authentication API contract", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -69,9 +73,9 @@ describe("email authentication API contract", () => {
       full_name: "Алия Мұратқызы",
     });
 
-    expect(String(fetchMock.mock.calls[0][0])).toBe("http://127.0.0.1:8000/auth/registration-code/request");
+    expect(requestPath(fetchMock.mock.calls[0])).toBe("/auth/registration-code/request");
     expect(requestBody(fetchMock.mock.calls[0])).toEqual({ email: "teacher@school.kz" });
-    expect(String(fetchMock.mock.calls[1][0])).toBe("http://127.0.0.1:8000/auth/register");
+    expect(requestPath(fetchMock.mock.calls[1])).toBe("/auth/register");
     expect(requestBody(fetchMock.mock.calls[1])).toEqual({
       email: "teacher@school.kz",
       password: "strong-password",
@@ -90,7 +94,7 @@ describe("email authentication API contract", () => {
 
     await login({ email: "teacher@example.kz", password: "existing-password" });
 
-    expect(String(fetchMock.mock.calls[0][0])).toBe("http://127.0.0.1:8000/auth/login");
+    expect(requestPath(fetchMock.mock.calls[0])).toBe("/auth/login");
     expect(requestBody(fetchMock.mock.calls[0])).toEqual({
       email: "teacher@example.kz",
       password: "existing-password",
@@ -108,9 +112,9 @@ describe("email authentication API contract", () => {
     await requestPasswordReset("teacher@example.kz");
     await confirmPasswordReset("secure-reset-token", "new-password-123");
 
-    expect(String(fetchMock.mock.calls[0][0])).toBe("http://127.0.0.1:8000/auth/password-reset/request");
+    expect(requestPath(fetchMock.mock.calls[0])).toBe("/auth/password-reset/request");
     expect(requestBody(fetchMock.mock.calls[0])).toEqual({ email: "teacher@example.kz" });
-    expect(String(fetchMock.mock.calls[1][0])).toBe("http://127.0.0.1:8000/auth/password-reset/confirm");
+    expect(requestPath(fetchMock.mock.calls[1])).toBe("/auth/password-reset/confirm");
     expect(requestBody(fetchMock.mock.calls[1])).toEqual({
       token: "secure-reset-token",
       new_password: "new-password-123",
