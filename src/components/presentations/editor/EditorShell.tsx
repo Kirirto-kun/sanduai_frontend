@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -22,17 +22,7 @@ import SlideToolbar from "./SlideToolbar";
 import ClassicEditPanel from "./AiEditPanel";
 import CreativeReviewPanel from "./SlideContentRenderer";
 import ExportDialog from "./ExportDialog";
-
-function generationJobId(project: PresentationProject, explicit?: string | null) {
-  if (project.latest_job && ["generate", "regenerate"].includes(project.latest_job.kind ?? "")) {
-    return project.latest_job.job_id ?? project.latest_job.id;
-  }
-  if (explicit) return explicit;
-  if (project.active_generation?.job_id) return project.active_generation.job_id;
-  const value = project.generation_job_id ?? project.active_job_id;
-  if (typeof value === "string") return value;
-  return null;
-}
+import { generationJobId, isActivePresentationJob } from "./editor-state";
 
 function slidesForProject(project: PresentationProject): PresentationSlide[] {
   if (project.slides?.length) {
@@ -92,6 +82,13 @@ export default function EditorShell({
   const [themeId, setThemeId] = useState(project.theme_id ?? "academic_blue");
   const [exportOpen, setExportOpen] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const derivedJobId = generationJobId(project, explicitJobId);
   const [sessionJobId, setSessionJobId] = useState<string | null>(null);
   const jobId = sessionJobId ?? derivedJobId;
@@ -113,7 +110,10 @@ export default function EditorShell({
     ? { ...selected, spec: drafts[selected.slide_key] }
     : selected;
   const completed = slides.filter((slide) => ["ready", "accepted", "needs_review"].includes(slide.status)).length;
-  const job: JobState | null = jobQuery.data ?? (project.active_generation?.status
+  const latestGenerationJob = project.latest_job && ["generate", "regenerate"].includes(project.latest_job.kind ?? "")
+    ? project.latest_job
+    : null;
+  const job: JobState | null = jobQuery.data ?? latestGenerationJob ?? (project.active_generation?.status
     ? {
         id: jobId ?? project.active_generation.id ?? "generation",
         status: project.active_generation.status,
@@ -122,14 +122,10 @@ export default function EditorShell({
       }
     : null);
   const normalizedJobStatus = job?.status.toLowerCase();
+  const jobActive = isActivePresentationJob(job);
+  const editingLocked = jobActive || isActivePresentationJob(project.latest_job);
   const failedJob = (normalizedJobStatus === "failed" || normalizedJobStatus === "error") && job?.kind !== "regenerate";
-  const regenerationActive = job?.kind === "regenerate" && ![
-    "completed",
-    "completed_with_errors",
-    "failed",
-    "error",
-    "cancelled",
-  ].includes(normalizedJobStatus ?? "");
+  const regenerationActive = job?.kind === "regenerate" && jobActive;
   const failedSlides = slides.filter((slide) => slide.status.toLowerCase() === "failed");
   const firstFailedSlide = failedSlides[0] ?? null;
   const allSlidesReady = slides.length > 0 && slides.every((slide) =>
@@ -138,10 +134,10 @@ export default function EditorShell({
   const projectAllowsExport = ["ready", "review_required", "needs_review", "partial_failed", "completed"].includes(
     project.status.toLowerCase(),
   );
-  const canExport = projectAllowsExport && allSlidesReady && !regenerationActive;
+  const canExport = projectAllowsExport && allSlidesReady && !editingLocked;
   const exportBlockedReason = failedSlides.length > 0
     ? copy.exportBlocked
-    : !allSlidesReady || regenerationActive
+    : !allSlidesReady || editingLocked
       ? copy.generationNotFinished
       : undefined;
 
@@ -151,6 +147,7 @@ export default function EditorShell({
   }, []);
 
   const trackJob = useCallback((nextJobId: string) => {
+    if (!mountedRef.current) return;
     setRecoveryError(null);
     setSessionJobId(nextJobId);
     router.replace(
@@ -171,6 +168,16 @@ export default function EditorShell({
     }
   };
 
+  const cancelGeneration = () => {
+    if (!jobId) return;
+    setRecoveryError(null);
+    cancelMutation.mutate(jobId, {
+      onError: (caught) => {
+        setRecoveryError(presentationErrorMessage(caught, copy));
+      },
+    });
+  };
+
   return (
     <div className="space-y-4">
       {job && (
@@ -179,7 +186,7 @@ export default function EditorShell({
           completed={completed}
           total={slides.length}
           cancelling={cancelMutation.isPending}
-          onCancel={jobId ? () => cancelMutation.mutate(jobId) : undefined}
+          onCancel={jobId ? cancelGeneration : undefined}
         />
       )}
 
@@ -230,8 +237,9 @@ export default function EditorShell({
                 key={selected.slide_key}
                 presentationId={project.id}
                 slide={displaySlide ?? selected}
+                persistedSlide={selected}
                 themeId={themeId}
-                regenerationActive={regenerationActive}
+                regenerationActive={editingLocked}
                 onThemeChange={setThemeId}
                 onDraftChange={(spec, dirty) => updateDraft(selected.slide_key, spec, dirty)}
                 onJobStarted={trackJob}
@@ -241,7 +249,7 @@ export default function EditorShell({
               <CreativeReviewPanel
                 presentationId={project.id}
                 slide={selected}
-                regenerationActive={regenerationActive}
+                regenerationActive={editingLocked}
                 onJobStarted={trackJob}
               />
             )}

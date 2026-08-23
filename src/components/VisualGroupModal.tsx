@@ -7,6 +7,8 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import type { VisualItem, VisualMaterial } from "../lib/api";
 import { downloadVisualGroupZip, getVisualGroup } from "../lib/api";
+import { useLanguage } from "../i18n/LanguageContext";
+import { teacherFacingErrorMessage } from "../lib/teacher-facing-error";
 
 interface VisualGroupModalProps {
   item: VisualItem;
@@ -14,27 +16,41 @@ interface VisualGroupModalProps {
 }
 
 export function VisualGroupModal({ item, onClose }: VisualGroupModalProps) {
+  const { language } = useLanguage();
   const [downloading, setDownloading] = useState(false);
   const [materials, setMaterials] = useState<VisualMaterial[]>(item.materials ?? []);
+  const [error, setError] = useState<string | null>(null);
 
   // Sync materials when item changes; fetch full group if list didn't include materials
   useEffect(() => {
+    let active = true;
+    setError(null);
     if (item.materials?.length) {
       setMaterials(item.materials);
     } else if (item.slug) {
-      getVisualGroup(item.slug).then((group) => setMaterials(group.materials ?? []));
+      void getVisualGroup(item.slug)
+        .then((group) => {
+          if (active) setMaterials(group.materials ?? []);
+        })
+        .catch((caught) => {
+          if (active) setError(teacherFacingErrorMessage(caught, language));
+        });
     } else {
       setMaterials([]);
     }
-  }, [item.id, item.slug, item.materials]);
+    return () => {
+      active = false;
+    };
+  }, [item.id, item.slug, item.materials, language]);
 
   const handleDownloadZip = async () => {
     if (!item.slug) return;
     setDownloading(true);
+    setError(null);
     try {
       await downloadVisualGroupZip(item.slug);
     } catch (err) {
-      console.error("Download failed:", err);
+      setError(teacherFacingErrorMessage(err, language));
     } finally {
       setDownloading(false);
     }
@@ -109,8 +125,13 @@ export function VisualGroupModal({ item, onClose }: VisualGroupModalProps) {
                 );
               })}
             </div>
-          ) : (
+          ) : !error ? (
             <p className="text-sm text-slate-500">Загрузка списка файлов...</p>
+          ) : null}
+          {error && (
+            <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
           )}
         </div>
 

@@ -10,10 +10,8 @@ import {
   ReactNode,
 } from "react";
 import {
-  AuthResponse,
-  clearToken,
-  clearUser,
-  decodeJWT,
+  forceLocalLogout,
+  getRestoredSessionUser,
   getToken,
   getUser,
   login as apiLogin,
@@ -22,13 +20,14 @@ import {
   refreshSession,
   register as apiRegister,
   type RegisterPayload,
-  saveToken,
-  saveUser,
-  UserData,
 } from "../lib/api";
-import { subscribeToUnauthorized } from "../lib/auth-session";
+import {
+  hasAuthLogoutTombstone,
+  markAuthSessionActive,
+  subscribeToAuthSessionChanges,
+  subscribeToUnauthorized,
+} from "../lib/auth-session";
 import { resolveBootstrapUser } from "../lib/auth-token";
-import { clearCachedBalance } from "../lib/tokenCache";
 
 type User = {
   userId: string;
@@ -59,21 +58,33 @@ export function AuthProvider({ children }: ProviderProps) {
 
   useEffect(() => {
     let cancelled = false;
+    let localSessionRevision = 0;
     const unsubscribe = subscribeToUnauthorized(() => {
-      clearToken();
-      clearUser();
-      clearCachedBalance();
-      setUser((currentUser) => (currentUser === null ? currentUser : null));
+      void apiLogoutSession().catch(() => {
+        if (!hasAuthLogoutTombstone()) forceLocalLogout("unauthorized_uncoordinated");
+        setUser(null);
+        setLoading(false);
+      });
+    });
+
+    const unsubscribeFromAuthChanges = subscribeToAuthSessionChanges(() => {
+      localSessionRevision += 1;
+      const restoredUser = getRestoredSessionUser();
+      if (restoredUser) markAuthSessionActive();
+      setUser(restoredUser);
       setLoading(false);
-      void apiLogoutSession();
     });
 
     void (async () => {
-      let token = getToken();
-      const cachedUser = getUser();
-      let restoredUser = resolveBootstrapUser(token, cachedUser);
+      const bootstrapRevision = localSessionRevision;
+      const hasLogoutIntent = hasAuthLogoutTombstone();
+      let token = hasLogoutIntent ? null : getToken();
+      const cachedUser = hasLogoutIntent ? null : getUser();
+      let restoredUser = hasLogoutIntent
+        ? null
+        : resolveBootstrapUser(token, cachedUser);
 
-      if (!restoredUser) {
+      if (!restoredUser && !hasLogoutIntent) {
         const refreshed = await refreshSession();
         token = refreshed?.token ?? null;
         const fallbackUser = refreshed
@@ -85,58 +96,29 @@ export function AuthProvider({ children }: ProviderProps) {
         restoredUser = resolveBootstrapUser(token, fallbackUser);
       }
 
-      if (cancelled) return;
-      if (restoredUser) {
-        saveUser(restoredUser);
-        setUser(restoredUser);
-      } else {
-        clearToken();
-        clearUser();
-        clearCachedBalance();
-        setUser(null);
-      }
+      if (cancelled || bootstrapRevision !== localSessionRevision) return;
+      setUser(restoredUser);
       setLoading(false);
     })();
 
     return () => {
       cancelled = true;
       unsubscribe();
+      unsubscribeFromAuthChanges();
     };
   }, []);
-
-  const handleAuthSuccess = useCallback(
-    (
-      data: AuthResponse,
-      extra?: { phone?: string; email?: string; full_name?: string },
-    ) => {
-      clearCachedBalance();
-      saveToken(data.token);
-      // Decode role from token
-      const decoded = decodeJWT(data.token);
-      const userData: UserData = {
-        userId: data.user_id,
-        phone: extra?.phone,
-        email: extra?.email,
-        fullName: extra?.full_name,
-        role: decoded?.role,
-      };
-      saveUser(userData);
-      setUser(userData);
-    },
-    [],
-  );
 
   const login = useCallback(
     async (payload: LoginPayload) => {
       setLoading(true);
       try {
         const data = await apiLogin(payload);
-        handleAuthSuccess(data, { email: payload.email });
+        setUser(resolveBootstrapUser(data.token, getUser()));
       } finally {
         setLoading(false);
       }
     },
-    [handleAuthSuccess],
+    [],
   );
 
   const register = useCallback(
@@ -144,24 +126,20 @@ export function AuthProvider({ children }: ProviderProps) {
       setLoading(true);
       try {
         const data = await apiRegister(payload);
-        handleAuthSuccess(data, {
-          phone: payload.phone,
-          email: payload.email,
-          full_name: payload.full_name,
-        });
+        setUser(resolveBootstrapUser(data.token, getUser()));
       } finally {
         setLoading(false);
       }
     },
-    [handleAuthSuccess],
+    [],
   );
 
   const logout = useCallback(() => {
-    clearToken();
-    clearUser();
-    clearCachedBalance();
-    setUser((currentUser) => (currentUser === null ? currentUser : null));
-    void apiLogoutSession();
+    void apiLogoutSession().catch(() => {
+      if (!hasAuthLogoutTombstone()) forceLocalLogout();
+      setUser(null);
+      setLoading(false);
+    });
   }, []);
 
   const value = useMemo<AuthContextValue>(

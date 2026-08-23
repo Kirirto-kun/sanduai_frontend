@@ -26,4 +26,21 @@ describe("resolveBootstrapUser", () => {
       role: "teacher",
     });
   });
+
+  it("requires a matching subject and never trusts a cached role over the token", () => {
+    const missingSubject = jwt({ exp: nowMs / 1000 + 60, role: "teacher" });
+    expect(resolveBootstrapUser(missingSubject, cachedUser, nowMs)).toBeNull();
+
+    const teacherToken = jwt({ sub: "teacher-1", exp: nowMs / 1000 + 60, role: "teacher" });
+    expect(resolveBootstrapUser(teacherToken, { ...cachedUser, role: "admin" }, nowMs)).toEqual({
+      ...cachedUser,
+      role: "teacher",
+    });
+
+    const tokenWithoutRole = jwt({ sub: "teacher-1", exp: nowMs / 1000 + 60 });
+    expect(resolveBootstrapUser(tokenWithoutRole, { ...cachedUser, role: "admin" }, nowMs)).toEqual({
+      ...cachedUser,
+      role: undefined,
+    });
+  });
 });

@@ -58,6 +58,17 @@ describe("presentation teacher-facing error copy", () => {
     expect(presentationErrorMessage(error, kk)).toBe(kk.exportSlidesNotReady);
   });
 
+  it("accepts the namespaced slides-not-ready server code", () => {
+    const error = apiError({
+      message: "hidden server detail",
+      status: 409,
+      code: API_ERROR_CODES.CONFLICT,
+      serverCode: "PRESENTATION_SLIDES_NOT_READY",
+    });
+    expect(isSlidesNotReadyError(error)).toBe(true);
+    expect(presentationErrorMessage(error, ru)).toBe(ru.exportSlidesNotReady);
+  });
+
   it("turns technical image checks into clear review guidance", () => {
     expect(
       qaWarningMessage({ message: "OCR provider unavailable: upstream 502" }, kk),

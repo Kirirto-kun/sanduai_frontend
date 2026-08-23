@@ -26,7 +26,7 @@ const fieldClassName =
   "min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-[color:var(--primary)] focus:ring-2 focus:ring-orange-200";
 
 export default function RegisterPage() {
-  const { register, loading: authLoading } = useAuth();
+  const { isAuthenticated, register, loading: authLoading } = useAuth();
   const { language } = useLanguage();
   const copy = authCopy(language);
   const router = useRouter();
@@ -48,6 +48,10 @@ export default function RegisterPage() {
     }, 1_000);
     return () => window.clearInterval(timer);
   }, [resendSeconds]);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) router.replace("/dashboard");
+  }, [authLoading, isAuthenticated, router]);
 
   const sendCode = async () => {
     const normalizedEmail = normalizeEmail(email);

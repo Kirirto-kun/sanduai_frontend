@@ -1,16 +1,27 @@
 import { getApiBase } from "./api-base";
-import { markAuthSessionActive } from "./auth-session";
-import { decodeJwtPayload, isUsableJwt } from "./auth-token";
+import {
+  AuthSessionCoordinationError,
+  clearAuthLogoutTombstone,
+  hasAuthLogoutTombstone,
+  markAuthLogoutTombstone,
+  markAuthSessionActive,
+  publishAuthSessionChange,
+  runAuthCookieTransition,
+} from "./auth-session";
+import { decodeJwtPayload, isUsableJwt, resolveBootstrapUser } from "./auth-token";
 import {
   apiErrorCodeForStatus,
   ApiRequestError,
   configureAuthRefresh,
+  configureAuthTokenReader,
   fetchWithPolicy,
   refreshAccessToken,
   requestJson,
+  API_ERROR_CODES,
   type ApiFailure,
 } from "./http-client";
 import { withIdempotencyKey } from "./idempotency";
+import { clearCachedBalance } from "./tokenCache";
 import {
   TeacherFacingError,
   teacherFacingErrorMessage,
@@ -594,10 +605,17 @@ async function request<T>(
   options: RequestInit & {
     auth?: boolean;
     skipAuthRefresh?: boolean;
+    notifyOnUnauthorized?: boolean;
     timeoutMs?: number | null;
   } = {},
 ): Promise<T> {
-  const { auth, skipAuthRefresh, timeoutMs, ...requestInit } = options;
+  const {
+    auth,
+    skipAuthRefresh,
+    notifyOnUnauthorized,
+    timeoutMs,
+    ...requestInit
+  } = options;
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
   if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
@@ -618,6 +636,7 @@ async function request<T>(
     credentials: "include",
   }, {
     attemptAuthRefresh: !skipAuthRefresh,
+    notifyOnUnauthorized,
     timeoutMs,
     errorFactory: requestError,
   });
@@ -633,12 +652,148 @@ async function paidRequest<T>(
   });
 }
 
+function assertAuthStorageAvailable(): void {
+  if (typeof window === "undefined") return;
+  const probeKey = "sanduai_auth_storage_probe";
+  try {
+    window.localStorage.setItem(probeKey, "1");
+    window.localStorage.removeItem(probeKey);
+  } catch {
+    throw new AuthSessionCoordinationError();
+  }
+}
+
+function validateAuthResponse(data: unknown): AuthResponse {
+  if (!data || typeof data !== "object") {
+    throw new ApiRequestError(
+      "The server returned an invalid authentication response.",
+      502,
+      data,
+      API_ERROR_CODES.INVALID_RESPONSE,
+    );
+  }
+  const candidate = data as Partial<AuthResponse>;
+  const claims = typeof candidate.token === "string"
+    ? decodeJwtPayload(candidate.token)
+    : null;
+  if (
+    typeof candidate.token !== "string" ||
+    typeof candidate.user_id !== "string" ||
+    candidate.user_id.length === 0 ||
+    !isUsableJwt(candidate.token) ||
+    claims?.sub !== candidate.user_id
+  ) {
+    throw new ApiRequestError(
+      "The server returned an invalid authentication response.",
+      502,
+      data,
+      API_ERROR_CODES.INVALID_RESPONSE,
+    );
+  }
+  return { token: candidate.token, user_id: candidate.user_id };
+}
+
+function commitAuthenticatedSession(
+  data: AuthResponse,
+  extra: { phone?: string; email?: string; full_name?: string } = {},
+  clearLogoutIntent: boolean,
+): AuthResponse {
+  const valid = validateAuthResponse(data);
+  const claims = decodeJwtPayload(valid.token);
+  clearCachedBalance();
+  saveToken(valid.token);
+  saveUser({
+    userId: valid.user_id,
+    phone: extra.phone,
+    email: extra.email,
+    fullName: extra.full_name,
+    role: typeof claims?.role === "string" ? claims.role : undefined,
+  });
+  if (clearLogoutIntent) clearAuthLogoutTombstone();
+  markAuthSessionActive();
+  publishAuthSessionChange();
+  return valid;
+}
+
+function commitLoggedOutSession(reason: string): void {
+  let firstError: unknown;
+  for (const operation of [
+    () => markAuthLogoutTombstone(reason),
+    clearToken,
+    clearUser,
+    clearCachedBalance,
+    publishAuthSessionChange,
+  ]) {
+    try {
+      operation();
+    } catch (error) {
+      firstError ??= error;
+    }
+  }
+  if (firstError) throw firstError;
+}
+
+/**
+ * Local fail-closed fallback for an old/unsupported browser. It deliberately
+ * performs no HTTP cookie mutation; the tombstone blocks future bootstrap
+ * refreshes until a successful, coordinated login or registration.
+ */
+export function forceLocalLogout(reason: string = "logout_uncoordinated"): void {
+  if (typeof window === "undefined") return;
+  try {
+    commitLoggedOutSession(reason);
+  } catch {
+    // Best effort when browser storage itself is unavailable. Never attempt a
+    // refresh from this page instance after clearing the in-memory UI state.
+  }
+}
+
+async function invalidateMalformedAuthResponse(error: unknown): Promise<never> {
+  try {
+    commitLoggedOutSession("invalid_auth_response");
+  } catch {
+    // Preserve the original response-validation error.
+  }
+  try {
+    await requestLogoutWithRetry();
+  } catch {
+    // The tombstone keeps bootstrap fail-closed if cookie revocation fails.
+  }
+  throw error;
+}
+
 export async function register(payload: RegisterPayload): Promise<AuthResponse> {
-  return request<AuthResponse>("/auth/register", {
-    method: "POST",
-    body: JSON.stringify(payload),
-    skipAuthRefresh: true,
-    timeoutMs: AUTH_HTTP_TIMEOUT_MS,
+  return runAuthCookieTransition(async () => {
+    assertAuthStorageAvailable();
+    let data: AuthResponse;
+    try {
+      data = await request<AuthResponse>("/auth/register", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        skipAuthRefresh: true,
+        notifyOnUnauthorized: false,
+        timeoutMs: AUTH_HTTP_TIMEOUT_MS,
+      });
+    } catch (error) {
+      if (
+        error instanceof ApiRequestError &&
+        error.code === API_ERROR_CODES.INVALID_RESPONSE &&
+        error.status >= 200 &&
+        error.status < 300
+      ) {
+        return invalidateMalformedAuthResponse(error);
+      }
+      throw error;
+    }
+    try {
+      return commitAuthenticatedSession(data, {
+        phone: payload.phone,
+        email: payload.email,
+        full_name: payload.full_name,
+      }, true);
+    } catch (error) {
+      return invalidateMalformedAuthResponse(error);
+    }
   });
 }
 
@@ -668,16 +823,39 @@ export async function requestRegistrationCode(email: string): Promise<Registrati
     method: "POST",
     body: JSON.stringify({ email }),
     skipAuthRefresh: true,
+    notifyOnUnauthorized: false,
     timeoutMs: AUTH_HTTP_TIMEOUT_MS,
   });
 }
 
 export async function login(payload: LoginPayload): Promise<AuthResponse> {
-  return request<AuthResponse>("/auth/login", {
-    method: "POST",
-    body: JSON.stringify(payload),
-    skipAuthRefresh: true,
-    timeoutMs: AUTH_HTTP_TIMEOUT_MS,
+  return runAuthCookieTransition(async () => {
+    assertAuthStorageAvailable();
+    let data: AuthResponse;
+    try {
+      data = await request<AuthResponse>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        skipAuthRefresh: true,
+        notifyOnUnauthorized: false,
+        timeoutMs: AUTH_HTTP_TIMEOUT_MS,
+      });
+    } catch (error) {
+      if (
+        error instanceof ApiRequestError &&
+        error.code === API_ERROR_CODES.INVALID_RESPONSE &&
+        error.status >= 200 &&
+        error.status < 300
+      ) {
+        return invalidateMalformedAuthResponse(error);
+      }
+      throw error;
+    }
+    try {
+      return commitAuthenticatedSession(data, { email: payload.email }, true);
+    } catch (error) {
+      return invalidateMalformedAuthResponse(error);
+    }
   });
 }
 
@@ -686,16 +864,22 @@ export async function requestPasswordReset(email: string): Promise<PasswordReset
     method: "POST",
     body: JSON.stringify({ email }),
     skipAuthRefresh: true,
+    notifyOnUnauthorized: false,
     timeoutMs: AUTH_HTTP_TIMEOUT_MS,
   });
 }
 
 export async function confirmPasswordReset(token: string, newPassword: string): Promise<void> {
-  return request<void>("/auth/password-reset/confirm", {
-    method: "POST",
-    body: JSON.stringify({ token, new_password: newPassword }),
-    skipAuthRefresh: true,
-    timeoutMs: AUTH_HTTP_TIMEOUT_MS,
+  return runAuthCookieTransition(async () => {
+    assertAuthStorageAvailable();
+    await request<void>("/auth/password-reset/confirm", {
+      method: "POST",
+      body: JSON.stringify({ token, new_password: newPassword }),
+      skipAuthRefresh: true,
+      notifyOnUnauthorized: false,
+      timeoutMs: AUTH_HTTP_TIMEOUT_MS,
+    });
+    commitLoggedOutSession("password_reset");
   });
 }
 
@@ -1386,73 +1570,139 @@ export async function exportWorksheetDocx(
 export function saveToken(token: string) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(TOKEN_KEY, token);
-  markAuthSessionActive();
 }
 
 export function getToken() {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(TOKEN_KEY);
-}
-
-export function clearToken() {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(TOKEN_KEY);
-}
-
-async function requestNewAccessToken(): Promise<string | null> {
   try {
-    const data = await requestJson<AuthResponse>(`${API_BASE}/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-      cache: "no-store",
-      headers: { Accept: "application/json" },
-    }, {
-      attemptAuthRefresh: false,
-      notifyOnUnauthorized: false,
-      timeoutMs: AUTH_HTTP_TIMEOUT_MS,
-      errorFactory: requestError,
-    });
-    if (
-      !data ||
-      typeof data.token !== "string" ||
-      typeof data.user_id !== "string" ||
-      !isUsableJwt(data.token) ||
-      decodeJwtPayload(data.token)?.sub !== data.user_id
-    ) {
-      return null;
-    }
-    saveToken(data.token);
-    return data.token;
+    return window.localStorage.getItem(TOKEN_KEY);
   } catch {
     return null;
   }
 }
 
+export function clearToken() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // hasAuthLogoutTombstone fails closed when storage itself is unavailable.
+  }
+}
+
+async function requestNewAccessToken(failedAccessToken?: string): Promise<string | null> {
+  return runAuthCookieTransition(async () => {
+    assertAuthStorageAvailable();
+    if (hasAuthLogoutTombstone()) return null;
+
+    const currentToken = getToken();
+    if (
+      failedAccessToken &&
+      currentToken &&
+      currentToken !== failedAccessToken &&
+      isUsableJwt(currentToken)
+    ) {
+      const failedSubject = decodeJwtPayload(failedAccessToken)?.sub;
+      const currentSubject = decodeJwtPayload(currentToken)?.sub;
+      return (
+        typeof failedSubject === "string" &&
+        failedSubject.length > 0 &&
+        failedSubject === currentSubject
+      )
+        ? currentToken
+        : null;
+    }
+
+    try {
+      const data = await requestJson<AuthResponse>(`${API_BASE}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      }, {
+        attemptAuthRefresh: false,
+        notifyOnUnauthorized: false,
+        timeoutMs: AUTH_HTTP_TIMEOUT_MS,
+        errorFactory: requestError,
+      });
+      const validated = validateAuthResponse(data);
+      const cachedUser = getUser();
+      const valid = commitAuthenticatedSession(validated, {
+        ...(cachedUser?.userId === validated.user_id ? {
+          phone: cachedUser.phone,
+          email: cachedUser.email,
+          full_name: cachedUser.fullName,
+        } : {}),
+      }, false);
+      return valid.token;
+    } catch (error) {
+      if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
+        commitLoggedOutSession("refresh_rejected");
+      } else if (
+        !(error instanceof ApiRequestError) ||
+        error.code === API_ERROR_CODES.INVALID_RESPONSE
+      ) {
+        try {
+          await invalidateMalformedAuthResponse(error);
+        } catch {
+          // The refresh contract exposes failure as null to its callers.
+        }
+      }
+      return null;
+    }
+  });
+}
+
 configureAuthRefresh(requestNewAccessToken);
+configureAuthTokenReader(getToken);
 
 export async function refreshSession(): Promise<AuthResponse | null> {
+  if (hasAuthLogoutTombstone()) return null;
   const token = await refreshAccessToken();
   const userId = token ? decodeJwtPayload(token)?.sub : undefined;
   return token && typeof userId === "string" ? { token, user_id: userId } : null;
 }
 
-export async function logoutSession(): Promise<void> {
-  try {
-    await requestJson<void>(`${API_BASE}/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-      cache: "no-store",
-      keepalive: true,
-      headers: { Accept: "application/json" },
-    }, {
-      attemptAuthRefresh: false,
-      notifyOnUnauthorized: false,
-      timeoutMs: AUTH_HTTP_TIMEOUT_MS,
-      errorFactory: requestError,
-    });
-  } finally {
-    clearToken();
+async function requestLogoutWithRetry(): Promise<void> {
+  const deadline = Date.now() + AUTH_HTTP_TIMEOUT_MS;
+  let finalError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    try {
+      await requestJson<void>(`${API_BASE}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        keepalive: true,
+        headers: { Accept: "application/json" },
+      }, {
+        attemptAuthRefresh: false,
+        notifyOnUnauthorized: false,
+        timeoutMs: Math.min(5_000, remainingMs),
+        errorFactory: requestError,
+      });
+      return;
+    } catch (error) {
+      finalError = error;
+    }
   }
+  throw finalError ?? new ApiRequestError(
+    "Logout timed out.",
+    0,
+    undefined,
+    API_ERROR_CODES.TIMEOUT,
+  );
+}
+
+export async function logoutSession(): Promise<void> {
+  return runAuthCookieTransition(async () => {
+    assertAuthStorageAvailable();
+    // Commit and broadcast the explicit logout before the network attempt. If
+    // revocation fails, the tombstone still prevents a reload from refreshing.
+    commitLoggedOutSession("explicit_logout");
+    await requestLogoutWithRetry();
+  });
 }
 
 // JWT token decoding
@@ -1473,22 +1723,28 @@ export type UserData = {
 
 export function saveUser(userData: UserData) {
   if (typeof window === "undefined") return;
+  let role = userData.role;
   // Extract role from token if not provided
-  if (!userData.role) {
+  if (!role) {
     const token = getToken();
     if (token) {
       const decoded = decodeJWT(token);
       if (decoded?.role) {
-        userData.role = decoded.role;
+        role = decoded.role;
       }
     }
   }
-  window.localStorage.setItem(USER_KEY, JSON.stringify(userData));
+  window.localStorage.setItem(USER_KEY, JSON.stringify({ ...userData, role }));
 }
 
 export function getUser(): UserData | null {
   if (typeof window === "undefined") return null;
-  const data = window.localStorage.getItem(USER_KEY);
+  let data: string | null;
+  try {
+    data = window.localStorage.getItem(USER_KEY);
+  } catch {
+    return null;
+  }
   if (!data) return null;
   try {
     return JSON.parse(data) as UserData;
@@ -1497,9 +1753,19 @@ export function getUser(): UserData | null {
   }
 }
 
+/** A logout intent always wins over credentials that survived an interrupted clear. */
+export function getRestoredSessionUser(): UserData | null {
+  if (hasAuthLogoutTombstone()) return null;
+  return resolveBootstrapUser(getToken(), getUser());
+}
+
 export function clearUser() {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(USER_KEY);
+  try {
+    window.localStorage.removeItem(USER_KEY);
+  } catch {
+    // See clearToken: storage read failures keep refresh bootstrap disabled.
+  }
 }
 
 // Token API functions

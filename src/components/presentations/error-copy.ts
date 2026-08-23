@@ -23,7 +23,7 @@ function normalizedServerCode(error: PresentationError): string {
 export function isSlidesNotReadyError(error: unknown): boolean {
   if (!isPresentationError(error)) return false;
   const code = normalizedServerCode(error);
-  if (code === "slides_not_ready") return true;
+  if (code === "slides_not_ready" || code === "presentation_slides_not_ready") return true;
 
   // Compatibility with jobs created before stable server error codes existed.
   // The original message is inspected but is never rendered to a user.
@@ -44,7 +44,9 @@ export function presentationErrorMessage(
   if (!isPresentationError(error)) return fallback;
 
   const serverCode = normalizedServerCode(error);
-  if (serverCode === "slides_not_ready") return copy.exportSlidesNotReady;
+  if (serverCode === "slides_not_ready" || serverCode === "presentation_slides_not_ready") {
+    return copy.exportSlidesNotReady;
+  }
   if (serverCode.includes("insufficient") || serverCode.includes("balance")) {
     return copy.paymentError;
   }

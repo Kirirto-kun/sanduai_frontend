@@ -4,9 +4,8 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 
 import { useLanguage } from "@/i18n/LanguageContext";
-import { clearToken, clearUser, confirmPasswordReset } from "@/lib/api";
+import { confirmPasswordReset } from "@/lib/api";
 import { authCopy, authErrorMessage, passwordValidationKey } from "@/lib/auth-forms";
-import { clearCachedBalance } from "@/lib/tokenCache";
 
 export function ResetPasswordForm({ token }: { token: string }) {
   const { language } = useLanguage();
@@ -42,9 +41,6 @@ export function ResetPasswordForm({ token }: { token: string }) {
     setLoading(true);
     try {
       await confirmPasswordReset(token, password);
-      clearToken();
-      clearUser();
-      clearCachedBalance();
       setComplete(true);
       setPassword("");
       setPasswordRepeat("");

@@ -72,15 +72,22 @@ export type FetchPolicyOptions = {
   errorFactory?: ApiErrorFactory;
 };
 
-export type AuthRefreshHandler = () => Promise<string | null>;
+export type AuthRefreshHandler = (failedAccessToken?: string) => Promise<string | null>;
+export type AuthTokenReader = () => string | null;
 
 let authRefreshHandler: AuthRefreshHandler | null = null;
-let authRefreshInFlight: Promise<string | null> | null = null;
+let authTokenReader: AuthTokenReader | null = null;
+const authRefreshInFlight = new Map<string, Promise<string | null>>();
 
 /** Configure the one application-wide opaque-cookie refresh operation. */
 export function configureAuthRefresh(handler: AuthRefreshHandler | null): void {
   authRefreshHandler = handler;
-  authRefreshInFlight = null;
+  authRefreshInFlight.clear();
+}
+
+/** Used only to suppress a stale 401 from an older access token/session. */
+export function configureAuthTokenReader(reader: AuthTokenReader | null): void {
+  authTokenReader = reader;
 }
 
 /**
@@ -88,18 +95,37 @@ export function configureAuthRefresh(handler: AuthRefreshHandler | null): void {
  * represented as null so callers can consistently enter the central logout
  * path without exposing cookie or transport details.
  */
-export function refreshAccessToken(): Promise<string | null> {
+export function refreshAccessToken(failedAccessToken?: string): Promise<string | null> {
   if (!authRefreshHandler) return Promise.resolve(null);
-  if (authRefreshInFlight) return authRefreshInFlight;
+  const key = failedAccessToken ?? "";
+  const existing = authRefreshInFlight.get(key);
+  if (existing) return existing;
 
   const refresh = authRefreshHandler;
-  authRefreshInFlight = Promise.resolve()
-    .then(() => refresh())
+  const request = Promise.resolve()
+    .then(() => refresh(failedAccessToken))
     .catch(() => null)
     .finally(() => {
-      authRefreshInFlight = null;
+      if (authRefreshInFlight.get(key) === request) authRefreshInFlight.delete(key);
     });
-  return authRefreshInFlight;
+  authRefreshInFlight.set(key, request);
+  return request;
+}
+
+function bearerAccessToken(headers: Headers): string | null {
+  const authorization = headers.get("Authorization");
+  const match = authorization?.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
+}
+
+function shouldNotifyUnauthorized(attemptedAccessToken: string | null): boolean {
+  if (!attemptedAccessToken || !authTokenReader) return true;
+  try {
+    const currentAccessToken = authTokenReader();
+    return currentAccessToken === null || currentAccessToken === attemptedAccessToken;
+  } catch {
+    return true;
+  }
 }
 
 export type ParsedResponsePayload = {
@@ -201,6 +227,7 @@ async function runWithFetchPolicy<T>(
   try {
     const credentials = init.credentials ?? "include";
     const headers = effectiveHeaders(input, init);
+    let attemptedAccessToken = bearerAccessToken(headers);
     const retryInput = input instanceof Request ? input.clone() : input;
     let response = await fetch(input, {
       ...init,
@@ -214,11 +241,12 @@ async function runWithFetchPolicy<T>(
       hasBearerAuthorization(headers) &&
       authRefreshHandler
     ) {
-      const refreshedToken = await refreshAccessToken();
+      const refreshedToken = await refreshAccessToken(attemptedAccessToken ?? undefined);
       if (refreshedToken) {
         await response.body?.cancel().catch(() => undefined);
         const retryHeaders = new Headers(headers);
         retryHeaders.set("Authorization", `Bearer ${refreshedToken}`);
+        attemptedAccessToken = refreshedToken;
         response = await fetch(retryInput, {
           ...init,
           credentials,
@@ -228,7 +256,11 @@ async function runWithFetchPolicy<T>(
       }
     }
 
-    if (response.status === 401 && options.notifyOnUnauthorized !== false) {
+    if (
+      response.status === 401 &&
+      options.notifyOnUnauthorized !== false &&
+      shouldNotifyUnauthorized(attemptedAccessToken)
+    ) {
       notifyUnauthorizedOnce();
     }
     return await consume(response);
@@ -329,5 +361,6 @@ export function requestJson<T>(
 /** Test isolation helper. */
 export function resetAuthRefreshForTests(): void {
   authRefreshHandler = null;
-  authRefreshInFlight = null;
+  authTokenReader = null;
+  authRefreshInFlight.clear();
 }

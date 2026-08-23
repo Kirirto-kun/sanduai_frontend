@@ -67,5 +67,10 @@ describe("auth error copy", () => {
     ).toContain("Проверьте интернет");
     expect(authErrorMessage(new ApiRequestError("raw", 401), "kk", "login"))
       .toBe("Пошта немесе құпиясөз қате.");
+    expect(authErrorMessage(
+      { code: "AUTH_SESSION_COORDINATION_UNAVAILABLE" },
+      "ru",
+      "login",
+    )).toContain("обновлённом браузере");
   });
 });

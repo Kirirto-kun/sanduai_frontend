@@ -8,6 +8,7 @@ import {
   API_ERROR_CODES,
   DEFAULT_HTTP_TIMEOUT_MS,
   configureAuthRefresh,
+  configureAuthTokenReader,
   requestJson,
   resetAuthRefreshForTests,
 } from "./http-client";
@@ -215,5 +216,25 @@ describe("requestJson", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not let a stale 401 from an old token clear a newer session", async () => {
+    const listener = vi.fn();
+    subscribeToUnauthorized(listener);
+    configureAuthTokenReader(() => "new-access-token");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ detail: "Old request finally failed" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ));
+
+    await expect(requestJson("https://api.example.test/stale", {
+      headers: { Authorization: "Bearer old-access-token" },
+    }, {
+      attemptAuthRefresh: false,
+    })).rejects.toMatchObject({ status: 401 });
+
+    expect(listener).not.toHaveBeenCalled();
   });
 });

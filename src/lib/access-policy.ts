@@ -37,7 +37,7 @@ export function decideRouteAccess({
   if (policy === "public") return "allow";
   if (!isAuthenticated) return "login";
   if (policy === "admin") return isAdmin ? "allow" : "forbidden";
-  if (policy === "authenticated" || isAdmin) return "allow";
+  if (policy === "authenticated") return "allow";
   if (hasSubscription === null) return "pending";
   return hasSubscription ? "allow" : "subscribe";
 }

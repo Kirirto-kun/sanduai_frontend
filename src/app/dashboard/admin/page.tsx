@@ -22,6 +22,7 @@ import {
   type Video,
 } from "../../../lib/api";
 import { formatSubscriptionDate } from "../../../lib/utils";
+import { teacherFacingErrorMessage } from "../../../lib/teacher-facing-error";
 
 export default function AdminPage() {
   const t = useTranslations();
@@ -85,11 +86,13 @@ export default function AdminPage() {
       setUsers(data.users);
       setTotal(data.total);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.admin?.loadUsersError || "Ошибка загрузки пользователей");
+      setError(teacherFacingErrorMessage(err, language, {
+        fallback: t.admin?.loadUsersError || "Ошибка загрузки пользователей",
+      }));
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, limit, offset, t.admin?.loadUsersError]);
+  }, [debouncedSearch, language, limit, offset, t.admin?.loadUsersError]);
 
   // Redirect non-admin users
   useEffect(() => {
@@ -147,7 +150,9 @@ export default function AdminPage() {
       setSelectedUser(null);
       fetchUsers(); // Refresh users list
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.admin?.addTokensError || "Ошибка начисления токенов");
+      setError(teacherFacingErrorMessage(err, language, {
+        fallback: t.admin?.addTokensError || "Ошибка начисления токенов",
+      }));
     } finally {
       setAddingTokens(false);
     }
@@ -166,7 +171,9 @@ export default function AdminPage() {
       const data = await getAdminUserTransactions(userId, 50, 0);
       setTransactions(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.admin?.loadTransactionsError || "Ошибка загрузки транзакций");
+      setError(teacherFacingErrorMessage(err, language, {
+        fallback: t.admin?.loadTransactionsError || "Ошибка загрузки транзакций",
+      }));
     } finally {
       setLoadingTransactions(false);
     }
@@ -197,7 +204,9 @@ export default function AdminPage() {
       setSelectedUserForSubscription(null);
       fetchUsers(); // Refresh users list
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.admin?.subscriptionError || "Ошибка выдачи подписки");
+      setError(teacherFacingErrorMessage(err, language, {
+        fallback: t.admin?.subscriptionError || "Ошибка выдачи подписки",
+      }));
     } finally {
       setAddingSubscription(false);
     }
@@ -222,9 +231,9 @@ export default function AdminPage() {
       setVideoToDelete(null);
       fetchVideos(); // Обновляем список
     } catch (err) {
-      console.error("Video deletion error:", err);
-      const errorMessage = err instanceof Error ? err.message : t.admin?.deleteVideoError || "Ошибка удаления видео";
-      setError(errorMessage);
+      setError(teacherFacingErrorMessage(err, language, {
+        fallback: t.admin?.deleteVideoError || "Ошибка удаления видео",
+      }));
     } finally {
       setDeletingVideo(false);
     }
@@ -256,9 +265,9 @@ export default function AdminPage() {
       // Refresh videos list
       fetchVideos();
     } catch (err) {
-      console.error("YouTube import error:", err);
-      const errorMessage = err instanceof Error ? err.message : t.admin?.videos?.youtubeImportError || "Ошибка импорта видео с YouTube";
-      setError(errorMessage);
+      setError(teacherFacingErrorMessage(err, language, {
+        fallback: t.admin?.videos?.youtubeImportError || "Ошибка импорта видео с YouTube",
+      }));
     } finally {
       setImportingYouTube(false);
     }
@@ -296,7 +305,11 @@ export default function AdminPage() {
         try {
           await uploadVideoThumbnail(uploadedVideo.video_db_id, selectedThumbnail);
         } catch (thumbnailError) {
-          console.error("Thumbnail upload failed:", thumbnailError);
+          setError(teacherFacingErrorMessage(thumbnailError, language, {
+            fallback: language === "kk"
+              ? "Видео жүктелді, бірақ мұқаба суретін сақтау мүмкін болмады."
+              : "Видео загружено, но не удалось сохранить обложку.",
+          }));
         }
       }
 
@@ -306,17 +319,12 @@ export default function AdminPage() {
       setUploadProgress(0);
       fetchVideos();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t.admin?.videoUploadError || "Ошибка загрузки видео";
-
-      // Provide more specific error messages
-      if (errorMessage === "Upload aborted") {
+      if (err instanceof Error && err.message === "Upload aborted") {
         setError(null);
-      } else if (errorMessage.includes("401") || errorMessage.includes("Unauthorized")) {
-        setError(t.admin?.videoUploadAuthError || "Сессия истекла. Войдите снова и повторите загрузку.");
-      } else if (errorMessage.includes("403")) {
-        setError(t.admin?.videoUploadAccessError || "Доступ запрещен. Убедитесь, что у вас есть права администратора.");
       } else {
-        setError(errorMessage);
+        setError(teacherFacingErrorMessage(err, language, {
+          fallback: t.admin?.videoUploadError || "Ошибка загрузки видео",
+        }));
       }
     } finally {
       if (uploadAbortRef.current === uploadController) uploadAbortRef.current = null;
@@ -331,7 +339,9 @@ export default function AdminPage() {
       const data = await getAllVideos(); // Get all videos for admin (regardless of status)
       setUploadedVideos(data.videos);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.admin?.videoListLoadError || "Ошибка загрузки списка видео");
+      setError(teacherFacingErrorMessage(err, language, {
+        fallback: t.admin?.videoListLoadError || "Ошибка загрузки списка видео",
+      }));
     } finally {
       setLoadingVideos(false);
     }
@@ -341,20 +351,13 @@ export default function AdminPage() {
     setSyncingStatuses(true);
     setError(null);
     try {
-      const result = await syncAllVideoStatuses();
-      console.log(`Синхронизация завершена:`, {
-        обновлено: result.updated,
-        удалено: result.deleted,
-        обработано: result.total_processed,
-        ошибок: result.errors.length,
-      });
-      if (result.errors.length > 0) {
-        console.warn("Ошибки при синхронизации:", result.errors);
-      }
+      await syncAllVideoStatuses();
       // Refresh videos list after sync
       await fetchVideos();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.admin?.syncError || "Ошибка синхронизации статусов");
+      setError(teacherFacingErrorMessage(err, language, {
+        fallback: t.admin?.syncError || "Ошибка синхронизации статусов",
+      }));
     } finally {
       setSyncingStatuses(false);
     }

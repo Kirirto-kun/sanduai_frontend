@@ -56,6 +56,9 @@ function presentationError(failure: ApiFailure): PresentationApiError {
     ? failure.details as { detail?: unknown; message?: string; code?: string }
     : null;
   const detail = payload?.detail;
+  const structuredDetail = detail && typeof detail === "object" && !Array.isArray(detail)
+    ? detail as { message?: unknown; code?: unknown }
+    : null;
   if (payload) {
     const validationMessage = Array.isArray(detail)
       ? detail
@@ -71,15 +74,19 @@ function presentationError(failure: ApiFailure): PresentationApiError {
           .join("; ")
       : undefined;
     const message =
+      (typeof structuredDetail?.message === "string" ? structuredDetail.message : undefined) ??
       payload?.message ??
       (typeof detail === "string" ? detail : undefined) ??
       validationMessage ??
       failure.message;
+    const serverCode = typeof structuredDetail?.code === "string"
+      ? structuredDetail.code
+      : payload.code;
     return new PresentationApiError(
       message,
       failure.status,
-      payload.code,
-      detail ?? payload,
+      serverCode,
+      structuredDetail ?? detail ?? payload,
       failure.code,
     );
   }

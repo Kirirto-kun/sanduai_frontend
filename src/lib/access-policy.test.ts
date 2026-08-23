@@ -54,7 +54,7 @@ describe("dashboard access classification", () => {
     expect(decideRouteAccess({ policy: "subscription", ...freeTeacher, hasSubscription: true })).toBe("allow");
     expect(
       decideRouteAccess({ policy: "subscription", isAuthenticated: true, isAdmin: true, hasSubscription: false }),
-    ).toBe("allow");
+    ).toBe("subscribe");
   });
 
   it("classifies every navigation group and preserves the At Zharys exception", () => {
@@ -72,5 +72,17 @@ describe("dashboard access classification", () => {
     const atZharys = schoolOffline?.items.find((item) => item.key === "games");
     expect(atZharys && schoolOffline ? resolveNavAccess(atZharys, schoolOffline) : null)
       .toBe("authenticated");
+  });
+
+  it("keeps every live navigation target aligned with its declared access", () => {
+    const groups = [...SEGMENTS.flatMap((segment) => segment.groups), ...COMMON_GROUPS];
+    for (const group of groups) {
+      for (const item of group.items) {
+        if (item.soon) continue;
+        const pathname = item.href.split("?")[0];
+        expect(classifyRouteAccess(pathname), `${item.key}: ${item.href}`)
+          .toBe(resolveNavAccess(item, group));
+      }
+    }
   });
 });

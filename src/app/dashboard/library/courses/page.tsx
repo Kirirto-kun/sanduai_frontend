@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useTranslations } from "../../../../i18n/LanguageContext";
+import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
 import { useVideos } from "../../../../hooks/useVideos";
 import { getVideoWatchToken, type Video, type VideoWatchTokenResponse } from "../../../../lib/api";
@@ -10,9 +10,11 @@ import { formatVideoDuration } from "../../../../lib/utils";
 import { VideoPlayer } from "../../../../components/VideoPlayer";
 import { VideoCardSkeleton } from "../../../../components/VideoCardSkeleton";
 import { getErrorMessage, getErrorStatus } from "../../../../lib/error-utils";
+import { teacherFacingErrorMessage } from "../../../../lib/teacher-facing-error";
 
 export default function CoursesPage() {
   const t = useTranslations();
+  const { language } = useLanguage();
   const { hasSubscription, loading: tokensLoading } = useTokens();
   const [limit] = useState(12);
   const [offset, setOffset] = useState(0);
@@ -34,13 +36,6 @@ export default function CoursesPage() {
 
     try {
       const tokenData = await getVideoWatchToken(video.id);
-      console.log("Video watch token received:", {
-        bunny_video_id: tokenData.bunny_video_id,
-        embed_url: tokenData.embed_url?.substring(0, 100) + "...",
-        embed_url_length: tokenData.embed_url?.length,
-        expiration_time: new Date(tokenData.expiration_time * 1000).toISOString(), // Convert seconds to milliseconds
-        has_embed_url: !!tokenData.embed_url,
-      });
       setWatchToken(tokenData);
     } catch (err: unknown) {
       const status = getErrorStatus(err);
@@ -51,7 +46,13 @@ export default function CoursesPage() {
       } else if (status === 404) {
         setTokenError("video_not_found");
       } else {
-        setTokenError(getErrorMessage(err, t.videos?.watchTokenError || "Ошибка загрузки токена просмотра"));
+        setTokenError(getErrorMessage(
+          err,
+          t.videos?.watchTokenError || (language === "kk"
+            ? "Видеоны ашу мүмкін болмады"
+            : "Не удалось открыть видео"),
+          language,
+        ));
       }
     } finally {
       setLoadingToken(false);
@@ -101,8 +102,12 @@ export default function CoursesPage() {
   }
 
   // Handle API errors (403 will be handled by subscription check above)
-  const errorMessage = videosError && !videosError.message?.includes("403") 
-    ? videosError.message 
+  const errorMessage = videosError && getErrorStatus(videosError) !== 403
+    ? teacherFacingErrorMessage(videosError, language, {
+        fallback: language === "kk"
+          ? "Видеоларды жүктеу мүмкін болмады. Қайталап көріңіз."
+          : "Не удалось загрузить видео. Попробуйте ещё раз.",
+      })
     : null;
 
   return (
@@ -264,10 +269,9 @@ export default function CoursesPage() {
                 ) : (
                   <div className="rounded-2xl bg-yellow-50 border border-yellow-200 px-4 py-8 text-center">
                     <p className="text-sm font-semibold text-yellow-700">
-                      URL для встраивания видео не получен от сервера
-                    </p>
-                    <p className="mt-2 text-xs text-yellow-600">
-                      Проверьте, что API возвращает поле embed_url. Получены данные: {JSON.stringify({ bunny_video_id: watchToken.bunny_video_id, has_embed_url: !!watchToken.embed_url })}
+                      {t.videos?.watchTokenError || (language === "kk"
+                        ? "Видеоны ашу мүмкін болмады. Кейінірек қайталап көріңіз."
+                        : "Не удалось открыть видео. Попробуйте ещё раз позже.")}
                     </p>
                   </div>
                 )

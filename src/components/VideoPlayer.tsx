@@ -19,18 +19,6 @@ export function VideoPlayer({
   const [failedEmbedUrl, setFailedEmbedUrl] = useState<string | null>(null);
   const error = failedEmbedUrl === embedUrl ? "Ошибка загрузки видео плеера" : null;
 
-  // Log embed URL for debugging
-  useEffect(() => {
-    if (embedUrl) {
-      console.log("VideoPlayer: Initializing with embed URL:", {
-        urlPreview: embedUrl.substring(0, 100) + "...",
-        urlLength: embedUrl.length,
-        expirationTime: new Date(expirationTime * 1000).toISOString(),
-        timeUntilExpiration: expirationTime - Math.floor(Date.now() / 1000),
-      });
-    }
-  }, [embedUrl, expirationTime]);
-
   // Check if token is expired
   useEffect(() => {
     const checkExpiration = () => {
@@ -73,8 +61,8 @@ export function VideoPlayer({
     return (
       <div className={`flex items-center justify-center rounded-2xl bg-slate-100 p-8 ${className}`}>
         <div className="text-center">
-          <p className="text-sm font-semibold text-slate-700">Токен просмотра истек</p>
-          <p className="mt-1 text-xs text-slate-500">Пожалуйста, обновите страницу</p>
+          <p className="text-sm font-semibold text-slate-700">Срок просмотра истёк</p>
+          <p className="mt-1 text-xs text-slate-500">Обновляем видео…</p>
         </div>
       </div>
     );
@@ -85,7 +73,7 @@ export function VideoPlayer({
       <div className={`flex items-center justify-center rounded-2xl bg-red-50 p-8 ${className}`}>
         <div className="text-center">
           <p className="text-sm font-semibold text-red-700">
-            URL для встраивания видео не предоставлен
+            Не удалось открыть видео. Попробуйте ещё раз позже.
           </p>
         </div>
       </div>
@@ -111,7 +99,6 @@ export function VideoPlayer({
         className="w-full h-full border-0"
         title="Video player"
         onError={() => {
-          console.error("VideoPlayer: Iframe load error");
           setFailedEmbedUrl(embedUrl);
         }}
       />

@@ -6,8 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
 import {
-  ApiError,
   archiveAdminLibraryContent,
   backfillLegacyLibrary,
   getAdminLibraryContent,
@@ -302,7 +302,9 @@ export function AdminLibraryPage() {
               ))}
             </div>
           )}
-          {backfillMutation.isError && <p role="alert" className="text-xs font-medium text-red-700">{backfillMutation.error instanceof ApiError ? backfillMutation.error.message : language === "kk" ? "Импорт қатесі." : "Ошибка импорта."}</p>}
+          {backfillMutation.isError && <p role="alert" className="text-xs font-medium text-red-700">{teacherFacingErrorMessage(backfillMutation.error, language, {
+            fallback: language === "kk" ? "Импорт қатесі." : "Ошибка импорта.",
+          })}</p>}
         </div>
       </details>
 
@@ -334,7 +336,9 @@ export function AdminLibraryPage() {
 
       {actionError && (
         <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {actionError instanceof ApiError ? actionError.message : language === "kk" ? "Әрекетті орындау мүмкін болмады." : "Не удалось выполнить действие."}
+          {teacherFacingErrorMessage(actionError, language, {
+            fallback: language === "kk" ? "Әрекетті орындау мүмкін болмады." : "Не удалось выполнить действие.",
+          })}
         </div>
       )}
 
@@ -346,7 +350,9 @@ export function AdminLibraryPage() {
 
         {listQuery.isError && (
           <div role="alert" className="m-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <p>{listQuery.error instanceof ApiError ? listQuery.error.message : language === "kk" ? "Тізімді жүктеу мүмкін болмады." : "Не удалось загрузить список."}</p>
+            <p>{teacherFacingErrorMessage(listQuery.error, language, {
+              fallback: language === "kk" ? "Тізімді жүктеу мүмкін болмады." : "Не удалось загрузить список.",
+            })}</p>
             <button type="button" onClick={() => listQuery.refetch()} className="mt-2 font-semibold underline">{language === "kk" ? "Қайталау" : "Повторить"}</button>
           </div>
         )}

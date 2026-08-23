@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   getTokenBalance,
   getTokenCosts,
@@ -8,6 +8,7 @@ import {
   type TokenCosts,
   getToken,
 } from "../lib/api";
+import { decodeJwtPayload, isUsableJwt } from "../lib/auth-token";
 import {
   getCachedCosts,
   setCachedCosts,
@@ -19,6 +20,18 @@ import {
   getOrCreateBalanceFetchPromise,
   clearCachedBalance,
 } from "../lib/tokenCache";
+import {
+  hasAuthLogoutTombstone,
+  subscribeToAuthSessionChanges,
+} from "../lib/auth-session";
+
+export function currentSessionUserId(): string | null {
+  if (hasAuthLogoutTombstone()) return null;
+  const token = getToken();
+  if (!token || !isUsableJwt(token)) return null;
+  const subject = decodeJwtPayload(token)?.sub;
+  return typeof subject === "string" && subject.length > 0 ? subject : null;
+}
 
 export function useTokens(options: { requireFreshSubscription?: boolean } = {}) {
   const requireFreshSubscription = options.requireFreshSubscription === true;
@@ -29,10 +42,13 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
   const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [subscriptionPlan, setSubscriptionPlan] = useState<"free" | "premium" | null>(null);
+  const balanceRequestId = useRef(0);
 
   const fetchBalance = useCallback(async () => {
+    const requestId = ++balanceRequestId.current;
     const token = getToken();
-    if (!token) {
+    const sessionUserId = currentSessionUserId();
+    if (!token || !sessionUserId) {
       setBalance(null);
       setHasSubscription(null);
       setSubscriptionEnd(null);
@@ -43,7 +59,7 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
     setLoading(true);
 
     // Сначала загружаем из кэша для мгновенного отображения
-    const cachedBalance = getCachedBalance();
+    const cachedBalance = getCachedBalance(sessionUserId);
     if (cachedBalance) {
       setBalance(cachedBalance.balance);
       if (!requireFreshSubscription) {
@@ -57,7 +73,7 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
       }
       
       // Если кэш актуален (не старше TTL), не делаем запрос к серверу
-      if (isBalanceCacheValid() && !requireFreshSubscription) {
+      if (isBalanceCacheValid(sessionUserId) && !requireFreshSubscription) {
         setLoading(false);
         return;
       }
@@ -67,9 +83,13 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
     // Используем глобальный промис, чтобы избежать множественных одновременных запросов
     try {
       setError(null);
-      const balanceData = await getOrCreateBalanceFetchPromise(async () => {
+      const balanceData = await getOrCreateBalanceFetchPromise(sessionUserId, async () => {
         const data: TokenBalance = await getTokenBalance();
+        if (data.user_id !== sessionUserId) {
+          throw new Error("Balance response belongs to a different user.");
+        }
         return {
+          user_id: data.user_id,
           balance: data.balance,
           has_subscription: data.has_subscription,
           subscription_end: data.subscription_end,
@@ -78,20 +98,24 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
         };
       });
 
+      if (requestId !== balanceRequestId.current || currentSessionUserId() !== sessionUserId) return;
+
       setBalance(balanceData.balance);
       setHasSubscription(balanceData.has_subscription);
       setSubscriptionEnd(balanceData.subscription_end);
       setSubscriptionPlan(balanceData.subscription_plan);
       
       // Сохраняем в кэш для следующего раза
-      setCachedBalance({
+      setCachedBalance(sessionUserId, {
         balance: balanceData.balance,
         has_subscription: balanceData.has_subscription,
         subscription_end: balanceData.subscription_end,
         subscription_plan: balanceData.subscription_plan,
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch balance");
+    } catch {
+      if (requestId !== balanceRequestId.current || currentSessionUserId() !== sessionUserId) return;
+      // Consumers only need a retry signal; never retain a raw server/provider message.
+      setError("balance_unavailable");
       // Если fetch не удался, используем кэш (если он есть)
       if (cachedBalance) {
         setBalance(cachedBalance.balance);
@@ -111,7 +135,9 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
         setSubscriptionPlan(null);
       }
     } finally {
-      setLoading(false);
+      if (requestId === balanceRequestId.current && currentSessionUserId() === sessionUserId) {
+        setLoading(false);
+      }
     }
   }, [requireFreshSubscription]);
 
@@ -146,8 +172,8 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
   }, []);
 
   useEffect(() => {
-    const token = getToken();
-    if (token) {
+    const sessionUserId = currentSessionUserId();
+    if (sessionUserId) {
       setLoading(true);
       fetchBalance();
       fetchCosts();
@@ -169,8 +195,45 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
   const refreshBalance = useCallback(() => {
     // Очищаем кэш при принудительном обновлении
     clearCachedBalance();
-    fetchBalance();
-  }, [fetchBalance]);
+    if (requireFreshSubscription) {
+      // Ready materials fail closed while the server revalidates access.
+      setHasSubscription(null);
+      setSubscriptionEnd(null);
+      setSubscriptionPlan(null);
+    }
+    return fetchBalance();
+  }, [fetchBalance, requireFreshSubscription]);
+
+  useEffect(() => {
+    if (!requireFreshSubscription || typeof window === "undefined") return;
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refreshBalance();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refreshBalance, requireFreshSubscription]);
+
+  useEffect(() => subscribeToAuthSessionChanges(() => {
+    setBalance(null);
+    setHasSubscription(null);
+    setSubscriptionEnd(null);
+    setSubscriptionPlan(null);
+    refreshBalance();
+  }), [refreshBalance]);
+
+  useEffect(() => {
+    if (!requireFreshSubscription || !subscriptionEnd) return;
+    const expiresAt = Date.parse(subscriptionEnd);
+    if (!Number.isFinite(expiresAt)) return;
+    const delay = Math.max(0, Math.min(expiresAt - Date.now() + 1_000, 2_147_000_000));
+    const timer = window.setTimeout(refreshBalance, delay);
+    return () => window.clearTimeout(timer);
+  }, [refreshBalance, requireFreshSubscription, subscriptionEnd]);
 
   const checkBalance = useCallback(
     (operationType: string): boolean => {

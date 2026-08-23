@@ -4,13 +4,16 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTranslations } from "../../i18n/LanguageContext";
+import { useLanguage } from "../../i18n/LanguageContext";
 import { useTokens } from "../../hooks/useTokens";
 import { formatSubscriptionDate } from "../../lib/utils";
 import { getProfile, UserProfile } from "../../lib/api";
+import { teacherFacingErrorMessage } from "../../lib/teacher-facing-error";
 
 export default function ProfilePage() {
   const { isAuthenticated, loading: authLoading, logout } = useAuth();
   const t = useTranslations();
+  const { language } = useLanguage();
   const router = useRouter();
   const { balance, hasSubscription, subscriptionEnd, subscriptionPlan } = useTokens();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -24,8 +27,11 @@ export default function ProfilePage() {
       const profileData = await getProfile();
       setProfile(profileData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка загрузки профиля");
-      console.error("Failed to load profile:", err);
+      setError(teacherFacingErrorMessage(err, language, {
+        fallback: language === "kk"
+          ? "Профильді жүктеу мүмкін болмады. Қайталап көріңіз."
+          : "Не удалось загрузить профиль. Попробуйте ещё раз.",
+      }));
     } finally {
       setLoading(false);
     }
@@ -146,8 +152,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-
 
 
 

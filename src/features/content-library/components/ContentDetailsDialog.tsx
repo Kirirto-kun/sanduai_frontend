@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
 import {
   ApiError,
   StreamingDownloadRequiredError,
@@ -113,7 +114,11 @@ export function ContentDetailsDialog({ item, onClose }: ContentDetailsDialogProp
             ? "Бұл үлкен файлды қауіпсіз жүктеу үшін Chrome немесе Edge браузерін қолданыңыз."
             : "Для безопасного скачивания этого большого файла используйте Chrome или Edge."
           : error instanceof ApiError
-          ? error.message
+          ? teacherFacingErrorMessage(error, language, {
+              fallback: language === "kk"
+                ? "Файлды жүктеу мүмкін болмады. Қайталап көріңіз."
+                : "Не удалось скачать файл. Попробуйте ещё раз.",
+            })
           : language === "kk"
             ? "Файлды жүктеу мүмкін болмады. Қайталап көріңіз."
             : "Не удалось скачать файл. Попробуйте ещё раз.",

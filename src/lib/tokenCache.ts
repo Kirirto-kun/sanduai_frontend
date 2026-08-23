@@ -12,7 +12,8 @@ interface CachedCosts {
   timestamp: number;
 }
 
-interface CachedBalance {
+export interface CachedBalance {
+  user_id: string;
   balance: number;
   has_subscription: boolean;
   subscription_end: string | null;
@@ -22,7 +23,7 @@ interface CachedBalance {
 
 // Глобальные флаги для предотвращения множественных одновременных запросов
 let costsFetchPromise: Promise<Record<string, number>> | null = null;
-let balanceFetchPromise: Promise<CachedBalance> | null = null;
+const balanceFetchPromises = new Map<string, Promise<CachedBalance>>();
 
 /**
  * Получить кэшированные стоимости операций из localStorage
@@ -102,14 +103,19 @@ export function clearCachedCosts(): void {
  * Получить кэшированный баланс из localStorage
  * @returns Кэшированный баланс или null, если кэша нет
  */
-export function getCachedBalance(): CachedBalance | null {
+export function getCachedBalance(userId: string): CachedBalance | null {
   if (typeof window === "undefined") return null;
+  if (!userId) return null;
 
   try {
     const cached = window.localStorage.getItem(TOKEN_BALANCE_CACHE_KEY);
     if (!cached) return null;
 
     const data: CachedBalance = JSON.parse(cached);
+    if (data.user_id !== userId) {
+      window.localStorage.removeItem(TOKEN_BALANCE_CACHE_KEY);
+      return null;
+    }
     return data;
   } catch (err) {
     console.error("Failed to parse cached token balance:", err);
@@ -120,35 +126,27 @@ export function getCachedBalance(): CachedBalance | null {
 /**
  * Проверить, актуален ли кэш баланса (не старше TTL)
  */
-export function isBalanceCacheValid(): boolean {
-  if (typeof window === "undefined") return false;
-
-  try {
-    const cached = window.localStorage.getItem(TOKEN_BALANCE_CACHE_KEY);
-    if (!cached) return false;
-
-    const data: CachedBalance = JSON.parse(cached);
-    const now = Date.now();
-    return now - data.timestamp <= BALANCE_CACHE_TTL;
-  } catch {
-    return false;
-  }
+export function isBalanceCacheValid(userId: string): boolean {
+  const data = getCachedBalance(userId);
+  return Boolean(data && Date.now() - data.timestamp <= BALANCE_CACHE_TTL);
 }
 
 /**
  * Сохранить баланс в localStorage
  */
-export function setCachedBalance(data: {
+export function setCachedBalance(userId: string, data: {
   balance: number;
   has_subscription: boolean;
   subscription_end: string | null;
   subscription_plan: "free" | "premium" | null;
 }): void {
   if (typeof window === "undefined") return;
+  if (!userId) return;
 
   try {
     const cached: CachedBalance = {
       ...data,
+      user_id: userId,
       timestamp: Date.now(),
     };
     window.localStorage.setItem(TOKEN_BALANCE_CACHE_KEY, JSON.stringify(cached));
@@ -161,9 +159,9 @@ export function setCachedBalance(data: {
  * Очистить кэш баланса
  */
 export function clearCachedBalance(): void {
+  balanceFetchPromises.clear();
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(TOKEN_BALANCE_CACHE_KEY);
-  balanceFetchPromise = null;
 }
 
 /**
@@ -171,17 +169,17 @@ export function clearCachedBalance(): void {
  * Предотвращает множественные одновременные запросы
  */
 export function getOrCreateBalanceFetchPromise(
+  userId: string,
   fetchFn: () => Promise<CachedBalance>
 ): Promise<CachedBalance> {
-  if (balanceFetchPromise) {
-    return balanceFetchPromise;
-  }
+  const existing = balanceFetchPromises.get(userId);
+  if (existing) return existing;
 
-  balanceFetchPromise = fetchFn().finally(() => {
-    balanceFetchPromise = null;
+  const request = fetchFn().finally(() => {
+    if (balanceFetchPromises.get(userId) === request) balanceFetchPromises.delete(userId);
   });
-
-  return balanceFetchPromise;
+  balanceFetchPromises.set(userId, request);
+  return request;
 }
 
 /**
@@ -195,9 +193,9 @@ export function getOrCreateFetchPromise(
     return costsFetchPromise;
   }
 
-  costsFetchPromise = fetchFn().finally(() => {
-    costsFetchPromise = null;
+  const request = fetchFn().finally(() => {
+    if (costsFetchPromise === request) costsFetchPromise = null;
   });
-
-  return costsFetchPromise;
+  costsFetchPromise = request;
+  return request;
 }

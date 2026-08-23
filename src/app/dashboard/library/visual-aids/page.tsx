@@ -66,8 +66,8 @@ export default function VisualAidsPage() {
       try {
         const cats = await getVisualCategories();
         setCategories(cats);
-      } catch (err) {
-        console.error("Failed to load categories:", err);
+      } catch {
+        // Category filters are optional; the material list remains usable.
       }
     }
     loadCategories();

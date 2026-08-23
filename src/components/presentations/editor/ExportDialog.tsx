@@ -18,6 +18,7 @@ function slidesAreNotReady(message: string) {
   const normalized = message.toLowerCase();
   return (
     normalized === "slides_not_ready" ||
+    normalized === "presentation_slides_not_ready" ||
     normalized.includes("all slides must be generated before export") ||
     (normalized.includes("slide") && normalized.includes("generated") && normalized.includes("export"))
   );

@@ -29,6 +29,95 @@ function getServerDesktopSnapshot() {
   return false;
 }
 
+function SubscriptionAccessGate({
+  pathname,
+  hasSubscription,
+  loading,
+  error,
+  refreshBalance,
+  language,
+  children,
+}: {
+  pathname: string;
+  hasSubscription: boolean | null;
+  loading: boolean;
+  error: string | null;
+  refreshBalance: () => Promise<void>;
+  language: "ru" | "kk";
+  children: ReactNode;
+}) {
+  const [validated, setValidated] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void refreshBalance().finally(() => {
+      if (active) setValidated(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [pathname, refreshBalance]);
+
+  if (!validated || loading) {
+    return (
+      <section className="mx-auto max-w-2xl rounded-3xl border border-white/70 bg-white/95 px-6 py-12 text-center shadow-sm" aria-live="polite">
+        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[color:var(--primary)] border-r-transparent" />
+        <p className="mt-4 text-sm font-semibold text-slate-700">
+          {language === "kk" ? "Жазылым тексерілуде…" : "Проверяем подписку…"}
+        </p>
+      </section>
+    );
+  }
+
+  if (hasSubscription === null) {
+    return (
+      <section className="mx-auto max-w-2xl rounded-3xl border border-white/70 bg-white/95 px-6 py-12 text-center shadow-sm" aria-live="polite">
+        <h2 className="text-xl font-semibold text-slate-900">
+          {language === "kk" ? "Жазылымды тексеру мүмкін болмады" : "Не удалось проверить подписку"}
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          {language === "kk"
+            ? "Интернет байланысын тексеріп, қайта көріңіз. Дайын материалдар растаудан кейін ашылады."
+            : "Проверьте интернет и попробуйте снова. Готовые материалы откроются после проверки."}
+        </p>
+        {error && (
+          <button
+            type="button"
+            onClick={refreshBalance}
+            className="mt-5 min-h-11 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white"
+          >
+            {language === "kk" ? "Қайта тексеру" : "Проверить снова"}
+          </button>
+        )}
+      </section>
+    );
+  }
+
+  if (!hasSubscription) {
+    return (
+      <section className="mx-auto max-w-2xl rounded-3xl border border-amber-200 bg-white/95 px-6 py-12 text-center shadow-sm">
+        <div className="text-4xl" aria-hidden="true">🔒</div>
+        <h2 className="mt-4 text-2xl font-semibold text-slate-900">
+          {language === "kk" ? "Дайын материалдарға жазылым қажет" : "Для готовых материалов нужна подписка"}
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          {language === "kk"
+            ? "Монеталарыңыз ЖИ арқылы жаңа материалдар жасауға қолжетімді. Дайын кітапхананы ашу үшін жазылымды қосыңыз."
+            : "Ваши монеты доступны для создания новых материалов с ИИ. Чтобы открыть готовую библиотеку, подключите подписку."}
+        </p>
+        <Link
+          href="/dashboard/profile"
+          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-5 py-2.5 text-sm font-semibold text-white"
+        >
+          {language === "kk" ? "Профильді ашу" : "Открыть профиль"}
+        </Link>
+      </section>
+    );
+  }
+
+  return children;
+}
+
 function DashboardLayoutContent({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading, logout, user } = useAuth();
   const { language, setLanguage } = useLanguage();
@@ -130,8 +219,9 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
 
   if (!isAuthenticated) return null;
 
+  const routeAccessPolicy = classifyRouteAccess(pathname);
   const accessDecision = decideRouteAccess({
-    policy: classifyRouteAccess(pathname),
+    policy: routeAccessPolicy,
     isAuthenticated,
     isAdmin: user?.role === "admin",
     hasSubscription,
@@ -176,7 +266,6 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
     const active = isActive(href);
     const subscriptionLocked =
       resolveNavAccess(item, group) === "subscription" &&
-      user?.role !== "admin" &&
       hasSubscription !== true;
     return (
       <Link
@@ -492,55 +581,18 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
           </header>
 
           <main className="px-2 pb-10 pt-4 sm:px-4 md:px-6 lg:px-8">
-            {accessDecision === "pending" ? (
-              <section className="mx-auto max-w-2xl rounded-3xl border border-white/70 bg-white/95 px-6 py-12 text-center shadow-sm" aria-live="polite">
-                {subscriptionLoading ? (
-                  <>
-                    <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[color:var(--primary)] border-r-transparent" />
-                    <p className="mt-4 text-sm font-semibold text-slate-700">
-                      {language === "kk" ? "Жазылым тексерілуде…" : "Проверяем подписку…"}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <h2 className="text-xl font-semibold text-slate-900">
-                      {language === "kk" ? "Жазылымды тексеру мүмкін болмады" : "Не удалось проверить подписку"}
-                    </h2>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                      {language === "kk"
-                        ? "Интернет байланысын тексеріп, қайта көріңіз. Дайын материалдар растаудан кейін ашылады."
-                        : "Проверьте интернет и попробуйте снова. Готовые материалы откроются после проверки."}
-                    </p>
-                    {subscriptionError && (
-                      <button
-                        type="button"
-                        onClick={refreshBalance}
-                        className="mt-5 min-h-11 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white"
-                      >
-                        {language === "kk" ? "Қайта тексеру" : "Проверить снова"}
-                      </button>
-                    )}
-                  </>
-                )}
-              </section>
-            ) : accessDecision === "subscribe" ? (
-              <section className="mx-auto max-w-2xl rounded-3xl border border-amber-200 bg-white/95 px-6 py-12 text-center shadow-sm">
-                <div className="text-4xl" aria-hidden="true">🔒</div>
-                <h2 className="mt-4 text-2xl font-semibold text-slate-900">
-                  {language === "kk" ? "Дайын материалдарға жазылым қажет" : "Для готовых материалов нужна подписка"}
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  {language === "kk"
-                    ? "Монеталарыңыз ЖИ арқылы жаңа материалдар жасауға қолжетімді. Дайын кітапхананы ашу үшін жазылымды қосыңыз."
-                    : "Ваши монеты доступны для создания новых материалов с ИИ. Чтобы открыть готовую библиотеку, подключите подписку."}
-                </p>
-                <Link
-                  href="/dashboard/profile"
-                  className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-5 py-2.5 text-sm font-semibold text-white"
-                >
-                  {language === "kk" ? "Профильді ашу" : "Открыть профиль"}
-                </Link>
-              </section>
+            {routeAccessPolicy === "subscription" ? (
+              <SubscriptionAccessGate
+                key={pathname}
+                pathname={pathname}
+                hasSubscription={hasSubscription}
+                loading={subscriptionLoading}
+                error={subscriptionError}
+                refreshBalance={refreshBalance}
+                language={language}
+              >
+                {children}
+              </SubscriptionAccessGate>
             ) : accessDecision === "forbidden" ? (
               <section className="mx-auto max-w-2xl rounded-3xl border border-red-200 bg-white/95 px-6 py-12 text-center shadow-sm">
                 <h2 className="text-xl font-semibold text-slate-900">

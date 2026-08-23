@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
 import { ApiError, getLibraryCategories, getLibraryContent, getLibrarySubjects } from "../api";
 import { MATERIAL_TYPE_CONFIG, SEGMENT_LABELS, localize } from "../config";
 import {
@@ -163,7 +164,15 @@ export function ContentLibraryPage() {
               ? language === "kk" ? "Материалдарға қол жеткізу үшін белсенді жазылым қажет." : "Для доступа к материалам нужна активная подписка."
               : language === "kk" ? "Материалдарды жүктеу мүмкін болмады." : "Не удалось загрузить материалы."}
           </p>
-          <p className="mt-1 text-xs">{contentQuery.error instanceof Error ? contentQuery.error.message : ""}</p>
+          {!(contentQuery.error instanceof ApiError && contentQuery.error.status === 403) && (
+            <p className="mt-1 text-xs">
+              {teacherFacingErrorMessage(contentQuery.error, language, {
+                fallback: language === "kk"
+                  ? "Материалдарды жүктеу мүмкін болмады. Қайталап көріңіз."
+                  : "Не удалось загрузить материалы. Попробуйте ещё раз.",
+              })}
+            </p>
+          )}
           <button type="button" onClick={() => contentQuery.refetch()} className="mt-3 rounded-lg bg-red-700 px-3 py-2 text-xs font-semibold text-white">
             {language === "kk" ? "Қайталау" : "Повторить"}
           </button>

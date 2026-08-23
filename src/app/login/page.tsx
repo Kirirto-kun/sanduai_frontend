@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import { AuthLanguageSwitch } from "@/components/AuthLanguageSwitch";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +13,7 @@ const fieldClassName =
   "min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-[color:var(--primary)] focus:ring-2 focus:ring-orange-200";
 
 export default function LoginPage() {
-  const { login, loading } = useAuth();
+  const { isAuthenticated, login, loading } = useAuth();
   const { language } = useLanguage();
   const copy = authCopy(language);
   const router = useRouter();
@@ -21,6 +21,10 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!loading && isAuthenticated) router.replace("/dashboard");
+  }, [isAuthenticated, loading, router]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

@@ -6,6 +6,7 @@ import { useRegenerateSlide, useUpdatePresentation, useUpdateSlide } from "@/hoo
 import type { PresentationSlide, SlideSpec } from "@/types/presentations";
 import { getPresentationCopy } from "../copy";
 import { presentationErrorMessage } from "../error-copy";
+import { reconcilePersistedBaseline } from "./classic-editor-state";
 import { normalizeSlideSpec } from "../slide-utils";
 
 const fieldClass =
@@ -141,6 +142,7 @@ function semanticPatch(draft: SlideSpec, slide: PresentationSlide): SlideSpec {
 export default function ClassicEditPanel({
   presentationId,
   slide,
+  persistedSlide,
   themeId,
   regenerationActive = false,
   onThemeChange,
@@ -149,6 +151,7 @@ export default function ClassicEditPanel({
 }: {
   presentationId: string;
   slide: PresentationSlide;
+  persistedSlide: PresentationSlide;
   themeId: string;
   regenerationActive?: boolean;
   onThemeChange: (themeId: string) => void;
@@ -161,9 +164,10 @@ export default function ClassicEditPanel({
   const projectMutation = useUpdatePresentation();
   const regenerateMutation = useRegenerateSlide();
   const initial = useMemo(() => editorDraft(slide), [slide]);
-  const initialSerialized = useMemo(() => JSON.stringify(initial), [initial]);
+  const persisted = useMemo(() => editorDraft(persistedSlide), [persistedSlide]);
+  const persistedSerialized = useMemo(() => JSON.stringify(persisted), [persisted]);
   const [draft, setDraft] = useState<SlideSpec>(initial);
-  const [saved, setSaved] = useState(initialSerialized);
+  const [saved, setSaved] = useState(persistedSerialized);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [localTheme, setLocalTheme] = useState(() => normalizedTheme(themeId));
@@ -177,8 +181,9 @@ export default function ClassicEditPanel({
   ];
 
   const mountedRef = useRef(true);
-  const savedRef = useRef(initialSerialized);
-  const requestedRef = useRef(initialSerialized);
+  const savedRef = useRef(persistedSerialized);
+  const requestedRef = useRef(persistedSerialized);
+  const persistedSeenRef = useRef(persistedSerialized);
   const pendingRef = useRef(0);
   const latestRef = useRef({ draft, serialized, slide });
   const chainRef = useRef<Promise<unknown>>(Promise.resolve());
@@ -193,6 +198,25 @@ export default function ClassicEditPanel({
     onJobStartedRef.current = onJobStarted;
     latestRef.current = { draft, serialized, slide };
   }, [draft, onDraftChange, onJobStarted, serialized, slide, updateMutation.mutateAsync]);
+
+  useEffect(() => {
+    if (persistedSeenRef.current === persistedSerialized) return;
+    persistedSeenRef.current = persistedSerialized;
+    const reconciliation = reconcilePersistedBaseline({
+      currentDraft: latestRef.current.serialized,
+      previousSaved: savedRef.current,
+      nextPersisted: persistedSerialized,
+      pendingRequests: pendingRef.current,
+    });
+    savedRef.current = reconciliation.saved;
+    if (reconciliation.requested !== null) {
+      requestedRef.current = reconciliation.requested;
+    }
+    setSaved(reconciliation.saved);
+    if (reconciliation.replaceDraft) {
+      setDraft(persisted);
+    }
+  }, [persisted, persistedSerialized]);
 
   useEffect(() => {
     enqueueRef.current = (snapshot) => {
@@ -242,18 +266,9 @@ export default function ClassicEditPanel({
   }, [themeId]);
 
   useEffect(() => {
-    if (serialized === savedRef.current || !String(draft.title ?? "").trim()) return;
-    const timer = window.setTimeout(() => enqueueRef.current(latestRef.current), 800);
-    return () => window.clearTimeout(timer);
-  }, [draft, serialized]);
-
-  useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      if (latestRef.current.serialized !== requestedRef.current) {
-        enqueueRef.current(latestRef.current);
-      }
     };
   }, [presentationId, slide.slide_key]);
 
@@ -306,7 +321,7 @@ export default function ClassicEditPanel({
       </div>
 
       {saveError && (
-        <button type="button" onClick={() => enqueueRef.current(latestRef.current)} className="mt-2 min-h-11 rounded-xl px-3 text-xs font-bold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500">
+        <button type="button" onClick={() => enqueueRef.current(latestRef.current)} disabled={regenerationActive || saving} className="mt-2 min-h-11 rounded-xl px-3 text-xs font-bold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-45">
           {copy.retry}
         </button>
       )}
@@ -374,6 +389,14 @@ export default function ClassicEditPanel({
           <label htmlFor="classic-slide-bullets" className="text-xs font-bold uppercase tracking-wide text-slate-500">{copy.bullets}</label>
           <textarea id="classic-slide-bullets" rows={5} value={Array.isArray(draft.bullets) ? draft.bullets.join("\n") : ""} onChange={(event) => set("bullets", event.target.value.split("\n").map((item) => item.trim()).filter(Boolean))} className={`${fieldClass} resize-y`} />
         </div>
+        <button
+          type="button"
+          onClick={() => enqueueRef.current(latestRef.current)}
+          disabled={saving || regenerationActive || serialized === saved || !String(draft.title ?? "").trim()}
+          className="min-h-12 w-full rounded-xl bg-slate-900 px-4 text-sm font-bold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 disabled:opacity-45"
+        >
+          {saving ? copy.saving : copy.saveDraft}
+        </button>
       </fieldset>
       {slide.status !== "failed" && (
         <button

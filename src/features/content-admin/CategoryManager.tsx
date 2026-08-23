@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { createCategory, deleteCategory, updateCategory } from "@/lib/api";
-import { ApiError } from "@/features/content-library/api";
+import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
 import type { ContentCategory } from "@/features/content-library/types";
 
 type CategoryManagerProps = {
@@ -98,7 +98,9 @@ export function CategoryManager({ categories, loading, language }: CategoryManag
             </button>
             {editingId && <button type="button" disabled={pending} onClick={reset} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600">{language === "kk" ? "Бас тарту" : "Отмена"}</button>}
           </div>
-          {error && <p role="alert" className="text-xs font-medium text-red-700">{error instanceof ApiError || error instanceof Error ? error.message : language === "kk" ? "Әрекет орындалмады." : "Не удалось выполнить действие."}</p>}
+          {error && <p role="alert" className="text-xs font-medium text-red-700">{teacherFacingErrorMessage(error, language, {
+            fallback: language === "kk" ? "Әрекет орындалмады." : "Не удалось выполнить действие.",
+          })}</p>}
         </form>
 
         <div>

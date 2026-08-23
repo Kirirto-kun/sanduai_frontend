@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import {
-  ApiError,
   createAdminLibrarySubject,
   createAdminLibraryContent,
   updateAdminLibraryContent,
@@ -35,6 +34,7 @@ import {
   SearchableSelect,
 } from "@/features/content-library/components/TaxonomySelect";
 import { createCategory } from "@/lib/api";
+import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
 import {
   InlineTaxonomyCreate,
   type TaxonomyCreateInput,
@@ -776,7 +776,9 @@ export function ContentEditorForm({
 
       {mutation.isError && (
         <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {mutation.error instanceof ApiError ? mutation.error.message : language === "kk" ? "Материалды сақтау мүмкін болмады." : "Не удалось сохранить материал."}
+          {teacherFacingErrorMessage(mutation.error, language, {
+            fallback: language === "kk" ? "Материалды сақтау мүмкін болмады." : "Не удалось сохранить материал.",
+          })}
         </div>
       )}
 

@@ -61,12 +61,13 @@ export function resolveBootstrapUser<T extends { userId: string; role?: string }
   }
 
   const claims = decodeJwtPayload(token);
-  if (typeof claims?.sub === "string" && claims.sub !== cachedUser.userId) {
+  if (typeof claims?.sub !== "string" || claims.sub !== cachedUser.userId) {
     return null;
   }
 
-  if (!cachedUser.role && typeof claims?.role === "string") {
-    return { ...cachedUser, role: claims.role };
+  const tokenRole = typeof claims.role === "string" ? claims.role : undefined;
+  if (tokenRole !== cachedUser.role) {
+    return { ...cachedUser, role: tokenRole };
   }
 
   return cachedUser;
