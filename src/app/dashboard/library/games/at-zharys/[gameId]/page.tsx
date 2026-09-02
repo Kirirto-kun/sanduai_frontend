@@ -1,78 +1,77 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useRaceGame } from "../../../../../../hooks/useRaceGame";
 import { RaceTrack } from "../../../../../../components/games/RaceTrack";
 import { TeamColumn } from "../../../../../../components/games/TeamColumn";
 import { VictoryModal } from "../../../../../../components/games/VictoryModal";
-import type { GameSettings, RaceQuestion } from "../../../../../../types/games";
+import { useLanguage } from "../../../../../../i18n/LanguageContext";
+import { getGenerationJob } from "../../../../../../lib/api";
+import {
+  generationJobIdFromSearchParam,
+  isActiveGenerationJob,
+} from "../../../../../../lib/generation-history";
+import {
+  restoreRaceGame,
+  RACE_GENERATION_KIND,
+  RACE_SOURCE_PATH,
+  type RestoredRaceGame,
+} from "../../../../../../lib/race-generation";
+import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
-interface GameData {
-  gameId: string;
-  settings: GameSettings;
-  questions: RaceQuestion[];
+type GameMessageProps = {
+  title: string;
+  description?: string;
+  loading?: boolean;
+  backLabel?: string;
+};
+
+
+function GameMessage({
+  title,
+  description,
+  loading = false,
+  backLabel = "Вернуться к играм",
+}: GameMessageProps) {
+  const router = useRouter();
+
+  return (
+    <div className="flex min-h-96 items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="max-w-lg text-center" aria-live="polite">
+        {loading ? (
+          <div className="mx-auto h-11 w-11 animate-spin rounded-full border-4 border-sky-200 border-t-sky-600" />
+        ) : (
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-amber-100 text-xl text-amber-800">
+            !
+          </div>
+        )}
+        <h1 className="mt-4 text-xl font-bold text-slate-950">{title}</h1>
+        {description ? <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p> : null}
+        {!loading ? (
+          <button
+            type="button"
+            onClick={() => router.push(RACE_SOURCE_PATH)}
+            className="mt-5 min-h-11 rounded-xl bg-slate-950 px-5 text-sm font-bold text-white transition hover:bg-slate-800"
+          >
+            {backLabel}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
-export default function AtZharysGamePage() {
-  const params = useParams();
+
+function RaceArena({ gameData }: { gameData: RestoredRaceGame }) {
   const router = useRouter();
-  const gameId = params.gameId as string;
   const gameContainerRef = useRef<HTMLDivElement>(null);
-
-  const [gameData, setGameData] = useState<GameData | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    // Load game data from sessionStorage
-    const stored = sessionStorage.getItem(`atZharys_${gameId}`);
-    if (!stored) {
-      // Redirect to setup if no game data
-      router.push("/dashboard/library/games/at-zharys");
-      return;
-    }
-
-    try {
-      const data: GameData = JSON.parse(stored);
-      
-      // Validate game data
-      if (!data.questions || data.questions.length === 0) {
-        console.error("No questions in game data");
-        router.push("/dashboard/library/games/at-zharys");
-        return;
-      }
-      
-      if (!data.settings) {
-        console.error("No settings in game data");
-        router.push("/dashboard/library/games/at-zharys");
-        return;
-      }
-
-      queueMicrotask(() => {
-        if (active) setGameData(data);
-      });
-    } catch (err) {
-      console.error("Error parsing game data:", err);
-      router.push("/dashboard/library/games/at-zharys");
-    }
-    return () => {
-      active = false;
-    };
-  }, [gameId, router]);
-
-  // Only initialize game hook when data is loaded
   const { gameState, handleAnswer, resetGame } = useRaceGame(
-    gameId,
-    gameData?.settings || {
-      topic: "",
-      grade: "",
-      teams_count: 2,
-      victory_condition: 10,
-      questions_count: 40,
-      language: "kz",
-    },
-    gameData?.questions || [],
+    gameData.gameId,
+    gameData.settings,
+    gameData.questions,
   );
 
   // Handle fullscreen API
@@ -100,39 +99,12 @@ export default function AtZharysGamePage() {
   };
 
   const handlePlayAgain = () => {
-    if (!gameData) return;
     resetGame();
   };
 
   const handleGoToLibrary = () => {
     router.push("/dashboard/library/games");
   };
-
-  if (!gameData) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[color:var(--primary)] border-r-transparent"></div>
-        <p className="ml-3 text-sm text-slate-600">Загрузка игры...</p>
-      </div>
-    );
-  }
-
-  // Additional safety check
-  if (!gameData.questions || gameData.questions.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <p className="text-sm font-semibold text-red-700">Ошибка: вопросы не загружены</p>
-          <button
-            onClick={() => router.push("/dashboard/library/games/at-zharys")}
-            className="mt-4 rounded-lg bg-[color:var(--primary)] px-4 py-2 text-sm font-semibold text-white"
-          >
-            Вернуться к настройке
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   const winnerTeam = gameState.teams.find((t) => t.id === gameState.winner);
 
@@ -148,6 +120,7 @@ export default function AtZharysGamePage() {
       {/* Fullscreen button */}
       <div className="flex justify-end mb-2">
         <button
+          type="button"
           onClick={toggleFullscreen}
           className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 z-50"
           title={isFullscreen ? "Выйти из полноэкранного режима" : "На весь экран"}
@@ -231,5 +204,118 @@ export default function AtZharysGamePage() {
         />
       )}
     </div>
+  );
+}
+
+
+function AtZharysGameContent() {
+  const { language } = useLanguage();
+  const toTeacherErrorMessage = useTeacherErrorMessage();
+  const searchParams = useSearchParams();
+  const requestedJobId = generationJobIdFromSearchParam(searchParams.get("job"));
+  const job = useQuery({
+    queryKey: ["generation-job", requestedJobId],
+    queryFn: () => getGenerationJob(requestedJobId as string),
+    enabled: Boolean(requestedJobId),
+    retry: 2,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
+  });
+  const backLabel = language === "kk" ? "Ойындарға оралу" : "Вернуться к играм";
+
+  if (!requestedJobId) {
+    return (
+      <GameMessage
+        title={language === "kk" ? "Ойынды ашу мүмкін болмады" : "Не удалось открыть игру"}
+        description={
+          language === "kk"
+            ? "Ойынды бөлім тарихынан қайта ашыңыз немесе жаңасын жасаңыз."
+            : "Откройте игру заново из истории раздела или создайте новую."
+        }
+        backLabel={backLabel}
+      />
+    );
+  }
+
+  if (job.isPending || (job.data && isActiveGenerationJob(job.data))) {
+    return (
+      <GameMessage
+        loading
+        title={language === "kk" ? "Ойын жасалып жатыр" : "Создаём игру"}
+        description={
+          language === "kk"
+            ? "Сұрақтар серверде жасалып жатыр. Бетті жаңартуға немесе жабуға болады."
+            : "Вопросы создаются на сервере. Страницу можно обновить или закрыть."
+        }
+        backLabel={backLabel}
+      />
+    );
+  }
+
+  if (job.error) {
+    return (
+      <GameMessage
+        title={language === "kk" ? "Ойынды жүктеу мүмкін болмады" : "Не удалось загрузить игру"}
+        description={toTeacherErrorMessage(job.error)}
+        backLabel={backLabel}
+      />
+    );
+  }
+
+  const value = job.data;
+  if (!value || value.kind !== RACE_GENERATION_KIND) {
+    return (
+      <GameMessage
+        title={language === "kk" ? "Бұл басқа материал" : "Это другой материал"}
+        description={
+          language === "kk"
+            ? "«Ат жарыс» бөлімінен ойынды таңдаңыз."
+            : "Выберите игру в разделе «Ат жарыс»."
+        }
+        backLabel={backLabel}
+      />
+    );
+  }
+
+  if (value.status !== "completed" && value.status !== "billing_error") {
+    return (
+      <GameMessage
+        title={language === "kk" ? "Ойынды жасау мүмкін болмады" : "Не удалось создать игру"}
+        description={
+          language === "kk"
+            ? "Монеталар қайтарылды. Параметрлерді тексеріп, қайта жасап көріңіз."
+            : "Монеты возвращены. Проверьте параметры и попробуйте ещё раз."
+        }
+        backLabel={backLabel}
+      />
+    );
+  }
+
+  const gameData = restoreRaceGame(value);
+  if (!gameData) {
+    return (
+      <GameMessage
+        title={language === "kk" ? "Ойын толық сақталмаған" : "Игра сохранилась не полностью"}
+        description={
+          language === "kk"
+            ? "Жаңа ойын жасап көріңіз. Монеталарға қатысты мәселе болса, қолдау қызметіне жазыңыз."
+            : "Создайте новую игру. Если возник вопрос по монетам, напишите в поддержку."
+        }
+        backLabel={backLabel}
+      />
+    );
+  }
+
+  return <RaceArena gameData={gameData} />;
+}
+
+
+export default function AtZharysGamePage() {
+  return (
+    <Suspense fallback={<div className="min-h-96 animate-pulse rounded-3xl bg-white/70" />}>
+      <AtZharysGameContent />
+    </Suspense>
   );
 }

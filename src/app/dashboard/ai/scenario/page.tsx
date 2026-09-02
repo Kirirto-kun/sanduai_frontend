@@ -1,12 +1,17 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
-import { InsufficientTokensError } from "../../../../lib/api";
 import {
-  generateScenario,
+  enqueueGenerationJob,
+  getGenerationJob,
+  InsufficientTokensError,
+  type GenerationJobSummary,
+} from "../../../../lib/api";
+import {
   Language,
   ScenarioBlockType,
   ScenarioResult,
@@ -24,6 +29,13 @@ import {
   TextArea,
   TextInput,
 } from "../../../../components/visuals/GeneratorUI";
+import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
+import { saveBlob } from "../../../../lib/generation-download";
+import {
+  buildScenarioDocumentHtml,
+  scenarioDocumentFileName,
+  type ScenarioDocumentLabels,
+} from "../../../../lib/scenario-document";
 
 const BLOCK_ICON: Record<ScenarioBlockType, string> = {
   intro: "🎤",
@@ -69,6 +81,8 @@ const TEXT = {
     props: "Подготовить",
     copy: "Скопировать сценарий",
     copied: "Скопировано",
+    download: "Скачать Word",
+    resumeHint: "Работа продолжается на сервере. После обновления страницы результат не потеряется.",
     noTokens: "Недостаточно токенов",
     segments: {
       kindergarten: "Детсад",
@@ -105,6 +119,8 @@ const TEXT = {
     props: "Дайындау керек",
     copy: "Сценарийді көшіру",
     copied: "Көшірілді",
+    download: "Word жүктеу",
+    resumeHint: "Жұмыс серверде жалғасады. Бетті жаңартсаңыз да нәтиже жоғалмайды.",
     noTokens: "Токен жеткіліксіз",
     segments: {
       kindergarten: "Балабақша",
@@ -114,8 +130,20 @@ const TEXT = {
   },
 } as const;
 
+function saveScenarioDocument(
+  result: ScenarioResult,
+  labels: ScenarioDocumentLabels,
+): void {
+  const html = buildScenarioDocumentHtml(result, labels);
+  saveBlob(
+    new Blob(["\ufeff", html], { type: "application/msword;charset=utf-8" }),
+    scenarioDocumentFileName(result.title),
+  );
+}
+
 export default function ScenarioPage() {
   const { language } = useLanguage();
+  const router = useRouter();
   const toTeacherErrorMessage = useTeacherErrorMessage();
   const t = TEXT[language];
   const { costs, balance, refreshBalance } = useTokens();
@@ -133,6 +161,7 @@ export default function ScenarioPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   const enoughTokens = balance === null || balance >= cost;
 
@@ -152,6 +181,79 @@ export default function ScenarioPage() {
     label: String(d),
   }));
 
+  const showScenario = useCallback((data: ScenarioResult) => {
+    setResult(data);
+    setCopied(false);
+  }, []);
+
+  useEffect(() => {
+    const jobId = new URLSearchParams(window.location.search).get("job");
+    if (jobId) {
+      setCurrentJobId(jobId);
+      setLoading(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!currentJobId) return;
+
+    let cancelled = false;
+    let retryCount = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const poll = async () => {
+      try {
+        const job = await getGenerationJob(currentJobId);
+        if (cancelled) return;
+
+        if (job.kind !== "scenario.generate") {
+          throw new Error("MATERIAL_NOT_FOUND");
+        }
+        if ((job.status === "completed" || job.status === "billing_error") && job.result) {
+          showScenario(job.result as unknown as ScenarioResult);
+          setLoading(false);
+          setError(null);
+          refreshBalance();
+          return;
+        }
+        if (["failed", "cancelled", "billing_error"].includes(job.status)) {
+          setLoading(false);
+          setError(toTeacherErrorMessage(new Error(job.error_message || "GENERATION_FAILED")));
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+        retryCount = 0;
+        timer = setTimeout(() => void poll(), 1_200);
+      } catch (pollError) {
+        if (cancelled) return;
+        retryCount += 1;
+        if (retryCount < 4) {
+          setLoading(true);
+          timer = setTimeout(() => void poll(), 2_000);
+          return;
+        }
+        setLoading(false);
+        setError(toTeacherErrorMessage(pollError));
+      }
+    };
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [currentJobId, refreshBalance, showScenario, toTeacherErrorMessage]);
+
+  const downloadScenarioJob = useCallback(async (job: GenerationJobSummary) => {
+    const fullJob = await getGenerationJob(job.id);
+    if (fullJob.kind !== "scenario.generate" || !fullJob.result) {
+      throw new Error("MATERIAL_NOT_READY");
+    }
+    saveScenarioDocument(fullJob.result as unknown as ScenarioResult, t);
+  }, [t]);
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!topic.trim()) return;
@@ -162,23 +264,27 @@ export default function ScenarioPage() {
     setCopied(false);
 
     try {
-      const data = await generateScenario({
+      const payload = {
         topic: topic.trim(),
         segment,
         age,
-        durationMinutes: duration,
+        duration_minutes: duration,
         language: lang,
-        notes: notes.trim() || undefined,
+        notes: notes.trim() || null,
+      };
+      const job = await enqueueGenerationJob("scenario.generate", payload, {
+        title: topic.trim(),
       });
-      setResult(data);
-      refreshBalance();
+      setCurrentJobId(job.id);
+      router.replace(`/dashboard/ai/scenario?job=${encodeURIComponent(job.id)}`, {
+        scroll: false,
+      });
     } catch (err) {
       if (err instanceof InsufficientTokensError) {
         setError(`${t.noTokens}: ${err.required} / ${err.available}`);
       } else {
         setError(toTeacherErrorMessage(err));
       }
-    } finally {
       setLoading(false);
     }
   };
@@ -203,6 +309,7 @@ export default function ScenarioPage() {
   };
 
   return (
+    <>
     <GeneratorLayout
       icon="🎭"
       title={t.title}
@@ -288,7 +395,16 @@ export default function ScenarioPage() {
       result={
         <div className="space-y-4">
           {error && <ErrorState message={error} />}
-          {loading && <LoadingState title={t.loadingTitle} steps={[...t.steps]} />}
+          {loading && (
+            <div className="space-y-3" role="status">
+              <LoadingState title={t.loadingTitle} steps={[...t.steps]} />
+              {currentJobId ? (
+                <p className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                  {t.resumeHint}
+                </p>
+              ) : null}
+            </div>
+          )}
           {!loading && !result && !error && (
             <EmptyState icon="🎭" title={t.emptyTitle} hint={t.emptyHint} />
           )}
@@ -324,6 +440,13 @@ export default function ScenarioPage() {
                   className="mt-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   {copied ? `✓ ${t.copied}` : `📋 ${t.copy}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveScenarioDocument(result, t)}
+                  className="mt-2 w-full rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  {t.download}
                 </button>
               </div>
 
@@ -387,5 +510,12 @@ export default function ScenarioPage() {
         </div>
       }
     />
+    <div className="mx-auto max-w-7xl">
+      <ModuleGenerationHistory
+        kinds={["scenario.generate"]}
+        onDownload={downloadScenarioJob}
+      />
+    </div>
+    </>
   );
 }

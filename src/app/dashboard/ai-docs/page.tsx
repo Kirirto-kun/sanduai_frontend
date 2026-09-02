@@ -1,17 +1,21 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   EssayContentBlock,
   EssayGeneratePayload,
+  EssayGenerateResponse,
+  enqueueGenerationJob,
   exportEssayDocx,
-  generateEssay,
+  getGenerationJob,
   reviseEssay,
   InsufficientTokensError,
 } from "../../../lib/api";
-import { useTranslations } from "../../../i18n/LanguageContext";
+import { useLanguage, useTranslations } from "../../../i18n/LanguageContext";
 import { useTokens } from "../../../hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import { ModuleGenerationHistory } from "../../../components/generations/ModuleGenerationHistory";
 
 type PendingRevision = {
   id: string;
@@ -30,6 +34,8 @@ const initialPayload: EssayGeneratePayload = {
 
 export default function AiDocsPage() {
   const t = useTranslations();
+  const { language } = useLanguage();
+  const router = useRouter();
   const toTeacherErrorMessage = useTeacherErrorMessage();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
   const [form, setForm] = useState<EssayGeneratePayload>(initialPayload);
@@ -41,6 +47,8 @@ export default function AiDocsPage() {
   const [generalInstruction, setGeneralInstruction] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [generationPending, setGenerationPending] = useState(false);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   // Modal state for adding a revision
   const [showModal, setShowModal] = useState(false);
@@ -50,6 +58,83 @@ export default function AiDocsPage() {
 
   const hasResult = useMemo(() => title || plan.length || blocks.length, [title, plan, blocks]);
 
+  const showEssay = useCallback((data: EssayGenerateResponse) => {
+    setTitle(data.title);
+    setPlan(data.essay_plan || []);
+    setBlocks(data.content_blocks || []);
+    setPendingRevisions([]);
+    setGeneralInstruction("");
+    setBlocksEditMode({});
+  }, []);
+
+  useEffect(() => {
+    const jobId = new URLSearchParams(window.location.search).get("job");
+    if (jobId) {
+      setCurrentJobId(jobId);
+      setLoading(true);
+      setGenerationPending(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!currentJobId) return;
+
+    let cancelled = false;
+    let retryCount = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const poll = async () => {
+      try {
+        const job = await getGenerationJob(currentJobId);
+        if (cancelled) return;
+
+        if (job.kind !== "essay.generate") {
+          throw new Error("MATERIAL_NOT_FOUND");
+        }
+
+        if ((job.status === "completed" || job.status === "billing_error") && job.result) {
+          showEssay(job.result as unknown as EssayGenerateResponse);
+          setLoading(false);
+          setGenerationPending(false);
+          setError(null);
+          refreshBalance();
+          return;
+        }
+
+        if (["failed", "cancelled", "billing_error"].includes(job.status)) {
+          setLoading(false);
+          setGenerationPending(false);
+          setError(toTeacherErrorMessage(new Error(job.error_message || "GENERATION_FAILED"), t.essay.errors.generic));
+          return;
+        }
+
+        setLoading(true);
+        setGenerationPending(true);
+        setError(null);
+        retryCount = 0;
+        timer = setTimeout(() => void poll(), 1_200);
+      } catch (pollError) {
+        if (cancelled) return;
+        retryCount += 1;
+        if (retryCount < 4) {
+          setLoading(true);
+          setGenerationPending(true);
+          timer = setTimeout(() => void poll(), 2_000);
+          return;
+        }
+        setLoading(false);
+        setGenerationPending(false);
+        setError(toTeacherErrorMessage(pollError, t.essay.errors.generic));
+      }
+    };
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [currentJobId, refreshBalance, showEssay, t.essay.errors.generic, toTeacherErrorMessage]);
+
   const onGenerate = async (e: FormEvent) => {
     e.preventDefault();
     if (!form.topic || !form.grade_level || !form.word_count || !form.essay_type) {
@@ -58,15 +143,11 @@ export default function AiDocsPage() {
     }
     setError(null);
     setLoading(true);
+    setGenerationPending(true);
     try {
-      const data = await generateEssay(form);
-      setTitle(data.title);
-      setPlan(data.essay_plan || []);
-      setBlocks(data.content_blocks || []);
-      setPendingRevisions([]);
-      setGeneralInstruction("");
-      setBlocksEditMode({});
-      refreshBalance();
+      const job = await enqueueGenerationJob("essay.generate", form, { title: form.topic });
+      setCurrentJobId(job.id);
+      router.replace(`/dashboard/ai/essay?job=${encodeURIComponent(job.id)}`, { scroll: false });
     } catch (err) {
       if (err instanceof InsufficientTokensError) {
         setError(
@@ -75,8 +156,8 @@ export default function AiDocsPage() {
       } else {
         setError(toTeacherErrorMessage(err, t.essay.errors.generic));
       }
-    } finally {
       setLoading(false);
+      setGenerationPending(false);
     }
   };
 
@@ -199,6 +280,16 @@ export default function AiDocsPage() {
 
   return (
     <div className="space-y-6">
+      {generationPending && currentJobId ? (
+        <div role="status" className="rounded-3xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-950 shadow-sm">
+          <p className="font-bold">{language === "kk" ? "Эссе жасалып жатыр" : "Эссе создаётся"}</p>
+          <p className="mt-1 text-sky-800">
+            {language === "kk"
+              ? "Жұмыс серверде жалғасады. Бетті жаңартсаңыз да нәтиже жоғалмайды."
+              : "Работа продолжается на сервере. После обновления страницы результат не потеряется."}
+          </p>
+        </div>
+      ) : null}
       {/* Generation Form */}
       <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
         <h2 className="text-xl font-semibold text-slate-900">{t.essay.form.title}</h2>
@@ -541,6 +632,8 @@ export default function AiDocsPage() {
           </div>
         </div>
       )}
+
+      <ModuleGenerationHistory kinds={["essay.generate"]} />
     </div>
   );
 }

@@ -1,14 +1,24 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
+import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
 import { useLanguage } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
-import { InsufficientTokensError } from "../../../../lib/api";
+import {
+  enqueueGenerationJob,
+  getGenerationJob,
+  InsufficientTokensError,
+} from "../../../../lib/api";
+import {
+  generationJobIdFromSearchParam,
+  isActiveGenerationJob,
+} from "../../../../lib/generation-history";
 import { visualGenerationErrorMessage } from "../../../../lib/visuals-ai-errors";
 import {
   ComicResult,
   ComicStyle,
-  generateComic,
   Language,
 } from "../../../../lib/visuals-ai-api";
 import {
@@ -112,10 +122,30 @@ const TEXT = {
   },
 } as const;
 
-export default function ComicsPage() {
+const KIND = "visual.comic";
+const MODULE_KINDS = [KIND] as const;
+const SOURCE_PATH = "/dashboard/ai/comics";
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("PHOTO_READ_FAILED"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function ComicsContent() {
   const { language } = useLanguage();
   const t = TEXT[language];
   const { costs, balance, refreshBalance } = useTokens();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const requestedJobId = generationJobIdFromSearchParam(searchParams.get("job"));
+  const [sessionJobId, setSessionJobId] = useState<string | null>(null);
+  const currentJobId = requestedJobId ?? sessionJobId;
+  const settledJobId = useRef<string | null>(null);
 
   const cost = costs["comic_generate"] ?? 50;
 
@@ -127,7 +157,53 @@ export default function ComicsPage() {
 
   const [result, setResult] = useState<ComicResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const job = useQuery({
+    queryKey: ["generation-job", currentJobId],
+    queryFn: () => getGenerationJob(currentJobId as string),
+    enabled: Boolean(currentJobId),
+    retry: 2,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
+  });
+  const loading = submitting || Boolean(
+    currentJobId && (job.isPending || (job.data && isActiveGenerationJob(job.data))),
+  );
+
+  useEffect(() => {
+    setResult(null);
+    setError(null);
+    settledJobId.current = null;
+  }, [currentJobId]);
+
+  useEffect(() => {
+    const value = job.data;
+    if (!value || isActiveGenerationJob(value) || settledJobId.current === value.id) return;
+    settledJobId.current = value.id;
+    if (value.kind !== KIND) {
+      setError(language === "kk" ? "Бұл материал басқа бөлімде жасалған." : "Этот материал создан в другом разделе.");
+      return;
+    }
+    if ((value.status === "completed" || value.status === "billing_error") && value.result) {
+      setResult(value.result as unknown as ComicResult);
+      setError(null);
+      refreshBalance();
+      return;
+    }
+    setError(
+      value.status === "cancelled"
+        ? language === "kk" ? "Жасау тоқтатылды. Монеталар қайтарылды." : "Создание остановлено. Монеты возвращены."
+        : language === "kk" ? "Комиксті жасау мүмкін болмады. Монеталар қайтарылды." : "Не удалось создать комикс. Монеты возвращены.",
+    );
+    refreshBalance();
+  }, [job.data, language, refreshBalance]);
+
+  useEffect(() => {
+    if (job.error) setError(visualGenerationErrorMessage(job.error, language));
+  }, [job.error, language]);
 
   const enoughTokens = balance === null || balance >= cost;
 
@@ -153,19 +229,25 @@ export default function ComicsPage() {
     if (!description.trim()) return;
 
     setError(null);
-    setLoading(true);
+    setSubmitting(true);
     setResult(null);
 
     try {
-      const data = await generateComic({
-        description: description.trim(),
-        panelCount,
-        language: lang,
-        style,
-        photos,
-      });
-      setResult(data);
-      refreshBalance();
+      const photosBase64 = await Promise.all(photos.map(fileToDataUrl));
+      const created = await enqueueGenerationJob(
+        KIND,
+        {
+          description: description.trim(),
+          panel_count: panelCount,
+          language: lang,
+          style,
+          photos_base64: photosBase64,
+        },
+        { title: description.trim() },
+      );
+      setSessionJobId(created.id);
+      queryClient.setQueryData(["generation-job", created.id], created);
+      router.replace(`${SOURCE_PATH}?job=${encodeURIComponent(created.id)}`, { scroll: false });
     } catch (err) {
       if (err instanceof InsufficientTokensError) {
         setError(`${t.noTokens}: ${err.required} / ${err.available}`);
@@ -173,19 +255,20 @@ export default function ComicsPage() {
         setError(visualGenerationErrorMessage(err, language));
       }
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <GeneratorLayout
-      icon="💥"
-      title={t.title}
-      subtitle={t.subtitle}
-      cost={cost}
-      costLabel={t.costLabel}
-      form={
-        <form onSubmit={onSubmit}>
+    <>
+      <GeneratorLayout
+        icon="💥"
+        title={t.title}
+        subtitle={t.subtitle}
+        cost={cost}
+        costLabel={t.costLabel}
+        form={
+          <form onSubmit={onSubmit}>
           <Field label={t.description} hint={t.descriptionHint}>
             <TextArea
               value={description}
@@ -251,10 +334,10 @@ export default function ComicsPage() {
               {t.noTokens}: {cost} / {balance}
             </p>
           )}
-        </form>
-      }
-      result={
-        <div className="space-y-4">
+          </form>
+        }
+        result={
+          <div className="space-y-4">
           {error && <ErrorState message={error} />}
           {loading && <LoadingState title={t.loadingTitle} steps={[...t.steps]} />}
           {!loading && !result && !error && (
@@ -293,8 +376,20 @@ export default function ComicsPage() {
               }
             />
           )}
-        </div>
-      }
-    />
+          </div>
+        }
+      />
+      <div className="mx-auto max-w-7xl">
+        <ModuleGenerationHistory kinds={MODULE_KINDS} />
+      </div>
+    </>
+  );
+}
+
+export default function ComicsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-96 animate-pulse rounded-3xl bg-white/70" />}>
+      <ComicsContent />
+    </Suspense>
   );
 }

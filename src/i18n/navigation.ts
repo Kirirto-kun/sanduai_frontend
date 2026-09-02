@@ -104,6 +104,16 @@ const AI_PRESENTATIONS: NavItem = {
   isNew: true,
 };
 
+const AI_PEDAGOGICAL_IDEAS: NavItem = {
+  key: "pedagogical-ideas",
+  href: "/dashboard/ai/pedagogical-ideas",
+  label: {
+    ru: "Идеи для урока",
+    kk: "Сабақ идеялары",
+  },
+  isNew: true,
+};
+
 const AI_SCENARIO: NavItem = {
   key: "scenario",
   href: "/dashboard/ai/scenario",
@@ -132,6 +142,7 @@ const SCHOOL: NavSegment = {
         AI_KORNEKILIK,
         AI_INFOGRAPHICS,
         AI_PRESENTATIONS,
+        AI_PEDAGOGICAL_IDEAS,
       ],
     },
     {

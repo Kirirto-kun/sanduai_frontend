@@ -12,6 +12,7 @@ import { COMMON_GROUPS, NavGroup, NavItem, resolveNavAccess, SEGMENTS, SegmentKe
 import { useSegment } from "../../hooks/useSegment";
 import { useTokens } from "../../hooks/useTokens";
 import { classifyRouteAccess, decideRouteAccess } from "../../lib/access-policy";
+import { GenerationCenter } from "../../components/generations/GenerationCenter";
 
 const DESKTOP_MEDIA_QUERY = "(min-width: 768px)";
 
@@ -345,6 +346,19 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
         <span>{t.sandubot?.title || "Sandu Bot"}</span>
       </Link>
 
+      <Link
+        href="/dashboard/generations"
+        onClick={onNavigate}
+        className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
+          pathname === "/dashboard/generations"
+            ? "bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] text-white shadow"
+            : "text-slate-700 hover:bg-white/80 hover:text-slate-900"
+        }`}
+      >
+        <span>📂</span>
+        <span>{language === "kk" ? "Менің материалдарым" : "Мои материалы"}</span>
+      </Link>
+
       <div className="my-3 border-t border-slate-200" />
 
       {visibleGroups.map((group) => {
@@ -581,6 +595,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
           </header>
 
           <main className="px-2 pb-10 pt-4 sm:px-4 md:px-6 lg:px-8">
+            <GenerationCenter />
             {routeAccessPolicy === "subscription" ? (
               <SubscriptionAccessGate
                 key={pathname}

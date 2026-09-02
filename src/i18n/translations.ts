@@ -149,6 +149,24 @@ type Translations = {
     defaultTokenDescription: string;
     subscriptionExtendNote: string;
     subscriptionNewNote: string;
+    revokeSubscription: string;
+    resetTokens: string;
+    deleteUser: string;
+    protectedAdminAction: string;
+    revokeSubscriptionTitle: string;
+    revokeSubscriptionMessage: string;
+    resetTokensTitle: string;
+    resetTokensMessage: string;
+    deleteUserTitle: string;
+    deleteUserMessage: string;
+    deleteUserWarning: string;
+    deleteUserConfirmationLabel: string;
+    deleteUserConfirmationPlaceholder: string;
+    confirmAction: string;
+    actionInProgress: string;
+    revokeSubscriptionSuccess: string;
+    resetTokensSuccess: string;
+    deleteUserSuccess: string;
     total: string;
     loading: string;
     selectedFile: string;
@@ -1460,6 +1478,24 @@ export const translations: Record<Language, Translations> = {
       defaultTokenDescription: "Начисление токенов администратором",
       subscriptionExtendNote: "Подписка будет продлена от текущей даты окончания",
       subscriptionNewNote: "Будет создана новая подписка на указанное количество дней",
+      revokeSubscription: "Снять подписку",
+      resetTokens: "Обнулить токены",
+      deleteUser: "Удалить",
+      protectedAdminAction: "Аккаунты администраторов защищены",
+      revokeSubscriptionTitle: "Снять подписку?",
+      revokeSubscriptionMessage: "Пользователь потеряет доступ к разделам по подписке. Баланс токенов не изменится.",
+      resetTokensTitle: "Обнулить токены?",
+      resetTokensMessage: "Баланс пользователя станет равен нулю. Подписка при этом останется без изменений.",
+      deleteUserTitle: "Удалить пользователя?",
+      deleteUserMessage: "Аккаунт и связанные с ним данные будут удалены.",
+      deleteUserWarning: "Это действие нельзя отменить.",
+      deleteUserConfirmationLabel: "Для подтверждения введите email пользователя",
+      deleteUserConfirmationPlaceholder: "Введите email точно как указано",
+      confirmAction: "Подтвердить",
+      actionInProgress: "Выполняется...",
+      revokeSubscriptionSuccess: "Подписка снята",
+      resetTokensSuccess: "Баланс токенов обнулён",
+      deleteUserSuccess: "Пользователь удалён",
       total: "Всего",
       loading: "Загрузка...",
       selectedFile: "Выбрано",
@@ -2771,6 +2807,24 @@ export const translations: Record<Language, Translations> = {
       defaultTokenDescription: "Әкімші тарапынан токен қосу",
       subscriptionExtendNote: "Жазылым ағымдағы аяқталу күнінен ұзартылады",
       subscriptionNewNote: "Көрсетілген күн санына жаңа жазылым жасалады",
+      revokeSubscription: "Жазылымды тоқтату",
+      resetTokens: "Токендерді нөлдеу",
+      deleteUser: "Жою",
+      protectedAdminAction: "Әкімші аккаунттары қорғалған",
+      revokeSubscriptionTitle: "Жазылымды тоқтатасыз ба?",
+      revokeSubscriptionMessage: "Пайдаланушы жазылым арқылы ашылатын бөлімдерге кіре алмайды. Токен балансы өзгермейді.",
+      resetTokensTitle: "Токендерді нөлдейсіз бе?",
+      resetTokensMessage: "Пайдаланушының токен балансы нөлге тең болады. Жазылымы өзгермейді.",
+      deleteUserTitle: "Пайдаланушыны жоясыз ба?",
+      deleteUserMessage: "Аккаунт және оған байланысты деректер жойылады.",
+      deleteUserWarning: "Бұл әрекетті кері қайтару мүмкін емес.",
+      deleteUserConfirmationLabel: "Растау үшін пайдаланушының email мекенжайын енгізіңіз",
+      deleteUserConfirmationPlaceholder: "Email мекенжайын дәл енгізіңіз",
+      confirmAction: "Растау",
+      actionInProgress: "Орындалуда...",
+      revokeSubscriptionSuccess: "Жазылым тоқтатылды",
+      resetTokensSuccess: "Токен балансы нөлденді",
+      deleteUserSuccess: "Пайдаланушы жойылды",
       total: "Барлығы",
       loading: "Жүктелуде...",
       selectedFile: "Таңдалған",

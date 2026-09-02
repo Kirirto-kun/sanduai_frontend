@@ -1,26 +1,91 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
 import {
-  generateImage,
+  enqueueGenerationJob,
   GenerateImageResponse,
+  getGenerationJob,
   InsufficientTokensError,
 } from "../../../../lib/api";
+import {
+  generationJobIdFromSearchParam,
+  isActiveGenerationJob,
+} from "../../../../lib/generation-history";
 import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
 import { TokenBalance } from "../../../../components/TokenBalance";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
-export default function ImageGenerationPage() {
+const KIND = "image.generate";
+const MODULE_KINDS = [KIND] as const;
+const SOURCE_PATH = "/dashboard/ai/image-generation";
+
+function ImageGenerationContent() {
   const t = useTranslations();
   const { language } = useLanguage();
   const toTeacherErrorMessage = useTeacherErrorMessage();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const requestedJobId = generationJobIdFromSearchParam(searchParams.get("job"));
+  const [sessionJobId, setSessionJobId] = useState<string | null>(null);
+  const currentJobId = requestedJobId ?? sessionJobId;
+  const settledJobId = useRef<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState<GenerateImageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const job = useQuery({
+    queryKey: ["generation-job", currentJobId],
+    queryFn: () => getGenerationJob(currentJobId as string),
+    enabled: Boolean(currentJobId),
+    retry: 2,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
+  });
+  const loading = submitting || Boolean(
+    currentJobId && (job.isPending || (job.data && isActiveGenerationJob(job.data))),
+  );
+
+  useEffect(() => {
+    setResult(null);
+    setError(null);
+    settledJobId.current = null;
+  }, [currentJobId]);
+
+  useEffect(() => {
+    const value = job.data;
+    if (!value || isActiveGenerationJob(value) || settledJobId.current === value.id) return;
+    settledJobId.current = value.id;
+    if (value.kind !== KIND) {
+      setError(language === "kk" ? "Бұл материал басқа бөлімде жасалған." : "Этот материал создан в другом разделе.");
+      return;
+    }
+    if ((value.status === "completed" || value.status === "billing_error") && value.result) {
+      setResult(value.result as unknown as GenerateImageResponse);
+      setError(null);
+      refreshBalance();
+      return;
+    }
+    setError(
+      value.status === "cancelled"
+        ? language === "kk" ? "Жасау тоқтатылды. Монеталар қайтарылды." : "Создание остановлено. Монеты возвращены."
+        : language === "kk" ? "Суретті жасау мүмкін болмады. Монеталар қайтарылды." : "Не удалось создать изображение. Монеты возвращены.",
+    );
+    refreshBalance();
+  }, [job.data, language, refreshBalance]);
+
+  useEffect(() => {
+    if (job.error) setError(toTeacherErrorMessage(job.error));
+  }, [job.error, toTeacherErrorMessage]);
 
   const operationType = "image_generate";
   const cost = costs[operationType] || 20;
@@ -34,13 +99,18 @@ export default function ImageGenerationPage() {
     }
 
     setError(null);
-    setLoading(true);
+    setSubmitting(true);
     setResult(null);
 
     try {
-      const data = await generateImage({ prompt: prompt.trim() });
-      setResult(data);
-      refreshBalance();
+      const created = await enqueueGenerationJob(
+        KIND,
+        { prompt: prompt.trim() },
+        { title: prompt.trim() },
+      );
+      setSessionJobId(created.id);
+      queryClient.setQueryData(["generation-job", created.id], created);
+      router.replace(`${SOURCE_PATH}?job=${encodeURIComponent(created.id)}`, { scroll: false });
     } catch (err) {
       if (err instanceof InsufficientTokensError) {
         setError(
@@ -50,7 +120,7 @@ export default function ImageGenerationPage() {
         setError(toTeacherErrorMessage(err));
       }
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -93,12 +163,14 @@ export default function ImageGenerationPage() {
             />
           </svg>
           <div>
-            <h3 className="font-semibold text-orange-800">
-              Внимание: Изображение не сохраняется в истории
-            </h3>
-            <p className="mt-1 text-sm text-orange-700">
-              Скачайте изображение сразу после генерации. Ссылка действительна только 1 час.
-            </p>
+              <h3 className="font-semibold text-orange-800">
+                {language === "kk" ? "Нәтиже автоматты түрде сақталады" : "Результат сохранится автоматически"}
+              </h3>
+              <p className="mt-1 text-sm text-orange-700">
+                {language === "kk"
+                  ? "Оны төмендегі тарихтан қайта ашуға немесе жүктеуге болады."
+                  : "Его можно снова открыть или скачать из истории ниже."}
+              </p>
           </div>
         </div>
       </div>
@@ -144,6 +216,22 @@ export default function ImageGenerationPage() {
           {loading ? "Генерация..." : "Сгенерировать изображение"}
         </button>
       </form>
+
+      {loading && (
+        <div aria-live="polite" className="mb-6 flex items-center gap-4 rounded-3xl border border-sky-200 bg-gradient-to-r from-sky-50 to-indigo-50 p-6 shadow-sm">
+          <div className="h-11 w-11 shrink-0 animate-spin rounded-full border-4 border-sky-200 border-t-sky-600" />
+          <div>
+            <p className="font-bold text-slate-900">
+              {language === "kk" ? "Сурет жасалып жатыр" : "Создаём изображение"}
+            </p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {language === "kk"
+                ? "Бетті жаңартуға немесе жабуға болады — жұмыс серверде жалғасады."
+                : "Страницу можно обновить или закрыть — работа продолжится на сервере."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Ошибка */}
       {error && (
@@ -209,6 +297,16 @@ export default function ImageGenerationPage() {
           )}
         </div>
       )}
+
+      <ModuleGenerationHistory kinds={MODULE_KINDS} />
     </div>
+  );
+}
+
+export default function ImageGenerationPage() {
+  return (
+    <Suspense fallback={<div className="min-h-96 animate-pulse rounded-3xl bg-white/70" />}>
+      <ImageGenerationContent />
+    </Suspense>
   );
 }

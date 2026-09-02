@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { useTranslations } from "../../../../../../i18n/LanguageContext";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useLanguage, useTranslations } from "../../../../../../i18n/LanguageContext";
 import {
+  enqueueProjectFinalization,
+  enqueueSectionRegeneration,
+  clearGenerationIntentForJob,
+  getGenerationJob,
   getProjectStatus,
-  regenerateSection,
-  finalizeProject,
   exportScientificProjectDocx,
   ProjectState,
   CompleteProjectResponse,
@@ -14,13 +17,26 @@ import {
 import Markdown from "react-markdown";
 import { useTokens } from "../../../../../../hooks/useTokens";
 import { InsufficientTokensError } from "../../../../../../lib/api";
+import {
+  generationJobIdFromSearchParam,
+  isActiveGenerationJob,
+} from "../../../../../../lib/generation-history";
+import { completeScienceProjectFromState } from "../../../../../../lib/science-project-history";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
-export default function EditProjectPage() {
+function EditProjectContent() {
   const t = useTranslations();
+  const { language } = useLanguage();
   const toTeacherErrorMessage = useTeacherErrorMessage();
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const projectId = params.projectId as string;
+  const requestedJobId = generationJobIdFromSearchParam(searchParams.get("job"));
+  const [sessionJobId, setSessionJobId] = useState<string | null>(null);
+  const currentJobId = requestedJobId ?? sessionJobId;
+  const handledJobId = useRef<string | null>(null);
   const { refreshBalance, costs, checkBalance } = useTokens();
 
   const [loading, setLoading] = useState(true);
@@ -29,7 +45,20 @@ export default function EditProjectPage() {
   const [sections, setSections] = useState<Record<string, string>>({});
   const [finalized, setFinalized] = useState<CompleteProjectResponse | null>(null);
   const [regenerating, setRegenerating] = useState<string | null>(null);
-  const [regenerateInstruction, setRegenerateInstruction] = useState("");
+  const [regenerateInstructions, setRegenerateInstructions] = useState<Record<string, string>>({});
+
+  const job = useQuery({
+    queryKey: ["generation-job", currentJobId],
+    queryFn: () => getGenerationJob(currentJobId as string),
+    enabled: Boolean(currentJobId),
+    retry: 2,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) => {
+      const value = query.state.data;
+      return value && isActiveGenerationJob(value) ? 2_000 : false;
+    },
+  });
 
   useEffect(() => {
     let active = true;
@@ -37,7 +66,10 @@ export default function EditProjectPage() {
     const loadState = async () => {
       try {
         const state: ProjectState = await getProjectStatus(projectId);
-        if (active) setSections(state.sections || {});
+        if (active) {
+          setSections(state.sections || {});
+          setFinalized(completeScienceProjectFromState(state));
+        }
       } catch (err: unknown) {
         if (active) setError(toTeacherErrorMessage(err));
       } finally {
@@ -51,8 +83,64 @@ export default function EditProjectPage() {
     };
   }, [projectId, toTeacherErrorMessage]);
 
+  useEffect(() => {
+    const value = job.data;
+    if (!value || handledJobId.current === value.id) return;
+    if (value.kind !== "science.regenerate" && value.kind !== "science.finalize") {
+      handledJobId.current = value.id;
+      setError(
+        language === "kk"
+          ? "Бұл сілтеме ғылыми жобаны өңдеу әрекетіне жатпайды."
+          : "Эта ссылка ведёт не на редактирование научного проекта.",
+      );
+      return;
+    }
+    if ((value.status === "completed" || value.status === "billing_error") && value.result) {
+      handledJobId.current = value.id;
+      clearGenerationIntentForJob(value.id);
+      let active = true;
+      void getProjectStatus(projectId)
+        .then((state) => {
+          if (!active) return;
+          setSections(state.sections || {});
+          setFinalized(completeScienceProjectFromState(state));
+          setRegenerating(null);
+          setFinalizing(false);
+          refreshBalance();
+          void queryClient.invalidateQueries({ queryKey: ["science-project-history"] });
+          router.replace(
+            `/dashboard/ai/scientific-projects/${encodeURIComponent(projectId)}/edit`,
+            { scroll: false },
+          );
+        })
+        .catch((restoreError: unknown) => {
+          if (active) setError(toTeacherErrorMessage(restoreError));
+        });
+      return () => {
+        active = false;
+      };
+    }
+    if (value.status === "failed" || value.status === "cancelled") {
+      handledJobId.current = value.id;
+      clearGenerationIntentForJob(value.id);
+      setRegenerating(null);
+      setFinalizing(false);
+      refreshBalance();
+      setError(
+        language === "kk"
+          ? "Өзгерісті сақтау мүмкін болмады. Монеталар қайтарылды — қайта көріңіз."
+          : "Не удалось сохранить изменение. Монеты возвращены — попробуйте ещё раз.",
+      );
+    }
+  }, [job.data, language, projectId, queryClient, refreshBalance, router, toTeacherErrorMessage]);
+
+  useEffect(() => {
+    if (job.error) setError(toTeacherErrorMessage(job.error));
+  }, [job.error, toTeacherErrorMessage]);
+
   const handleRegenerate = async (sectionType: string) => {
-    if (!regenerateInstruction.trim()) {
+    const instruction = regenerateInstructions[sectionType]?.trim() ?? "";
+    if (!instruction) {
       alert("Введите инструкцию для перегенерации");
       return;
     }
@@ -61,21 +149,21 @@ export default function EditProjectPage() {
     setError(null);
 
     try {
-      const res = await regenerateSection({
+      const createdJob = await enqueueSectionRegeneration({
         project_id: projectId,
         section_type: sectionType,
-        instruction: regenerateInstruction,
+        instruction,
         current_content: sections[sectionType] || "",
       });
-
-      setSections((prev) => ({
-        ...prev,
-        [sectionType]: res.content,
-      }));
-
-      setRegenerateInstruction("");
-      refreshBalance();
+      handledJobId.current = null;
+      setSessionJobId(createdJob.id);
+      queryClient.setQueryData(["generation-job", createdJob.id], createdJob);
+      router.replace(
+        `/dashboard/ai/scientific-projects/${encodeURIComponent(projectId)}/edit?job=${encodeURIComponent(createdJob.id)}`,
+        { scroll: false },
+      );
     } catch (err: unknown) {
+      setRegenerating(null);
       if (err instanceof InsufficientTokensError) {
         setError(
           `${t.tokens?.insufficient || "Недостаточно токенов"}. ${t.tokens?.required || "Требуется"}: ${err.required}, ${t.tokens?.available || "Доступно"}: ${err.available}`
@@ -83,8 +171,6 @@ export default function EditProjectPage() {
       } else {
         setError(toTeacherErrorMessage(err, t.scientificProject.errors.generic));
       }
-    } finally {
-      setRegenerating(null);
     }
   };
 
@@ -93,14 +179,19 @@ export default function EditProjectPage() {
     setError(null);
 
     try {
-      const res = await finalizeProject({
+      const createdJob = await enqueueProjectFinalization({
         project_id: projectId,
       });
-      setFinalized(res);
+      handledJobId.current = null;
+      setSessionJobId(createdJob.id);
+      queryClient.setQueryData(["generation-job", createdJob.id], createdJob);
+      router.replace(
+        `/dashboard/ai/scientific-projects/${encodeURIComponent(projectId)}/edit?job=${encodeURIComponent(createdJob.id)}`,
+        { scroll: false },
+      );
     } catch (err: unknown) {
-      setError(toTeacherErrorMessage(err, t.scientificProject.errors.generic));
-    } finally {
       setFinalizing(false);
+      setError(toTeacherErrorMessage(err, t.scientificProject.errors.generic));
     }
   };
 
@@ -132,6 +223,9 @@ export default function EditProjectPage() {
     chapter_2: t.scientificProject.results.chapterResearch,
     conclusion: t.scientificProject.results.conclusion,
   };
+  const operationActive = Boolean(
+    currentJobId && (job.isLoading || (job.data && isActiveGenerationJob(job.data))),
+  );
 
   if (loading) {
     return (
@@ -152,6 +246,24 @@ export default function EditProjectPage() {
           <div className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-600">{error}</div>
         )}
 
+        {operationActive ? (
+          <div aria-live="polite" className="mb-6 flex items-center gap-4 rounded-3xl border border-sky-200 bg-sky-50 p-5 text-sky-950">
+            <div className="h-10 w-10 shrink-0 animate-spin rounded-full border-4 border-sky-200 border-t-sky-600" />
+            <div>
+              <p className="font-bold">
+                {job.data?.kind === "science.finalize"
+                  ? language === "kk" ? "Жоба аяқталып жатыр" : "Завершаем проект"
+                  : language === "kk" ? "Бөлім жаңартылып жатыр" : "Обновляем раздел"}
+              </p>
+              <p className="mt-1 text-sm leading-6 text-sky-800">
+                {language === "kk"
+                  ? "Бетті жаңартуға немесе жабуға болады — нәтиже жоғалмайды."
+                  : "Страницу можно обновить или закрыть — результат не потеряется."}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {!finalized ? (
           <>
             {/* Sections */}
@@ -169,14 +281,17 @@ export default function EditProjectPage() {
                       <input
                         type="text"
                         placeholder="Инструкция для перегенерации..."
-                        value={regenerating === key ? regenerateInstruction : ""}
-                        onChange={(e) => setRegenerateInstruction(e.target.value)}
+                        value={regenerateInstructions[key] ?? ""}
+                        onChange={(e) => setRegenerateInstructions((current) => ({
+                          ...current,
+                          [key]: e.target.value,
+                        }))}
                         className="rounded-lg border border-slate-200 px-3 py-1 text-xs"
-                        disabled={regenerating === key}
+                        disabled={operationActive}
                       />
                       <button
                         onClick={() => handleRegenerate(key)}
-                        disabled={regenerating === key || !checkBalance("sciproject_regenerate")}
+                        disabled={operationActive || regenerating === key || !checkBalance("sciproject_regenerate")}
                         className="rounded-lg bg-orange-500 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
                       >
                         {regenerating === key ? "..." : `🔄 ${t.scientificProject.wizard.regenerateSection} (${costs.sciproject_regenerate || 3} ${t.tokens?.balance || "токенов"})`}
@@ -194,7 +309,7 @@ export default function EditProjectPage() {
             <div className="mt-8">
               <button
                 onClick={handleFinalize}
-                disabled={finalizing}
+                disabled={finalizing || operationActive}
                 className="w-full rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
                 {finalizing ? (
@@ -278,5 +393,14 @@ export default function EditProjectPage() {
         )}
       </div>
     </div>
+  );
+}
+
+
+export default function EditProjectPage() {
+  return (
+    <Suspense fallback={<div className="min-h-96 animate-pulse rounded-3xl bg-white/70" />}>
+      <EditProjectContent />
+    </Suspense>
   );
 }

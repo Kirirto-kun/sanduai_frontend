@@ -7,8 +7,9 @@
  * страницы выглядели как один продукт, а не как три разных.
  */
 
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { ReactNode, useCallback, useRef, useState } from "react";
 import { downloadImage } from "../../lib/api";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 // --- Каркас страницы ---------------------------------------------------------
 
@@ -278,49 +279,23 @@ export function EmptyState({ icon, title, hint }: { icon: string; title: string;
 }
 
 export function LoadingState({ title, steps }: { title: string; steps: string[] }) {
-  // Генерация идёт около минуты. Без таймера и подсветки текущего шага
-  // ожидание выглядит как зависание.
-  const [seconds, setSeconds] = useState(0);
-
-  useEffect(() => {
-    const id = window.setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  const stepDuration = 20;
-  const activeStep = Math.min(Math.floor(seconds / stepDuration), steps.length - 1);
+  const { language } = useLanguage();
 
   return (
     <div className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-white/70 bg-white/80 p-10 text-center shadow-sm backdrop-blur">
       <div className="mb-4 h-10 w-10 animate-spin rounded-full border-[3px] border-[color:var(--primary)] border-r-transparent" />
       <p className="text-sm font-semibold text-slate-700">{title}</p>
-      <p className="mt-1 text-xs tabular-nums text-slate-400">
-        {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
+      <p className="mt-2 max-w-md text-xs leading-5 text-slate-500">
+        {language === "kk"
+          ? "Жұмыс серверде жалғасады. Бұл бетті жабуға болады — дайын материал «Менің материалдарым» бөлімінде сақталады."
+          : "Работа продолжится на сервере. Страницу можно закрыть — готовый материал сохранится в разделе «Мои материалы»."}
       </p>
 
-      <ul className="mt-5 space-y-2 text-left">
-        {steps.map((step, index) => {
-          const done = index < activeStep;
-          const active = index === activeStep;
-          return (
-            <li
-              key={step}
-              className={`flex items-center gap-2 text-xs transition ${
-                active
-                  ? "font-semibold text-slate-700"
-                  : done
-                    ? "text-slate-400"
-                    : "text-slate-300"
-              }`}
-            >
-              <span className="w-4 shrink-0 text-center">
-                {done ? "✓" : active ? "•" : "◦"}
-              </span>
-              <span>{step}</span>
-            </li>
-          );
-        })}
-      </ul>
+      {steps.length > 0 && (
+        <p className="mt-5 max-w-lg text-xs leading-5 text-slate-400">
+          {steps.join(" · ")}
+        </p>
+      )}
     </div>
   );
 }

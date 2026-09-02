@@ -19,6 +19,7 @@ import {
   isBalanceCacheValid,
   getOrCreateBalanceFetchPromise,
   clearCachedBalance,
+  TOKEN_BALANCE_INVALIDATED_EVENT,
 } from "../lib/tokenCache";
 import {
   hasAuthLogoutTombstone,
@@ -225,6 +226,23 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
     setSubscriptionPlan(null);
     refreshBalance();
   }), [refreshBalance]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const refreshAfterLedgerChange = () => {
+      void fetchBalance();
+    };
+    window.addEventListener(
+      TOKEN_BALANCE_INVALIDATED_EVENT,
+      refreshAfterLedgerChange,
+    );
+    return () => {
+      window.removeEventListener(
+        TOKEN_BALANCE_INVALIDATED_EVENT,
+        refreshAfterLedgerChange,
+      );
+    };
+  }, [fetchBalance]);
 
   useEffect(() => {
     if (!requireFreshSubscription || !subscriptionEnd) return;

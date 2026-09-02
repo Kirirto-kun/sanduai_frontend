@@ -4,56 +4,42 @@ import { useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useDeletePresentation, usePresentationsList } from "@/hooks/usePresentations";
-import type { PresentationMode, PresentationProject } from "@/types/presentations";
+import type { PresentationProject } from "@/types/presentations";
 import PresentationCard from "@/components/presentations/PresentationCard";
 import { ConfirmDialog, ErrorNotice } from "@/components/presentations/PresentationUI";
 import { getPresentationCopy } from "@/components/presentations/copy";
+import { PRESENTATION_CREATE_PATH } from "@/components/presentations/creation-policy";
 import { presentationErrorMessage } from "@/components/presentations/error-copy";
 
-function ModeCard({ mode }: { mode: PresentationMode }) {
+function CreativePresentationCard() {
   const { language } = useLanguage();
   const copy = getPresentationCopy(language);
-  const creative = mode === "creative";
-  const features = creative
-    ? [copy.creativeFeatureOne, copy.creativeFeatureTwo, copy.creativeFeatureThree]
-    : [copy.classicFeatureOne, copy.classicFeatureTwo, copy.classicFeatureThree];
+  const features = [copy.creativeFeatureOne, copy.creativeFeatureTwo, copy.creativeFeatureThree];
   return (
     <article
-      className={`relative isolate overflow-hidden rounded-[2rem] border p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-2xl sm:p-8 ${
-        creative
-          ? "border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-amber-50"
-          : "border-sky-200/80 bg-gradient-to-br from-sky-50 via-white to-emerald-50"
-      }`}
+      className="relative isolate overflow-hidden rounded-[2rem] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-amber-50 p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-2xl sm:p-8"
     >
       <div
         aria-hidden="true"
-        className={`absolute -right-20 -top-20 -z-10 h-56 w-56 rounded-full blur-3xl ${
-          creative ? "bg-violet-300/35" : "bg-cyan-300/35"
-        }`}
+        className="absolute -right-20 -top-20 -z-10 h-56 w-56 rounded-full bg-violet-300/35 blur-3xl"
       />
       <div
-        className={`flex h-14 w-14 items-center justify-center rounded-2xl text-2xl text-white shadow-lg ${
-          creative
-            ? "bg-gradient-to-br from-violet-600 to-fuchsia-500"
-            : "bg-gradient-to-br from-sky-600 to-emerald-500"
-        }`}
+        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-500 text-2xl text-white shadow-lg"
         aria-hidden="true"
       >
-        {creative ? "✦" : "▦"}
+        ✦
       </div>
       <h2 className="mt-6 text-2xl font-bold tracking-tight text-slate-950">
-        {creative ? copy.creativeTitle : copy.classicTitle}
+        {copy.creativeTitle}
       </h2>
       <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
-        {creative ? copy.creativeDescription : copy.classicDescription}
+        {copy.creativeDescription}
       </p>
       <ul className="mt-6 space-y-3">
         {features.map((feature) => (
           <li key={feature} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
             <span
-              className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                creative ? "bg-violet-100 text-violet-700" : "bg-emerald-100 text-emerald-700"
-              }`}
+              className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[11px] font-bold text-violet-700"
               aria-hidden="true"
             >
               ✓
@@ -63,14 +49,10 @@ function ModeCard({ mode }: { mode: PresentationMode }) {
         ))}
       </ul>
       <Link
-        href={`/dashboard/ai/presentations/create?mode=${mode}`}
-        className={`mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-2xl px-5 text-sm font-bold text-white shadow-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:w-auto ${
-          creative
-            ? "bg-violet-600 hover:bg-violet-700 focus-visible:ring-violet-500"
-            : "bg-slate-900 hover:bg-slate-800 focus-visible:ring-slate-500"
-        }`}
+        href={PRESENTATION_CREATE_PATH}
+        className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-violet-600 px-5 text-sm font-bold text-white shadow-md transition hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 sm:w-auto"
       >
-        {creative ? copy.chooseCreative : copy.chooseClassic}
+        {copy.chooseCreative}
         <span className="ml-2" aria-hidden="true">→</span>
       </Link>
     </article>
@@ -112,9 +94,8 @@ export default function PresentationsPage() {
         </p>
       </header>
 
-      <section aria-label={copy.newPresentation} className="grid gap-5 lg:grid-cols-2">
-        <ModeCard mode="classic" />
-        <ModeCard mode="creative" />
+      <section aria-label={copy.newPresentation} className="max-w-3xl">
+        <CreativePresentationCard />
       </section>
 
       <section aria-labelledby="presentation-projects-title">

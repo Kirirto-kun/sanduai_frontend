@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { useTranslations } from "../../../../i18n/LanguageContext";
+import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
+import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import {
-  generateLessonPlan,
+  enqueueGenerationJob,
   exportLessonPlanDocx,
+  getGenerationJob,
   type LessonPlanRequest,
   type LessonPlanResponse,
   type LessonMeta,
@@ -12,14 +17,26 @@ import {
   type NeuroExercise,
   InsufficientTokensError,
 } from "../../../../lib/api";
+import {
+  generationJobIdFromSearchParam,
+  isActiveGenerationJob,
+} from "../../../../lib/generation-history";
 import { useTokens } from "../../../../hooks/useTokens";
 import { errorMessageIncludes } from "../../../../lib/error-utils";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
-export default function LessonPlanPage() {
+function LessonPlanContent() {
   const t = useTranslations();
+  const { language } = useLanguage();
   const toTeacherErrorMessage = useTeacherErrorMessage();
   const { costs, balance, checkBalance, refreshBalance } = useTokens();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const requestedJobId = generationJobIdFromSearchParam(searchParams.get("job"));
+  const [sessionJobId, setSessionJobId] = useState<string | null>(null);
+  const currentJobId = requestedJobId ?? sessionJobId;
+  const loadedJobId = useRef<string | null>(null);
 
   // Helper function to safely render neuro_exercise
   const renderNeuroExercise = (neuroExercise: NeuroExercise): string => {
@@ -68,6 +85,63 @@ export default function LessonPlanPage() {
   const [lessonPlan, setLessonPlan] = useState<LessonPlanResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const job = useQuery({
+    queryKey: ["generation-job", currentJobId],
+    queryFn: () => getGenerationJob(currentJobId as string),
+    enabled: Boolean(currentJobId),
+    retry: 2,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) => {
+      const value = query.state.data;
+      return value && isActiveGenerationJob(value) ? 2_000 : false;
+    },
+  });
+
+  useEffect(() => {
+    if (!currentJobId || loadedJobId.current === currentJobId) return;
+    setLessonPlan(null);
+    setError("");
+  }, [currentJobId]);
+
+  useEffect(() => {
+    const value = job.data;
+    if (!value || loadedJobId.current === value.id) return;
+    if (value.kind !== "kmzh.generate") {
+      loadedJobId.current = value.id;
+      setLessonPlan(null);
+      setError(
+        language === "kk"
+          ? "Бұл сілтеме ҚМЖ материалына жатпайды."
+          : "Эта ссылка ведёт не на материал КМЖ.",
+      );
+      return;
+    }
+    if ((value.status === "completed" || value.status === "billing_error") && value.result) {
+      loadedJobId.current = value.id;
+      setLessonPlan(value.result as LessonPlanResponse);
+      setError("");
+      refreshBalance();
+      return;
+    }
+    if (value.status === "failed" || value.status === "cancelled") {
+      loadedJobId.current = value.id;
+      setError(
+        value.status === "cancelled"
+          ? language === "kk"
+            ? "ҚМЖ жасау тоқтатылды. Монеталар қайтарылды."
+            : "Создание КМЖ было остановлено. Монеты возвращены."
+          : language === "kk"
+            ? "ҚМЖ жасау мүмкін болмады. Монеталар қайтарылды — қайталап көріңіз."
+            : "Не удалось создать КМЖ. Монеты возвращены — попробуйте ещё раз.",
+      );
+      refreshBalance();
+    }
+  }, [job.data, language, refreshBalance]);
+
+  useEffect(() => {
+    if (job.error) setError(toTeacherErrorMessage(job.error));
+  }, [job.error, toTeacherErrorMessage]);
 
   // Convert image to Base64
   const convertImageToBase64 = (file: File): Promise<string> => {
@@ -199,9 +273,19 @@ export default function LessonPlanPage() {
         language: formData.language || "kazakh",
       };
 
-      const response = await generateLessonPlan(cleanedData);
-      setLessonPlan(response);
-      refreshBalance();
+      const createdJob = await enqueueGenerationJob(
+        "kmzh.generate",
+        cleanedData as unknown as Record<string, unknown>,
+        { title: cleanedData.topic },
+      );
+      setSessionJobId(createdJob.id);
+      loadedJobId.current = null;
+      setLessonPlan(null);
+      queryClient.setQueryData(["generation-job", createdJob.id], createdJob);
+      router.replace(
+        `/dashboard/ai/kmzh?job=${encodeURIComponent(createdJob.id)}`,
+        { scroll: false },
+      );
     } catch (err: unknown) {
       if (err instanceof InsufficientTokensError) {
         setError(
@@ -366,6 +450,8 @@ export default function LessonPlanPage() {
 
   // Create new plan
   const handleCreateNew = () => {
+    setSessionJobId(null);
+    loadedJobId.current = null;
     setLessonPlan(null);
     setFormData({
       subject: "",
@@ -383,14 +469,49 @@ export default function LessonPlanPage() {
       preferred_platform: null,
     });
     setError("");
+    router.replace("/dashboard/ai/kmzh", { scroll: false });
   };
+
+  const currentJob = job.data;
+  const showJobProgress = Boolean(
+    currentJobId && (job.isLoading || (currentJob && isActiveGenerationJob(currentJob))),
+  );
+  const progressCurrent = Math.max(0, Number(currentJob?.progress.current ?? 0));
+  const progressTotal = Math.max(1, Number(currentJob?.progress.total ?? 1));
+  const progressPercent = Math.max(
+    4,
+    Math.min(100, (progressCurrent / progressTotal) * 100),
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-beige to-green-50 p-4 sm:p-6">
       <div className="mx-auto max-w-7xl">
         <h1 className="mb-6 text-3xl font-bold text-slate-900">{t.lessonPlan.form.title}</h1>
 
-        {!lessonPlan ? (
+        {showJobProgress ? (
+          <section
+            aria-live="polite"
+            className="glass-card rounded-3xl border border-sky-200 bg-white/90 px-6 py-10 text-center shadow-md sm:px-10"
+          >
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-2xl" aria-hidden="true">
+              ✨
+            </div>
+            <h2 className="mt-5 text-2xl font-bold text-slate-950">
+              {language === "kk" ? "ҚМЖ жасалып жатыр" : "Создаём КМЖ"}
+            </h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600">
+              {language === "kk"
+                ? "Жұмыс серверде жалғасады. Бұл бетті жаңартуға немесе жабуға болады — нәтиже жоғалмайды."
+                : "Работа продолжается на сервере. Страницу можно обновить или закрыть — результат не потеряется."}
+            </p>
+            <div className="mx-auto mt-6 h-3 max-w-2xl overflow-hidden rounded-full bg-sky-100">
+              <div
+                className="h-full animate-pulse rounded-full bg-sky-500 transition-[width] duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </section>
+        ) : !lessonPlan ? (
           // Generation Form
           <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
             <form onSubmit={handleGenerate} className="space-y-6">
@@ -1054,7 +1175,27 @@ export default function LessonPlanPage() {
             </div>
           </div>
         )}
+
+        <ModuleGenerationHistory
+          kinds={["kmzh.generate"]}
+          title={{ ru: "Мои КМЖ", kk: "Менің ҚМЖ-ларым" }}
+        />
       </div>
     </div>
+  );
+}
+
+
+export default function LessonPlanPage() {
+  return (
+    <Suspense
+      fallback={(
+        <div className="min-h-screen bg-gradient-to-br from-orange-50 via-beige to-green-50 p-6">
+          <div className="mx-auto h-64 max-w-7xl animate-pulse rounded-3xl bg-white/70" />
+        </div>
+      )}
+    >
+      <LessonPlanContent />
+    </Suspense>
   );
 }

@@ -4,6 +4,7 @@
 
 const TOKEN_COSTS_CACHE_KEY = "sanduai_token_costs";
 const TOKEN_BALANCE_CACHE_KEY = "sanduai_token_balance";
+export const TOKEN_BALANCE_INVALIDATED_EVENT = "sanduai:token-balance-invalidated";
 const CACHE_TTL = 60 * 60 * 1000; // 1 час в миллисекундах для costs
 const BALANCE_CACHE_TTL = 30 * 1000; // 30 секунд для баланса (может меняться чаще)
 
@@ -162,6 +163,17 @@ export function clearCachedBalance(): void {
   balanceFetchPromises.clear();
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(TOKEN_BALANCE_CACHE_KEY);
+}
+
+/**
+ * Tell every mounted balance widget that a server-side reservation or refund
+ * changed the account. This keeps separate useTokens instances in sync.
+ */
+export function invalidateCachedBalance(): void {
+  clearCachedBalance();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(TOKEN_BALANCE_INVALIDATED_EVENT));
+  }
 }
 
 /**

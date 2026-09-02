@@ -21,6 +21,7 @@ export const presentationKeys = {
   detail: (id: string) => [...presentationKeys.all, "detail", id] as const,
   job: (id: string) => [...presentationKeys.all, "job", id] as const,
   exports: (id: string) => [...presentationKeys.all, "exports", id] as const,
+  kmzhSources: () => [...presentationKeys.all, "kmzh-sources"] as const,
 };
 
 const terminalJobStatuses = new Set([
@@ -96,6 +97,15 @@ export function useCreatePresentation() {
       queryClient.setQueryData(presentationKeys.detail(project.id), project);
       queryClient.invalidateQueries({ queryKey: presentationKeys.list() });
     },
+  });
+}
+
+export function useSavedKmzhSources(enabled = true) {
+  return useQuery({
+    queryKey: presentationKeys.kmzhSources(),
+    queryFn: ({ signal }) => api.listSavedKmzhSources(signal),
+    enabled,
+    staleTime: 30_000,
   });
 }
 

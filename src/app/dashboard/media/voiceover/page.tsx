@@ -1,11 +1,32 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "../../../../i18n/LanguageContext";
-import { generateVoiceover } from "../../../../lib/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
+import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
+import {
+  enqueueGenerationJob,
+  getGenerationJob,
+  type VoiceoverResponse,
+} from "../../../../lib/api";
+import { getApiBase } from "../../../../lib/api-base";
+import {
+  generationJobIdFromSearchParam,
+  isActiveGenerationJob,
+} from "../../../../lib/generation-history";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
 const ADAM_VOICE_ID = "pNInz6obpgDQGcFmaJgB";
+const KIND = "audio.tts";
+const MODULE_KINDS = [KIND] as const;
+const SOURCE_PATH = "/dashboard/media/voiceover";
+
+function absoluteAudioUrl(value: string): string {
+  if (/^https?:\/\//i.test(value)) return value;
+  const path = value.startsWith("/audio/") ? `/media${value}` : value;
+  return `${getApiBase()}${path.startsWith("/") ? path : `/${path}`}`;
+}
 
 type VoiceKey =
   | "roger"
@@ -77,9 +98,17 @@ function filterVoices(
   return list;
 }
 
-export default function VoiceoverPage() {
+function VoiceoverContent() {
   const t = useTranslations();
+  const { language } = useLanguage();
   const toTeacherErrorMessage = useTeacherErrorMessage();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const requestedJobId = generationJobIdFromSearchParam(searchParams.get("job"));
+  const [sessionJobId, setSessionJobId] = useState<string | null>(null);
+  const currentJobId = requestedJobId ?? sessionJobId;
+  const settledJobId = useRef<string | null>(null);
   const getVoiceLabel = useCallback(
     (nameKey: VoiceKey) => t.voiceover.voices[nameKey] ?? nameKey,
     [t.voiceover.voices]
@@ -89,10 +118,57 @@ export default function VoiceoverPage() {
   const [voiceSearch, setVoiceSearch] = useState("");
   const [voiceId, setVoiceId] = useState(ADAM_VOICE_ID);
   const [text, setText] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [charactersUsed, setCharactersUsed] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const job = useQuery({
+    queryKey: ["generation-job", currentJobId],
+    queryFn: () => getGenerationJob(currentJobId as string),
+    enabled: Boolean(currentJobId),
+    retry: 2,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
+  });
+  const loading = submitting || Boolean(
+    currentJobId && (job.isPending || (job.data && isActiveGenerationJob(job.data))),
+  );
+
+  useEffect(() => {
+    setAudioUrl(null);
+    setCharactersUsed(null);
+    setError(null);
+    settledJobId.current = null;
+  }, [currentJobId]);
+
+  useEffect(() => {
+    const value = job.data;
+    if (!value || isActiveGenerationJob(value) || settledJobId.current === value.id) return;
+    settledJobId.current = value.id;
+    if (value.kind !== KIND) {
+      setError(language === "kk" ? "Бұл материал басқа бөлімде жасалған." : "Этот материал создан в другом разделе.");
+      return;
+    }
+    if ((value.status === "completed" || value.status === "billing_error") && value.result) {
+      const restored = value.result as unknown as VoiceoverResponse;
+      setAudioUrl(absoluteAudioUrl(restored.audio_url));
+      setCharactersUsed(restored.characters_used ?? null);
+      setError(null);
+      return;
+    }
+    setError(
+      value.status === "cancelled"
+        ? language === "kk" ? "Дыбыстау тоқтатылды. Монеталар қайтарылды." : "Озвучка остановлена. Монеты возвращены."
+        : language === "kk" ? "Мәтінді дыбыстау мүмкін болмады. Монеталар қайтарылды." : "Не удалось озвучить текст. Монеты возвращены.",
+    );
+  }, [job.data, language]);
+
+  useEffect(() => {
+    if (job.error) setError(toTeacherErrorMessage(job.error, t.voiceover.errors.generic));
+  }, [job.error, t.voiceover.errors.generic, toTeacherErrorMessage]);
 
   const filteredVoices = useMemo(
     () => filterVoices(VOICES, genderFilter, voiceSearch, getVoiceLabel),
@@ -125,23 +201,25 @@ export default function VoiceoverPage() {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     setError(null);
     setAudioUrl(null);
     setCharactersUsed(null);
 
     try {
-      const res = await generateVoiceover({
-        text,
-        voice_id: effectiveVoiceId,
-      });
-      setAudioUrl(res.audio_url);
-      if (res.characters_used != null) setCharactersUsed(res.characters_used);
+      const created = await enqueueGenerationJob(
+        KIND,
+        { text, voice_id: effectiveVoiceId },
+        { title: text.trim().slice(0, 120) },
+      );
+      setSessionJobId(created.id);
+      queryClient.setQueryData(["generation-job", created.id], created);
+      router.replace(`${SOURCE_PATH}?job=${encodeURIComponent(created.id)}`, { scroll: false });
     } catch (err: unknown) {
       console.error(err);
       setError(toTeacherErrorMessage(err, t.voiceover.errors.generic));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -313,6 +391,22 @@ export default function VoiceoverPage() {
           </form>
         </div>
 
+        {loading && (
+          <div aria-live="polite" className="mt-6 flex items-center gap-4 rounded-3xl border border-sky-200 bg-gradient-to-r from-sky-50 to-indigo-50 p-6 shadow-sm">
+            <div className="h-11 w-11 shrink-0 animate-spin rounded-full border-4 border-sky-200 border-t-sky-600" />
+            <div>
+              <p className="font-bold text-slate-900">
+                {language === "kk" ? "Дыбыстау жасалып жатыр" : "Создаём озвучку"}
+              </p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {language === "kk"
+                  ? "Бетті жаңартуға немесе жабуға болады — жұмыс серверде жалғасады."
+                  : "Страницу можно обновить или закрыть — работа продолжится на сервере."}
+              </p>
+            </div>
+          </div>
+        )}
+
         {audioUrl && (
           <div className="mt-6 animate-fade-in glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
             <h2 className="mb-4 text-xl font-semibold text-slate-900">
@@ -336,7 +430,17 @@ export default function VoiceoverPage() {
             </div>
           </div>
         )}
+
+        <ModuleGenerationHistory kinds={MODULE_KINDS} />
       </div>
     </div>
+  );
+}
+
+export default function VoiceoverPage() {
+  return (
+    <Suspense fallback={<div className="min-h-96 animate-pulse rounded-3xl bg-white/70" />}>
+      <VoiceoverContent />
+    </Suspense>
   );
 }

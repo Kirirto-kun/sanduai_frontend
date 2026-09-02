@@ -5,17 +5,10 @@
  * собственный типизированный API-клиент.
  */
 
-import { getToken, InsufficientTokensError } from "./api";
-import { getApiBase } from "./api-base";
 import {
-  API_ERROR_CODES,
-  ApiRequestError,
-  requestJson,
-  type ApiFailure,
-} from "./http-client";
-import { withIdempotencyKey } from "./idempotency";
-
-const API_BASE = getApiBase();
+  enqueueGenerationJob,
+  waitForGenerationResult,
+} from "./api";
 
 export type Language = "kk" | "ru";
 export type Orientation = "portrait" | "landscape" | "square";
@@ -84,59 +77,22 @@ export type ScenarioResult = {
 
 // --- Транспорт ---------------------------------------------------------------
 
-function authHeaders(): Record<string, string> {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Reference image could not be read"));
+    reader.readAsDataURL(file);
+  });
 }
 
-function visualApiError(failure: ApiFailure): Error {
-  if (failure.status === 402) {
-    const detail =
-      failure.details && typeof failure.details === "object"
-        ? String((failure.details as Record<string, unknown>).detail ?? failure.message)
-        : failure.message;
-    const required = Number(detail.match(/Required:\s*(\d+)/i)?.[1] ?? 0);
-    const available = Number(detail.match(/Available:\s*(\d+)/i)?.[1] ?? 0);
-    return new InsufficientTokensError(
-      detail || "Insufficient tokens",
-      required,
-      available,
-    );
-  }
-
-  const message = failure.code === API_ERROR_CODES.NETWORK_ERROR
-    ? "Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз."
-    : failure.message;
-  return new ApiRequestError(message, failure.status, failure.details, failure.code);
-}
-
-async function postForm<T>(path: string, form: FormData): Promise<T> {
-  // Content-Type не задаём — браузер сам проставит boundary для multipart.
-  return requestJson<T>(
-    `${API_BASE}${path}`,
-    {
-      method: "POST",
-      headers: withIdempotencyKey({ Accept: "application/json", ...authHeaders() }),
-      body: form,
-    },
-    { errorFactory: visualApiError },
-  );
-}
-
-async function postJson<T>(path: string, payload: unknown): Promise<T> {
-  return requestJson<T>(
-    `${API_BASE}${path}`,
-    {
-      method: "POST",
-      headers: withIdempotencyKey({
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        ...authHeaders(),
-      }),
-      body: JSON.stringify(payload),
-    },
-    { errorFactory: visualApiError },
-  );
+async function runDurableJob<T>(
+  kind: string,
+  payload: Record<string, unknown>,
+  title: string,
+): Promise<T> {
+  const job = await enqueueGenerationJob(kind, payload, { title });
+  return waitForGenerationResult<T>(job.id);
 }
 
 // --- Көрнекілік --------------------------------------------------------------
@@ -148,14 +104,14 @@ export async function generateKornekilik(params: {
   notes?: string;
   photos?: File[];
 }): Promise<KornekilikResult> {
-  const form = new FormData();
-  form.append("topic", params.topic);
-  form.append("language", params.language);
-  form.append("orientation", params.orientation);
-  form.append("notes", params.notes ?? "");
-  (params.photos ?? []).forEach((file) => form.append("photos", file));
-
-  return postForm<KornekilikResult>("/api/v1/visuals-ai/kornekilik", form);
+  const photosBase64 = await Promise.all((params.photos ?? []).map(fileToDataUrl));
+  return runDurableJob<KornekilikResult>("visual.kornekilik", {
+    topic: params.topic,
+    language: params.language,
+    orientation: params.orientation,
+    notes: params.notes ?? "",
+    photos_base64: photosBase64,
+  }, params.topic);
 }
 
 // --- Инфографика -------------------------------------------------------------
@@ -165,7 +121,7 @@ export async function generateInfographic(params: {
   language: Language;
   orientation: Orientation;
 }): Promise<InfographicResult> {
-  return postJson<InfographicResult>("/api/v1/visuals-ai/infographic", params);
+  return runDurableJob<InfographicResult>("visual.infographic", params, params.topic);
 }
 
 // --- Комикс ------------------------------------------------------------------
@@ -177,14 +133,14 @@ export async function generateComic(params: {
   style: ComicStyle;
   photos?: File[];
 }): Promise<ComicResult> {
-  const form = new FormData();
-  form.append("description", params.description);
-  form.append("panel_count", String(params.panelCount));
-  form.append("language", params.language);
-  form.append("style", params.style);
-  (params.photos ?? []).forEach((file) => form.append("photos", file));
-
-  return postForm<ComicResult>("/api/v1/visuals-ai/comic", form);
+  const photosBase64 = await Promise.all((params.photos ?? []).map(fileToDataUrl));
+  return runDurableJob<ComicResult>("visual.comic", {
+    description: params.description,
+    panel_count: params.panelCount,
+    language: params.language,
+    style: params.style,
+    photos_base64: photosBase64,
+  }, params.description);
 }
 
 // --- Сценарий ----------------------------------------------------------------
@@ -197,12 +153,12 @@ export async function generateScenario(params: {
   language: Language;
   notes?: string;
 }): Promise<ScenarioResult> {
-  return postJson<ScenarioResult>("/api/v1/scenario/generate", {
+  return runDurableJob<ScenarioResult>("scenario.generate", {
     topic: params.topic,
     segment: params.segment,
     age: params.age,
     duration_minutes: params.durationMinutes,
     language: params.language,
     notes: params.notes || null,
-  });
+  }, params.topic);
 }

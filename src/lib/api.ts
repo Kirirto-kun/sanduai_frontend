@@ -21,7 +21,7 @@ import {
   type ApiFailure,
 } from "./http-client";
 import { withIdempotencyKey } from "./idempotency";
-import { clearCachedBalance } from "./tokenCache";
+import { clearCachedBalance, invalidateCachedBalance } from "./tokenCache";
 import {
   TeacherFacingError,
   teacherFacingErrorMessage,
@@ -328,6 +328,8 @@ export type GenerateRacePayload = {
   additional_info?: string;
   questions_count: number;
   language?: "kz" | "ru";
+  teams_count: 2 | 3 | 4;
+  victory_condition: number;
 };
 
 export type RaceQuestion = {
@@ -399,6 +401,8 @@ export type RegenerateSectionPayload = {
 export type ProjectState = {
   project_id: string;
   user_id: string;
+  topic?: string;
+  language: string;
   step: number;
   plan: DraftPlanResponse;
   sections: Record<string, string>;
@@ -415,6 +419,7 @@ export type FinalizeProjectPayload = {
 
 export type CompleteProjectResponse = {
   project_id: string;
+  language: string;
   title_page: string;
   annotation: string;
   table_of_contents: string;
@@ -424,6 +429,25 @@ export type CompleteProjectResponse = {
   conclusion: string;
   references: string;
   appendix: string;
+};
+
+export type ScienceProjectListItem = {
+  project_id: string;
+  title: string;
+  step: number;
+  language: string;
+  sections_ready: number;
+  is_complete: boolean;
+  updated_at: string;
+  expires_at: string | null;
+  active_job_id?: string | null;
+  active_job_kind?: string | null;
+};
+
+export type ScienceProjectListResponse = {
+  items: ScienceProjectListItem[];
+  has_more?: boolean;
+  next_offset?: number | null;
 };
 
 // Legacy types (kept for export compatibility)
@@ -642,14 +666,333 @@ async function request<T>(
   });
 }
 
+export type GenerationJobStatus =
+  | "queued"
+  | "running"
+  | "settling"
+  | "refunding"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "billing_error";
+
+export type GenerationJobSummary = {
+  id: string;
+  kind: string;
+  title: string;
+  source_path: string;
+  status: GenerationJobStatus;
+  progress: { current?: number; total?: number; message?: string };
+  cost_tokens: number;
+  captured_tokens: number;
+  billing_status: "free" | "reserved" | "captured" | "refunded" | "error";
+  attempt_count: number;
+  cancel_requested: boolean;
+  error_code: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  expires_at: string | null;
+};
+
+export type GenerationJob = GenerationJobSummary & {
+  result: Record<string, unknown> | unknown[] | null;
+  artifact_urls: string[];
+};
+
+export type GenerationJobList = {
+  items: GenerationJobSummary[];
+  active_count: number;
+  server_time: string;
+  total?: number;
+  limit?: number;
+  offset?: number;
+  has_more?: boolean;
+  next_offset?: number | null;
+};
+
+export type ListGenerationJobsOptions = {
+  limit?: number;
+  offset?: number;
+  kind?: string;
+  status?: GenerationJobStatus;
+};
+
+export const GENERATION_JOBS_UPDATED_EVENT = "sanduai:generation-jobs-updated";
+const GENERATION_INTENTS_KEY = "sanduai_generation_intents_v1";
+const generationEnqueueInFlight = new Map<string, Promise<GenerationJob>>();
+
+type GenerationIntent = {
+  key: string;
+  createdAt: number;
+  jobId?: string;
+};
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
+function generationFingerprint(kind: string, payload: Record<string, unknown>): string {
+  const source = `${kind}:${canonicalJson(payload)}`;
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${kind}:${(hash >>> 0).toString(16)}:${source.length}`;
+}
+
+function readGenerationIntents(): Record<string, GenerationIntent> {
+  if (typeof window === "undefined") return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(GENERATION_INTENTS_KEY) ?? "{}") as Record<string, GenerationIntent>;
+    const cutoff = Date.now() - 24 * 60 * 60 * 1_000;
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, intent]) =>
+        intent && typeof intent.key === "string" && intent.createdAt >= cutoff),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeGenerationIntents(intents: Record<string, GenerationIntent>): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(GENERATION_INTENTS_KEY, JSON.stringify(intents));
+  } catch {
+    // The server-side idempotency contract remains authoritative when browser
+    // storage is unavailable; only cross-reload convenience is lost.
+  }
+}
+
+function getOrCreateGenerationIntent(fingerprint: string): GenerationIntent {
+  const intents = readGenerationIntents();
+  const existing = intents[fingerprint];
+  if (existing) return existing;
+  const created = { key: globalThis.crypto.randomUUID(), createdAt: Date.now() };
+  intents[fingerprint] = created;
+  writeGenerationIntents(intents);
+  return created;
+}
+
+function attachJobToGenerationIntent(fingerprint: string, jobId: string): void {
+  const intents = readGenerationIntents();
+  const intent = intents[fingerprint];
+  if (!intent) return;
+  intents[fingerprint] = { ...intent, jobId };
+  writeGenerationIntents(intents);
+}
+
+export function clearGenerationIntentForJob(jobId: string): void {
+  const intents = readGenerationIntents();
+  const next = Object.fromEntries(
+    Object.entries(intents).filter(([, intent]) => intent.jobId !== jobId),
+  );
+  if (Object.keys(next).length !== Object.keys(intents).length) {
+    writeGenerationIntents(next);
+  }
+}
+
+function announceGenerationUpdate(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(GENERATION_JOBS_UPDATED_EVENT));
+  }
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function retryableQueueTransport(error: unknown): boolean {
+  return error instanceof ApiRequestError && (
+    error.status === 0 ||
+    error.status === 408 ||
+    error.status === 425 ||
+    error.status === 429 ||
+    error.status >= 500
+  );
+}
+
+export async function enqueueGenerationJob(
+  kind: string,
+  payload: Record<string, unknown>,
+  options: { title?: string; idempotencyKey?: string } = {},
+): Promise<GenerationJob> {
+  const fingerprint = generationFingerprint(kind, payload);
+  const existingRequest = generationEnqueueInFlight.get(fingerprint);
+  if (existingRequest) return existingRequest;
+
+  const requestPromise = (async () => {
+    const intent = options.idempotencyKey
+      ? { key: options.idempotencyKey, createdAt: Date.now() }
+      : getOrCreateGenerationIntent(fingerprint);
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const job = await request<GenerationJob>("/api/v1/generations", {
+          method: "POST",
+          auth: true,
+          timeoutMs: 20_000,
+          headers: { "Idempotency-Key": intent.key },
+          body: JSON.stringify({ kind, payload, title: options.title }),
+        });
+        attachJobToGenerationIntent(fingerprint, job.id);
+        invalidateCachedBalance();
+        announceGenerationUpdate();
+        return job;
+      } catch (error) {
+        lastError = error;
+        if (!retryableQueueTransport(error) || attempt === 2) throw error;
+        await sleep(400 * (2 ** attempt));
+      }
+    }
+    throw lastError;
+  })();
+  generationEnqueueInFlight.set(fingerprint, requestPromise);
+  try {
+    return await requestPromise;
+  } finally {
+    generationEnqueueInFlight.delete(fingerprint);
+  }
+}
+
+export async function getGenerationJob(jobId: string): Promise<GenerationJob> {
+  return request<GenerationJob>(`/api/v1/generations/${jobId}`, {
+    method: "GET",
+    auth: true,
+    timeoutMs: 15_000,
+  });
+}
+
+export async function listGenerationJobs(
+  options: number | ListGenerationJobsOptions = {},
+): Promise<GenerationJobList> {
+  const { limit = 30, offset = 0, kind, status } = typeof options === "number"
+    ? { limit: options, offset: 0 }
+    : options;
+  const params = new URLSearchParams({
+    limit: String(Math.max(1, Math.trunc(limit))),
+    offset: String(Math.max(0, Math.trunc(offset))),
+  });
+  if (kind) params.set("kind", kind);
+  if (status) params.set("status", status);
+  return request<GenerationJobList>(`/api/v1/generations?${params.toString()}`, {
+    method: "GET",
+    auth: true,
+    timeoutMs: 15_000,
+  });
+}
+
+export async function cancelGenerationJob(jobId: string): Promise<GenerationJob> {
+  const job = await request<GenerationJob>(`/api/v1/generations/${jobId}/cancel`, {
+    method: "POST",
+    auth: true,
+    timeoutMs: 15_000,
+  });
+  announceGenerationUpdate();
+  return job;
+}
+
+export async function waitForGenerationResult<T>(jobId: string): Promise<T> {
+  let consecutiveTransportErrors = 0;
+  for (;;) {
+    let job: GenerationJob;
+    try {
+      job = await getGenerationJob(jobId);
+      consecutiveTransportErrors = 0;
+    } catch (error) {
+      if (!retryableQueueTransport(error)) throw error;
+      // The browser may be offline while the server keeps working. Keep this
+      // local waiter quiet and let the global history recover on reconnect.
+      consecutiveTransportErrors += 1;
+      await sleep(Math.min(10_000, 1_200 * (2 ** Math.min(consecutiveTransportErrors, 3))));
+      continue;
+    }
+
+    announceGenerationUpdate();
+    if (
+      (job.status === "completed" || job.status === "billing_error") &&
+      job.result !== null
+    ) {
+      clearGenerationIntentForJob(job.id);
+      invalidateCachedBalance();
+      return job.result as T;
+    }
+    if (
+      job.status === "failed" ||
+      job.status === "cancelled" ||
+      job.status === "billing_error"
+    ) {
+      clearGenerationIntentForJob(job.id);
+      invalidateCachedBalance();
+      throw new ApiRequestError(
+        "Generation did not complete",
+        502,
+        { detail: { code: job.error_code || "GENERATION_FAILED" } },
+      );
+    }
+    await sleep(1_200);
+  }
+}
+
+const DURABLE_GENERATION_PATHS: Record<string, string> = {
+  "/api/essay/generate": "essay.generate",
+  "/api/essay/revise": "essay.revise",
+  "/api/article/generate": "article.generate",
+  "/api/article/revise": "article.revise",
+  "/api/bjb/generate": "bjb.generate",
+  "/api/class-hour/generate": "class_hour.generate",
+  "/api/class-hour/regenerate-block": "class_hour.regenerate",
+  "/api/quiz/generate": "quiz.generate",
+  "/api/v1/ai/text-to-speech": "audio.tts",
+  "/api/generate/kmzh": "kmzh.generate",
+  "/api/v1/science-project/plan": "science.plan",
+  "/api/v1/science-project/generate-section": "science.section",
+  "/api/v1/science-project/regenerate-section": "science.regenerate",
+  "/api/v1/generate/worksheet": "worksheet.generate",
+  "/api/games/generate-race": "race.generate",
+  "/api/media/generate-image": "image.generate",
+};
+
+function generationKindForPath(path: string): string | null {
+  if (/^\/api\/v1\/science-project\/[^/]+\/finalize$/.test(path)) {
+    return "science.finalize";
+  }
+  return DURABLE_GENERATION_PATHS[path] ?? null;
+}
+
+function generationTitle(payload: Record<string, unknown>): string | undefined {
+  for (const field of ["topic", "title", "description", "section_type"]) {
+    const value = payload[field];
+    if (typeof value === "string" && value.trim()) return value.trim().slice(0, 240);
+  }
+  return undefined;
+}
+
 async function paidRequest<T>(
   path: string,
   options: RequestInit & { auth?: boolean } = {},
 ): Promise<T> {
-  return request<T>(path, {
-    ...options,
-    headers: withIdempotencyKey(options.headers),
-  });
+  const kind = generationKindForPath(path);
+  if (kind && typeof options.body === "string") {
+    const parsed = JSON.parse(options.body) as Record<string, unknown>;
+    const job = await enqueueGenerationJob(kind, parsed, {
+      title: generationTitle(parsed),
+    });
+    return waitForGenerationResult<T>(job.id);
+  }
+  const headers = withIdempotencyKey(options.headers);
+  return request<T>(path, { ...options, headers });
 }
 
 function assertAuthStorageAvailable(): void {
@@ -1498,6 +1841,17 @@ export async function getProjectStatus(
   });
 }
 
+export async function updateScienceProjectPlan(
+  projectId: string,
+  plan: DraftPlanResponse,
+): Promise<ProjectState> {
+  return request<ProjectState>(`/api/v1/science-project/${projectId}/plan`, {
+    method: "PUT",
+    body: JSON.stringify({ plan }),
+    auth: true,
+  });
+}
+
 export async function finalizeProject(
   payload: FinalizeProjectPayload,
 ): Promise<CompleteProjectResponse> {
@@ -1650,6 +2004,77 @@ async function requestNewAccessToken(failedAccessToken?: string): Promise<string
       }
       return null;
     }
+  });
+}
+
+export async function listScienceProjects(
+  limit = 12,
+  offset = 0,
+): Promise<ScienceProjectListResponse> {
+  const params = new URLSearchParams({
+    limit: String(Math.max(1, Math.min(50, Math.trunc(limit)))),
+    offset: String(Math.max(0, Math.trunc(offset))),
+  });
+  return request<ScienceProjectListResponse>(`/api/v1/science-project?${params.toString()}`, {
+    method: "GET",
+    auth: true,
+  });
+}
+
+export async function enqueueSectionRegeneration(
+  payload: RegenerateSectionPayload,
+): Promise<GenerationJob> {
+  return enqueueGenerationJob(
+    "science.regenerate",
+    payload as unknown as Record<string, unknown>,
+    { title: payload.section_type },
+  );
+}
+
+export async function enqueueProjectFinalization(
+  payload: FinalizeProjectPayload,
+): Promise<GenerationJob> {
+  return enqueueGenerationJob(
+    "science.finalize",
+    payload as unknown as Record<string, unknown>,
+    { title: "Ғылыми жобаны аяқтау" },
+  );
+}
+
+export async function enqueueProjectPlan(
+  payload: CreatePlanPayload,
+): Promise<GenerationJob> {
+  return enqueueGenerationJob(
+    "science.plan",
+    payload as unknown as Record<string, unknown>,
+    { title: payload.topic },
+  );
+}
+
+export type GenerateAllProjectSectionsResponse = {
+  project_id: string;
+  sections: Record<string, string>;
+};
+
+export async function generateAllProjectSections(payload: {
+  project_id: string;
+  approved_plan: DraftPlanResponse;
+  user_comment?: string | null;
+}): Promise<GenerateAllProjectSectionsResponse> {
+  const job = await enqueueGenerationJob("science.generate_all", payload, {
+    title: "Ғылыми жоба бөлімдері",
+  });
+  return waitForGenerationResult<GenerateAllProjectSectionsResponse>(job.id);
+}
+
+export async function enqueueAllProjectSections(payload: {
+  project_id: string;
+  approved_plan: DraftPlanResponse;
+  user_comment?: string | null;
+}, options: { idempotencyKey?: string } = {}): Promise<GenerationJob> {
+  return enqueueGenerationJob("science.generate_all", payload, {
+    title: "Ғылыми жоба бөлімдері",
+    idempotencyKey: options.idempotencyKey,
   });
 }
 
@@ -1839,11 +2264,29 @@ export type AddSubscriptionResponse = {
   message: string;
 };
 
+export type AdminUserAccessResponse = {
+  user_id: string;
+  balance: number;
+  subscription_plan: "free" | "premium";
+  subscription_end: string | null;
+  has_subscription: boolean;
+  message: string;
+};
+
+export type RevokeSubscriptionResponse = AdminUserAccessResponse;
+
+export type ResetUserTokensResponse = AdminUserAccessResponse;
+
+export type DeleteAdminUserResponse = AdminUserAccessResponse & {
+  deleted: true;
+};
+
 // Admin API functions
 export async function getAdminUsers(
   limit: number = 50,
   offset: number = 0,
   search?: string,
+  signal?: AbortSignal,
 ): Promise<AdminUsersResponse> {
   const params = new URLSearchParams({
     limit: limit.toString(),
@@ -1855,6 +2298,7 @@ export async function getAdminUsers(
   return request<AdminUsersResponse>(`/api/admin/users?${params}`, {
     method: "GET",
     auth: true,
+    signal,
   });
 }
 
@@ -1891,9 +2335,44 @@ export async function addSubscriptionToUser(
   userId: string,
   payload: AddSubscriptionPayload,
 ): Promise<AddSubscriptionResponse> {
-  return request<AddSubscriptionResponse>(`/api/admin/users/${userId}/subscription`, {
+  return request<AddSubscriptionResponse>(`/api/admin/users/${encodeURIComponent(userId)}/subscription`, {
     method: "POST",
     body: JSON.stringify(payload),
+    auth: true,
+  });
+}
+
+export async function revokeSubscriptionFromUser(
+  userId: string,
+): Promise<RevokeSubscriptionResponse> {
+  return request<RevokeSubscriptionResponse>(
+    `/api/admin/users/${encodeURIComponent(userId)}/subscription`,
+    {
+      method: "DELETE",
+      auth: true,
+      timeoutMs: 15_000,
+    },
+  );
+}
+
+export async function resetUserTokens(
+  userId: string,
+): Promise<ResetUserTokensResponse> {
+  return request<ResetUserTokensResponse>(
+    `/api/admin/users/${encodeURIComponent(userId)}/tokens/reset`,
+    {
+      method: "POST",
+      auth: true,
+      timeoutMs: 15_000,
+    },
+  );
+}
+
+export async function deleteAdminUser(
+  userId: string,
+): Promise<DeleteAdminUserResponse> {
+  return request<DeleteAdminUserResponse>(`/api/admin/users/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
     auth: true,
   });
 }

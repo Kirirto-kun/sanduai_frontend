@@ -21,6 +21,7 @@ const COPY = {
     rateLimited: "Слишком много запросов. Немного подождите и попробуйте ещё раз.",
     server: "Сервис временно недоступен. Попробуйте ещё раз чуть позже.",
     cancelled: "Действие отменено.",
+    generationFailed: "Материал не удалось создать. Монеты возвращены.",
   },
   kk: {
     generic: "Әрекетті орындау мүмкін болмады. Қайталап көріңіз.",
@@ -35,6 +36,7 @@ const COPY = {
     rateLimited: "Сұрау тым көп. Сәл күтіп, қайталап көріңіз.",
     server: "Қызмет уақытша қолжетімсіз. Сәл кейінірек қайталап көріңіз.",
     cancelled: "Әрекет тоқтатылды.",
+    generationFailed: "Материал жасалмады. Монеталар қайтарылды.",
   },
 } as const;
 
@@ -107,6 +109,14 @@ export function teacherFacingErrorMessage(
     upstreamCode.includes("INSUFFICIENT") ||
     upstreamCode.includes("BALANCE");
   if (insufficient) return options.insufficientCoins ?? copy.payment;
+
+  if (
+    upstreamCode === "GENERATION_FAILED" ||
+    upstreamCode === "WORKER_INTERRUPTED" ||
+    upstreamCode === "CANCELLED_BY_USER"
+  ) {
+    return copy.generationFailed;
+  }
 
   if (status === 401 || code === API_ERROR_CODES.UNAUTHORIZED) return copy.unauthorized;
   if (status === 403 || code === API_ERROR_CODES.FORBIDDEN) return copy.forbidden;

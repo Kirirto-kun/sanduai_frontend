@@ -30,6 +30,14 @@ export default function PresentationCard({
   const date = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(
     new Date(presentation.updated_at ?? presentation.created_at),
   );
+  const availableUntil = presentation.expires_at
+    ? new Intl.DateTimeFormat(locale, {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(presentation.expires_at))
+    : null;
   const slideCount = presentation.slide_count ?? presentation.slides?.length ?? presentation.active_plan?.slides.length ?? 0;
   const completed = presentation.slides?.filter((slide) => ["ready", "accepted", "needs_review"].includes(slide.status)).length ?? 0;
   const isInProgress = ["planning", "queued", "generating"].includes(presentation.status);
@@ -101,7 +109,13 @@ export default function PresentationCard({
 
         <div className="mt-auto flex items-end justify-between gap-3 pt-5">
           <div className="text-xs text-slate-400">
-            <p>{date}</p>
+            <p>
+              {availableUntil && !legacyReadOnly
+                ? language === "kk"
+                  ? `${availableUntil} дейін қолжетімді`
+                  : `Доступно до ${availableUntil}`
+                : date}
+            </p>
             <p className="mt-0.5">
               {sourceMissing ? legacyCopy.sourceMissing : `${slideCount} ${copy.slides}`}
             </p>

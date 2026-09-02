@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { useTranslations } from "../../../../i18n/LanguageContext";
+import { useCallback, useEffect, useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import {
-  generateClassHour,
+  enqueueGenerationJob,
+  getGenerationJob,
   regenerateClassHourBlock,
   exportClassHourDocx,
   type ClassHourGeneratePayload,
@@ -15,9 +17,12 @@ import { LatexRenderer } from "../../../../components/LatexRenderer";
 import { useTokens } from "../../../../hooks/useTokens";
 import { errorMessageIncludes } from "../../../../lib/error-utils";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
 
 export default function ClassHoursPage() {
   const t = useTranslations();
+  const { language } = useLanguage();
+  const router = useRouter();
   const toTeacherErrorMessage = useTeacherErrorMessage();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
 
@@ -48,6 +53,73 @@ export default function ClassHoursPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [error, setError] = useState("");
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+
+  const showClassHour = useCallback((data: ClassHourResponse) => {
+    setLessonData(data);
+    setEditingBlockId(null);
+    setEditingContent("");
+  }, []);
+
+  useEffect(() => {
+    const jobId = new URLSearchParams(window.location.search).get("job");
+    if (jobId) {
+      setCurrentJobId(jobId);
+      setIsLoading(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!currentJobId) return;
+
+    let cancelled = false;
+    let retryCount = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const poll = async () => {
+      try {
+        const job = await getGenerationJob(currentJobId);
+        if (cancelled) return;
+
+        if (job.kind !== "class_hour.generate") {
+          throw new Error("MATERIAL_NOT_FOUND");
+        }
+        if ((job.status === "completed" || job.status === "billing_error") && job.result) {
+          showClassHour(job.result as unknown as ClassHourResponse);
+          setIsLoading(false);
+          setError("");
+          refreshBalance();
+          return;
+        }
+        if (["failed", "cancelled", "billing_error"].includes(job.status)) {
+          setIsLoading(false);
+          setError(toTeacherErrorMessage(new Error(job.error_message || "GENERATION_FAILED"), t.classHour.errors.generic));
+          return;
+        }
+
+        setIsLoading(true);
+        setError("");
+        retryCount = 0;
+        timer = setTimeout(() => void poll(), 1_200);
+      } catch (pollError) {
+        if (cancelled) return;
+        retryCount += 1;
+        if (retryCount < 4) {
+          setIsLoading(true);
+          timer = setTimeout(() => void poll(), 2_000);
+          return;
+        }
+        setIsLoading(false);
+        setError(toTeacherErrorMessage(pollError, t.classHour.errors.generic));
+      }
+    };
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [currentJobId, refreshBalance, showClassHour, t.classHour.errors.generic, toTeacherErrorMessage]);
 
   // Handle form input changes
   const handleInputChange = (
@@ -80,9 +152,13 @@ export default function ClassHoursPage() {
 
     setIsLoading(true);
     try {
-      const response = await generateClassHour(formData);
-      setLessonData(response);
-      refreshBalance();
+      const job = await enqueueGenerationJob("class_hour.generate", formData, {
+        title: formData.topic,
+      });
+      setCurrentJobId(job.id);
+      router.replace(`/dashboard/ai/class-hours?job=${encodeURIComponent(job.id)}`, {
+        scroll: false,
+      });
     } catch (err: unknown) {
       if (err instanceof InsufficientTokensError) {
         setError(
@@ -93,7 +169,6 @@ export default function ClassHoursPage() {
       } else {
         setError(toTeacherErrorMessage(err, t.classHour.errors.generic));
       }
-    } finally {
       setIsLoading(false);
     }
   };
@@ -207,6 +282,8 @@ export default function ClassHoursPage() {
 
   // Create new scenario
   const handleCreateNew = () => {
+    setCurrentJobId(null);
+    router.replace("/dashboard/ai/class-hours", { scroll: false });
     setLessonData(null);
     setFormData({
       language: "kz",
@@ -225,6 +302,17 @@ export default function ClassHoursPage() {
         <h1 className="mb-6 text-3xl font-bold text-slate-900">
           {t.classHour.form.title}
         </h1>
+
+        {isLoading && currentJobId ? (
+          <div role="status" className="mb-6 rounded-3xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-950 shadow-sm">
+            <p className="font-bold">{language === "kk" ? "Сынып сағаты жасалып жатыр" : "Классный час создаётся"}</p>
+            <p className="mt-1 text-sky-800">
+              {language === "kk"
+                ? "Жұмыс серверде жалғасады. Бетті жаңартсаңыз да нәтиже жоғалмайды."
+                : "Работа продолжается на сервере. После обновления страницы результат не потеряется."}
+            </p>
+          </div>
+        ) : null}
 
         {!lessonData ? (
           // Generation Form
@@ -499,6 +587,8 @@ export default function ClassHoursPage() {
             </div>
           </div>
         )}
+
+        <ModuleGenerationHistory kinds={["class_hour.generate"]} />
 
         {/* Regenerate Modal */}
         {regenerateModal && (

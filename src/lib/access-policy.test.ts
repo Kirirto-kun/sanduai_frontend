@@ -23,6 +23,7 @@ describe("dashboard access classification", () => {
 
   it.each([
     "/dashboard",
+    "/dashboard/generations",
     "/dashboard/ai/kmzh",
     "/dashboard/ai/presentations/editor/project-1",
     "/dashboard/media/photo",

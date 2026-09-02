@@ -1,20 +1,35 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "../../../../i18n/LanguageContext";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ScientificProjectHistory } from "../../../../components/generations/ScientificProjectHistory";
+import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import {
-  createProjectPlan,
+  enqueueProjectPlan,
+  getGenerationJob,
+  clearGenerationIntentForJob,
   CreatePlanPayload,
   InsufficientTokensError,
 } from "../../../../lib/api";
+import {
+  generationJobIdFromSearchParam,
+  isActiveGenerationJob,
+} from "../../../../lib/generation-history";
 import { useTokens } from "../../../../hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 
-export default function ScientificProjectPage() {
+function ScientificProjectContent() {
   const t = useTranslations();
+  const { language: interfaceLanguage } = useLanguage();
   const toTeacherErrorMessage = useTeacherErrorMessage();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const requestedJobId = generationJobIdFromSearchParam(searchParams.get("job"));
+  const [sessionJobId, setSessionJobId] = useState<string | null>(null);
+  const currentJobId = requestedJobId ?? sessionJobId;
+  const handledJobId = useRef<string | null>(null);
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +44,60 @@ export default function ScientificProjectPage() {
   const [schoolName, setSchoolName] = useState("");
   const [supervisor, setSupervisor] = useState("");
   const [city, setCity] = useState("");
+
+  const job = useQuery({
+    queryKey: ["generation-job", currentJobId],
+    queryFn: () => getGenerationJob(currentJobId as string),
+    enabled: Boolean(currentJobId),
+    retry: 2,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) => {
+      const value = query.state.data;
+      return value && isActiveGenerationJob(value) ? 2_000 : false;
+    },
+  });
+
+  useEffect(() => {
+    const value = job.data;
+    if (!value || handledJobId.current === value.id) return;
+    if (value.kind !== "science.plan") {
+      handledJobId.current = value.id;
+      setError(
+        interfaceLanguage === "kk"
+          ? "Бұл сілтеме ғылыми жоба жоспарына жатпайды."
+          : "Эта ссылка ведёт не на план научного проекта.",
+      );
+      return;
+    }
+    if ((value.status === "completed" || value.status === "billing_error") && value.result) {
+      const projectId = (value.result as Record<string, unknown>).project_id;
+      handledJobId.current = value.id;
+      clearGenerationIntentForJob(value.id);
+      if (typeof projectId !== "string" || !projectId) {
+        setError(toTeacherErrorMessage(new Error("INVALID_PROJECT_RESULT")));
+        return;
+      }
+      refreshBalance();
+      void queryClient.invalidateQueries({ queryKey: ["science-project-history"] });
+      router.replace(`/dashboard/ai/scientific-projects/${encodeURIComponent(projectId)}/plan`);
+      return;
+    }
+    if (value.status === "failed" || value.status === "cancelled") {
+      handledJobId.current = value.id;
+      clearGenerationIntentForJob(value.id);
+      refreshBalance();
+      setError(
+        interfaceLanguage === "kk"
+          ? "Жоспар жасау мүмкін болмады. Монеталар қайтарылды — қайта көріңіз."
+          : "Не удалось создать план. Монеты возвращены — попробуйте ещё раз.",
+      );
+    }
+  }, [interfaceLanguage, job.data, queryClient, refreshBalance, router, toTeacherErrorMessage]);
+
+  useEffect(() => {
+    if (job.error) setError(toTeacherErrorMessage(job.error));
+  }, [job.error, toTeacherErrorMessage]);
 
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,9 +121,14 @@ export default function ScientificProjectPage() {
         supervisor: supervisor || undefined,
         city: city || undefined,
       };
-      const res = await createProjectPlan(payload);
-      refreshBalance();
-      router.push(`/dashboard/ai/scientific-projects/${res.project_id}/plan`);
+      const createdJob = await enqueueProjectPlan(payload);
+      handledJobId.current = null;
+      setSessionJobId(createdJob.id);
+      queryClient.setQueryData(["generation-job", createdJob.id], createdJob);
+      router.replace(
+        `/dashboard/ai/scientific-projects?job=${encodeURIComponent(createdJob.id)}`,
+        { scroll: false },
+      );
     } catch (err: unknown) {
       console.error(err);
       if (err instanceof InsufficientTokensError) {
@@ -69,6 +143,16 @@ export default function ScientificProjectPage() {
     }
   };
 
+  const currentJob = job.data;
+  const showJobProgress = Boolean(
+    currentJobId && (job.isLoading || (currentJob && isActiveGenerationJob(currentJob))),
+  );
+  const progressCurrent = Math.max(0, Number(currentJob?.progress.current ?? 0));
+  const progressTotal = Math.max(1, Number(currentJob?.progress.total ?? 1));
+  const progressPercent = Math.max(
+    4,
+    Math.min(100, (progressCurrent / progressTotal) * 100),
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-beige to-green-50 p-4 sm:p-6">
@@ -77,6 +161,30 @@ export default function ScientificProjectPage() {
           {t.scientificProject.form.title}
         </h1>
 
+        {showJobProgress ? (
+          <section
+            aria-live="polite"
+            className="glass-card rounded-3xl border border-sky-200 bg-white/90 px-6 py-10 text-center shadow-md sm:px-10"
+          >
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-2xl" aria-hidden="true">
+              🔬
+            </div>
+            <h2 className="mt-5 text-2xl font-bold text-slate-950">
+              {interfaceLanguage === "kk" ? "Жоба жоспары жасалып жатыр" : "Создаём план проекта"}
+            </h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600">
+              {interfaceLanguage === "kk"
+                ? "Бетті жаңартуға немесе жабуға болады — жұмыс серверде жалғасады."
+                : "Страницу можно обновить или закрыть — работа продолжится на сервере."}
+            </p>
+            <div className="mx-auto mt-6 h-3 max-w-2xl overflow-hidden rounded-full bg-sky-100">
+              <div
+                className="h-full animate-pulse rounded-full bg-sky-500 transition-[width] duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </section>
+        ) : (
         <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
           <form onSubmit={handleCreatePlan} className="space-y-6">
               {/* Topic */}
@@ -314,7 +422,19 @@ export default function ScientificProjectPage() {
               </button>
             </form>
           </div>
+        )}
+
+        <ScientificProjectHistory />
       </div>
     </div>
+  );
+}
+
+
+export default function ScientificProjectPage() {
+  return (
+    <Suspense fallback={<div className="min-h-96 animate-pulse rounded-3xl bg-white/70" />}>
+      <ScientificProjectContent />
+    </Suspense>
   );
 }

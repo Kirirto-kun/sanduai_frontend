@@ -1,19 +1,22 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArticleGeneratePayload,
   ArticleMeta,
   ArticleResponse,
   ArticleSection,
+  enqueueGenerationJob,
   exportArticleDocx,
-  generateArticle,
+  getGenerationJob,
   reviseArticle,
   InsufficientTokensError,
 } from "../../../../lib/api";
-import { useTranslations } from "../../../../i18n/LanguageContext";
+import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
 
 type PendingRevision = {
   id: string;
@@ -31,6 +34,8 @@ const initialPayload: ArticleGeneratePayload = {
 
 export default function ArticlePage() {
   const t = useTranslations();
+  const { language } = useLanguage();
+  const router = useRouter();
   const toTeacherErrorMessage = useTeacherErrorMessage();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
   const [form, setForm] = useState<ArticleGeneratePayload>(initialPayload);
@@ -43,6 +48,8 @@ export default function ArticlePage() {
   const [generalInstruction, setGeneralInstruction] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [generationPending, setGenerationPending] = useState(false);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   // Modal state for adding a revision
   const [showModal, setShowModal] = useState(false);
@@ -53,6 +60,82 @@ export default function ArticlePage() {
     () => meta !== null || sections.length > 0,
     [meta, sections],
   );
+
+  const showArticle = useCallback((data: ArticleResponse) => {
+    setMeta(data.meta);
+    setSections(data.sections || []);
+    setConclusion(data.conclusion || "");
+    setReferences(data.references || []);
+    setPendingRevisions([]);
+    setGeneralInstruction("");
+    setBlocksEditMode({});
+  }, []);
+
+  useEffect(() => {
+    const jobId = new URLSearchParams(window.location.search).get("job");
+    if (jobId) {
+      setCurrentJobId(jobId);
+      setLoading(true);
+      setGenerationPending(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!currentJobId) return;
+
+    let cancelled = false;
+    let retryCount = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const poll = async () => {
+      try {
+        const job = await getGenerationJob(currentJobId);
+        if (cancelled) return;
+
+        if (job.kind !== "article.generate") {
+          throw new Error("MATERIAL_NOT_FOUND");
+        }
+        if ((job.status === "completed" || job.status === "billing_error") && job.result) {
+          showArticle(job.result as unknown as ArticleResponse);
+          setLoading(false);
+          setGenerationPending(false);
+          setError(null);
+          refreshBalance();
+          return;
+        }
+        if (["failed", "cancelled", "billing_error"].includes(job.status)) {
+          setLoading(false);
+          setGenerationPending(false);
+          setError(toTeacherErrorMessage(new Error(job.error_message || "GENERATION_FAILED"), t.article.errors.generic));
+          return;
+        }
+
+        setLoading(true);
+        setGenerationPending(true);
+        setError(null);
+        retryCount = 0;
+        timer = setTimeout(() => void poll(), 1_200);
+      } catch (pollError) {
+        if (cancelled) return;
+        retryCount += 1;
+        if (retryCount < 4) {
+          setLoading(true);
+          setGenerationPending(true);
+          timer = setTimeout(() => void poll(), 2_000);
+          return;
+        }
+        setLoading(false);
+        setGenerationPending(false);
+        setError(toTeacherErrorMessage(pollError, t.article.errors.generic));
+      }
+    };
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [currentJobId, refreshBalance, showArticle, t.article.errors.generic, toTeacherErrorMessage]);
 
   const onGenerate = async (e: FormEvent) => {
     e.preventDefault();
@@ -66,16 +149,11 @@ export default function ArticlePage() {
     }
     setError(null);
     setLoading(true);
+    setGenerationPending(true);
     try {
-      const data = await generateArticle(form);
-      setMeta(data.meta);
-      setSections(data.sections);
-      setConclusion(data.conclusion);
-      setReferences(data.references || []);
-      setPendingRevisions([]);
-      setGeneralInstruction("");
-      setBlocksEditMode({});
-      refreshBalance();
+      const job = await enqueueGenerationJob("article.generate", form, { title: form.topic });
+      setCurrentJobId(job.id);
+      router.replace(`/dashboard/ai/article?job=${encodeURIComponent(job.id)}`, { scroll: false });
     } catch (err) {
       if (err instanceof InsufficientTokensError) {
         setError(
@@ -84,8 +162,8 @@ export default function ArticlePage() {
       } else {
         setError(toTeacherErrorMessage(err, t.article.errors.generic));
       }
-    } finally {
       setLoading(false);
+      setGenerationPending(false);
     }
   };
 
@@ -196,6 +274,17 @@ export default function ArticlePage() {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-beige to-green-50 p-4 sm:p-6">
       <div className="mx-auto max-w-5xl">
         <h1 className="mb-6 text-3xl font-bold text-slate-900">{t.article.form.title}</h1>
+
+        {generationPending && currentJobId ? (
+          <div role="status" className="mb-6 rounded-3xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-950 shadow-sm">
+            <p className="font-bold">{language === "kk" ? "Мақала жасалып жатыр" : "Статья создаётся"}</p>
+            <p className="mt-1 text-sky-800">
+              {language === "kk"
+                ? "Жұмыс серверде жалғасады. Бетті жаңартсаңыз да нәтиже жоғалмайды."
+                : "Работа продолжается на сервере. После обновления страницы результат не потеряется."}
+            </p>
+          </div>
+        ) : null}
 
         {/* Generation Form */}
         <div className="glass-card mb-6 rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
@@ -646,6 +735,8 @@ export default function ArticlePage() {
             </div>
           </div>
         )}
+
+        <ModuleGenerationHistory kinds={["article.generate"]} />
 
         {/* Modal for adding revision */}
         {showModal && (

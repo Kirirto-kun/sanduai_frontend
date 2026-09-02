@@ -1,12 +1,22 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
+import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
 import { useLanguage } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
-import { InsufficientTokensError } from "../../../../lib/api";
+import {
+  enqueueGenerationJob,
+  getGenerationJob,
+  InsufficientTokensError,
+} from "../../../../lib/api";
+import {
+  generationJobIdFromSearchParam,
+  isActiveGenerationJob,
+} from "../../../../lib/generation-history";
 import { visualGenerationErrorMessage } from "../../../../lib/visuals-ai-errors";
 import {
-  generateKornekilik,
   KornekilikResult,
   Language,
   Orientation,
@@ -86,10 +96,30 @@ const TEXT = {
   },
 } as const;
 
-export default function KornekilikPage() {
+const KIND = "visual.kornekilik";
+const MODULE_KINDS = [KIND] as const;
+const SOURCE_PATH = "/dashboard/ai/kornekilik";
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("PHOTO_READ_FAILED"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function KornekilikContent() {
   const { language } = useLanguage();
   const t = TEXT[language];
   const { costs, balance, refreshBalance } = useTokens();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const requestedJobId = generationJobIdFromSearchParam(searchParams.get("job"));
+  const [sessionJobId, setSessionJobId] = useState<string | null>(null);
+  const currentJobId = requestedJobId ?? sessionJobId;
+  const settledJobId = useRef<string | null>(null);
 
   const cost = costs["kornekilik_generate"] ?? 50;
 
@@ -101,7 +131,53 @@ export default function KornekilikPage() {
 
   const [result, setResult] = useState<KornekilikResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const job = useQuery({
+    queryKey: ["generation-job", currentJobId],
+    queryFn: () => getGenerationJob(currentJobId as string),
+    enabled: Boolean(currentJobId),
+    retry: 2,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
+  });
+  const loading = submitting || Boolean(
+    currentJobId && (job.isPending || (job.data && isActiveGenerationJob(job.data))),
+  );
+
+  useEffect(() => {
+    setResult(null);
+    setError(null);
+    settledJobId.current = null;
+  }, [currentJobId]);
+
+  useEffect(() => {
+    const value = job.data;
+    if (!value || isActiveGenerationJob(value) || settledJobId.current === value.id) return;
+    settledJobId.current = value.id;
+    if (value.kind !== KIND) {
+      setError(language === "kk" ? "Бұл материал басқа бөлімде жасалған." : "Этот материал создан в другом разделе.");
+      return;
+    }
+    if ((value.status === "completed" || value.status === "billing_error") && value.result) {
+      setResult(value.result as unknown as KornekilikResult);
+      setError(null);
+      refreshBalance();
+      return;
+    }
+    setError(
+      value.status === "cancelled"
+        ? language === "kk" ? "Жасау тоқтатылды. Монеталар қайтарылды." : "Создание остановлено. Монеты возвращены."
+        : language === "kk" ? "Көрнекілікті жасау мүмкін болмады. Монеталар қайтарылды." : "Не удалось создать наглядность. Монеты возвращены.",
+    );
+    refreshBalance();
+  }, [job.data, language, refreshBalance]);
+
+  useEffect(() => {
+    if (job.error) setError(visualGenerationErrorMessage(job.error, language));
+  }, [job.error, language]);
 
   const orientationOptions: Option<Orientation>[] = [
     { value: "portrait", label: t.orientations.portrait },
@@ -121,19 +197,25 @@ export default function KornekilikPage() {
     if (!topic.trim()) return;
 
     setError(null);
-    setLoading(true);
+    setSubmitting(true);
     setResult(null);
 
     try {
-      const data = await generateKornekilik({
-        topic: topic.trim(),
-        language: lang,
-        orientation,
-        notes: notes.trim() || undefined,
-        photos,
-      });
-      setResult(data);
-      refreshBalance();
+      const photosBase64 = await Promise.all(photos.map(fileToDataUrl));
+      const created = await enqueueGenerationJob(
+        KIND,
+        {
+          topic: topic.trim(),
+          language: lang,
+          orientation,
+          notes: notes.trim(),
+          photos_base64: photosBase64,
+        },
+        { title: topic.trim() },
+      );
+      setSessionJobId(created.id);
+      queryClient.setQueryData(["generation-job", created.id], created);
+      router.replace(`${SOURCE_PATH}?job=${encodeURIComponent(created.id)}`, { scroll: false });
     } catch (err) {
       if (err instanceof InsufficientTokensError) {
         setError(`${t.noTokens}: ${err.required} / ${err.available}`);
@@ -141,19 +223,20 @@ export default function KornekilikPage() {
         setError(visualGenerationErrorMessage(err, language));
       }
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <GeneratorLayout
-      icon="🖼"
-      title={t.title}
-      subtitle={t.subtitle}
-      cost={cost}
-      costLabel={t.costLabel}
-      form={
-        <form onSubmit={onSubmit}>
+    <>
+      <GeneratorLayout
+        icon="🖼"
+        title={t.title}
+        subtitle={t.subtitle}
+        cost={cost}
+        costLabel={t.costLabel}
+        form={
+          <form onSubmit={onSubmit}>
           <Field label={t.topic} hint={t.topicHint}>
             <TextArea
               value={topic}
@@ -220,10 +303,10 @@ export default function KornekilikPage() {
               {t.noTokens}: {cost} / {balance}
             </p>
           )}
-        </form>
-      }
-      result={
-        <div className="space-y-4">
+          </form>
+        }
+        result={
+          <div className="space-y-4">
           {error && <ErrorState message={error} />}
           {loading && <LoadingState title={t.loadingTitle} steps={[...t.steps]} />}
           {!loading && !result && !error && (
@@ -241,8 +324,20 @@ export default function KornekilikPage() {
               }}
             />
           )}
-        </div>
-      }
-    />
+          </div>
+        }
+      />
+      <div className="mx-auto max-w-7xl">
+        <ModuleGenerationHistory kinds={MODULE_KINDS} />
+      </div>
+    </>
+  );
+}
+
+export default function KornekilikPage() {
+  return (
+    <Suspense fallback={<div className="min-h-96 animate-pulse rounded-3xl bg-white/70" />}>
+      <KornekilikContent />
+    </Suspense>
   );
 }

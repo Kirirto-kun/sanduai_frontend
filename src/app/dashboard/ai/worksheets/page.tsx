@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../../../contexts/AuthContext";
-import { useTranslations } from "../../../../i18n/LanguageContext";
+import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import {
-  generateWorksheet,
+  enqueueGenerationJob,
   exportWorksheetDocx,
+  getGenerationJob,
   WorksheetContent,
+  WorksheetResponse,
   WorksheetTaskType,
   WorksheetMultipleChoiceTask,
   WorksheetFillInBlankTask,
@@ -16,6 +19,7 @@ import {
 } from "../../../../lib/api";
 import { useTokens } from "../../../../hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
 
 const GRADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 const LANGUAGES = [
@@ -41,6 +45,8 @@ type EditableSectionContent =
 export default function WorksheetsPage() {
   const { isAuthenticated } = useAuth();
   const t = useTranslations();
+  const { language: interfaceLanguage } = useLanguage();
+  const router = useRouter();
   const toTeacherErrorMessage = useTeacherErrorMessage();
   const { costs, balance, checkBalance, refreshBalance } = useTokens();
 
@@ -61,10 +67,77 @@ export default function WorksheetsPage() {
   const [worksheetData, setWorksheetData] = useState<WorksheetContent | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   // Editing State
   const [editSection, setEditSection] = useState<EditableSectionKey | null>(null);
   const [editedContent, setEditedContent] = useState<EditableSectionContent | null>(null);
+
+  const showWorksheet = useCallback((data: WorksheetResponse) => {
+    setWorksheetData(data.content);
+    setEditSection(null);
+    setEditedContent(null);
+  }, []);
+
+  useEffect(() => {
+    const jobId = new URLSearchParams(window.location.search).get("job");
+    if (jobId) {
+      setCurrentJobId(jobId);
+      setLoading(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!currentJobId) return;
+
+    let cancelled = false;
+    let retryCount = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const poll = async () => {
+      try {
+        const job = await getGenerationJob(currentJobId);
+        if (cancelled) return;
+
+        if (job.kind !== "worksheet.generate") {
+          throw new Error("MATERIAL_NOT_FOUND");
+        }
+        if ((job.status === "completed" || job.status === "billing_error") && job.result) {
+          showWorksheet(job.result as unknown as WorksheetResponse);
+          setLoading(false);
+          setError(null);
+          refreshBalance();
+          return;
+        }
+        if (["failed", "cancelled", "billing_error"].includes(job.status)) {
+          setLoading(false);
+          setError(toTeacherErrorMessage(new Error(job.error_message || "GENERATION_FAILED"), t.worksheet.errors.generic));
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+        retryCount = 0;
+        timer = setTimeout(() => void poll(), 1_200);
+      } catch (pollError) {
+        if (cancelled) return;
+        retryCount += 1;
+        if (retryCount < 4) {
+          setLoading(true);
+          timer = setTimeout(() => void poll(), 2_000);
+          return;
+        }
+        setLoading(false);
+        setError(toTeacherErrorMessage(pollError, t.worksheet.errors.generic));
+      }
+    };
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [currentJobId, refreshBalance, showWorksheet, t.worksheet.errors.generic, toTeacherErrorMessage]);
 
   const handleTaskTypeChange = (type: WorksheetTaskType) => {
     setSelectedTaskTypes((prev) =>
@@ -90,16 +163,19 @@ export default function WorksheetsPage() {
     setWorksheetData(null);
 
     try {
-      const response = await generateWorksheet({
+      const payload = {
         subject,
         topic,
         grade,
         language,
         task_types: selectedTaskTypes,
         user_comment: userComment,
+      };
+      const job = await enqueueGenerationJob("worksheet.generate", payload, { title: topic });
+      setCurrentJobId(job.id);
+      router.replace(`/dashboard/ai/worksheets?job=${encodeURIComponent(job.id)}`, {
+        scroll: false,
       });
-      setWorksheetData(response.content);
-      refreshBalance();
     } catch (err) {
       if (err instanceof InsufficientTokensError) {
         setError(
@@ -108,7 +184,6 @@ export default function WorksheetsPage() {
       } else {
         setError(toTeacherErrorMessage(err, t.worksheet.errors.generic));
       }
-    } finally {
       setLoading(false);
     }
   };
@@ -157,6 +232,17 @@ export default function WorksheetsPage() {
         <h1 className="mb-6 text-3xl font-bold text-slate-900">
           {t.worksheet.form.title}
         </h1>
+
+        {loading && currentJobId ? (
+          <div role="status" className="mb-6 rounded-3xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-950 shadow-sm">
+            <p className="font-bold">{interfaceLanguage === "kk" ? "Жұмыс парағы жасалып жатыр" : "Рабочий лист создаётся"}</p>
+            <p className="mt-1 text-sky-800">
+              {interfaceLanguage === "kk"
+                ? "Жұмыс серверде жалғасады. Бетті жаңартсаңыз да нәтиже жоғалмайды."
+                : "Работа продолжается на сервере. После обновления страницы результат не потеряется."}
+            </p>
+          </div>
+        ) : null}
 
         <div className="glass-card mb-6 rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
           <form onSubmit={handleGenerate} className="grid gap-6">
@@ -597,6 +683,8 @@ export default function WorksheetsPage() {
             )}
           </div>
         )}
+
+        <ModuleGenerationHistory kinds={["worksheet.generate"]} />
       </div>
     </div>
   );

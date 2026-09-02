@@ -13,6 +13,9 @@
   /* Gradients */
   --gradient-start: #ff6b00;
   --gradient-end: #10b981;
+
+  /* Keep production builds independent from Google Fonts availability. */
+  --font-outfit: "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
 }
 
 @theme inline {
@@ -65,4 +68,3 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-

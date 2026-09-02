@@ -188,6 +188,7 @@ export interface PresentationProject {
   slide_count?: number;
   created_at: string;
   updated_at?: string | null;
+  expires_at?: string | null;
   active_plan?: PresentationPlan | null;
   approved_plan?: PresentationPlan | null;
   active_plan_job_id?: string | null;
@@ -215,6 +216,29 @@ export interface PresentationListResponse {
   total?: number;
 }
 
+export type PresentationSourceKind =
+  | "scratch"
+  | "lesson_plan"
+  | "scenario"
+  | "materials";
+
+/** A completed, owner-scoped KMJ that can be used as presentation context. */
+export interface SavedKmzhSource {
+  id: string;
+  kind: "kmzh.generate";
+  title: string;
+  status: "completed";
+  created_at: string;
+  completed_at: string | null;
+  expires_at: string;
+}
+
+export interface SavedKmzhSourceList {
+  items: SavedKmzhSource[];
+  total?: number;
+  has_more?: boolean;
+}
+
 export interface CreatePresentationInput {
   mode: PresentationMode;
   title: string;
@@ -224,7 +248,8 @@ export interface CreatePresentationInput {
   grade?: string;
   audience?: string;
   slide_count: number;
-  source_kind?: "scratch" | "lesson_plan" | "materials" | string;
+  source_kind?: PresentationSourceKind;
+  source_generation_job_id?: string;
   source_text?: string;
   goals?: string;
   presentation_type?: string;

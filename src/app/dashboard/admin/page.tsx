@@ -9,6 +9,9 @@ import {
   addTokensToUser,
   getAdminUserTransactions,
   addSubscriptionToUser,
+  revokeSubscriptionFromUser,
+  resetUserTokens,
+  deleteAdminUser,
   uploadAdminVideo,
   uploadVideoThumbnail,
   getAllVideos,
@@ -23,6 +26,18 @@ import {
 } from "../../../lib/api";
 import { formatSubscriptionDate } from "../../../lib/utils";
 import { teacherFacingErrorMessage } from "../../../lib/teacher-facing-error";
+import {
+  adminUserActionErrorMessage,
+  applyAdminUserAction,
+  isAdminUserNotFoundError,
+  isAmbiguousAdminUserDeleteError,
+  isExactEmailConfirmation,
+  isProtectedAdminUser,
+  reconciledDeletedAdminUserResult,
+  type AdminUserActionKind,
+  type AdminUserActionResult,
+} from "../../../lib/admin-user-management";
+import { canRestoreDialogFocus, focusTrapTargetIndex } from "../../../lib/dialog-focus";
 
 export default function AdminPage() {
   const t = useTranslations();
@@ -51,6 +66,24 @@ export default function AdminPage() {
   const [subscriptionDays, setSubscriptionDays] = useState("");
   const [addingSubscription, setAddingSubscription] = useState(false);
 
+  // Destructive account actions are confirmed in one focused dialog.
+  const [pendingUserAction, setPendingUserAction] = useState<{
+    kind: AdminUserActionKind;
+    user: AdminUser;
+  } | null>(null);
+  const [userActionBusy, setUserActionBusy] = useState(false);
+  const [userActionError, setUserActionError] = useState<string | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const userActionDialogRef = useRef<HTMLDivElement | null>(null);
+  const deleteConfirmationInputRef = useRef<HTMLInputElement | null>(null);
+  const cancelUserActionButtonRef = useRef<HTMLButtonElement | null>(null);
+  const userActionTriggerRef = useRef<HTMLElement | null>(null);
+  const userActionBusyRef = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const usersRequestSequenceRef = useRef(0);
+  const usersRequestAbortRef = useRef<AbortController | null>(null);
+
   // Selected user for viewing transactions
   const [selectedUserForTransactions, setSelectedUserForTransactions] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<TokenTransaction[]>([]);
@@ -78,19 +111,41 @@ export default function AdminPage() {
   const [videoToDelete, setVideoToDelete] = useState<Video | null>(null);
   const [deletingVideo, setDeletingVideo] = useState(false);
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
+  const fetchUsers = useCallback(async (showLoading = true, reportError = true) => {
+    const requestSequence = ++usersRequestSequenceRef.current;
+    usersRequestAbortRef.current?.abort();
+    const controller = new AbortController();
+    usersRequestAbortRef.current = controller;
+    setLoading(showLoading);
     setError(null);
     try {
-      const data = await getAdminUsers(limit, offset, debouncedSearch || undefined);
+      const data = await getAdminUsers(
+        limit,
+        offset,
+        debouncedSearch || undefined,
+        controller.signal,
+      );
+      if (requestSequence !== usersRequestSequenceRef.current || controller.signal.aborted) {
+        return null;
+      }
       setUsers(data.users);
       setTotal(data.total);
+      return data;
     } catch (err) {
-      setError(teacherFacingErrorMessage(err, language, {
-        fallback: t.admin?.loadUsersError || "Ошибка загрузки пользователей",
-      }));
+      if (requestSequence !== usersRequestSequenceRef.current || controller.signal.aborted) {
+        return null;
+      }
+      if (reportError) {
+        setError(teacherFacingErrorMessage(err, language, {
+          fallback: t.admin?.loadUsersError || "Ошибка загрузки пользователей",
+        }));
+      }
+      return null;
     } finally {
-      setLoading(false);
+      if (requestSequence === usersRequestSequenceRef.current) {
+        setLoading(false);
+        if (usersRequestAbortRef.current === controller) usersRequestAbortRef.current = null;
+      }
     }
   }, [debouncedSearch, language, limit, offset, t.admin?.loadUsersError]);
 
@@ -101,7 +156,71 @@ export default function AdminPage() {
     }
   }, [user, authLoading, router]);
 
-  useEffect(() => () => uploadAbortRef.current?.abort(), []);
+  useEffect(() => () => {
+    uploadAbortRef.current?.abort();
+    usersRequestAbortRef.current?.abort();
+  }, []);
+
+  useEffect(() => {
+    userActionBusyRef.current = userActionBusy;
+  }, [userActionBusy]);
+
+  useEffect(() => {
+    if (!pendingUserAction) return;
+
+    const dialog = userActionDialogRef.current;
+    if (!dialog) return;
+    const previouslyFocused = userActionTriggerRef.current;
+    const fallbackFocus = searchInputRef.current;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      const initialFocus = pendingUserAction.kind === "delete-user"
+        ? deleteConfirmationInputRef.current
+        : cancelUserActionButtonRef.current;
+      initialFocus?.focus();
+    });
+
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (userActionBusyRef.current) return;
+        event.preventDefault();
+        setPendingUserAction(null);
+        setDeleteConfirmation("");
+        setUserActionError(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+      )).filter((element) => element.getClientRects().length > 0);
+      const currentIndex = focusable.indexOf(document.activeElement as HTMLElement);
+      const targetIndex = focusTrapTargetIndex(currentIndex, focusable.length, event.shiftKey);
+      if (targetIndex === null) return;
+      event.preventDefault();
+      focusable[targetIndex]?.focus();
+    };
+
+    document.addEventListener("keydown", handleDialogKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", handleDialogKeyDown);
+      document.body.style.overflow = previousBodyOverflow;
+      if (previouslyFocused && canRestoreDialogFocus({
+        connected: previouslyFocused.isConnected,
+        disabled: previouslyFocused.matches(":disabled"),
+        tabIndex: previouslyFocused.tabIndex,
+        visible: previouslyFocused.getClientRects().length > 0,
+      })) {
+        previouslyFocused.focus();
+      } else {
+        fallbackFocus?.focus();
+      }
+      userActionTriggerRef.current = null;
+    };
+  }, [pendingUserAction]);
 
   // Debounce search query
   useEffect(() => {
@@ -209,6 +328,101 @@ export default function AdminPage() {
       }));
     } finally {
       setAddingSubscription(false);
+    }
+  };
+
+  const openUserAction = (kind: AdminUserActionKind, targetUser: AdminUser) => {
+    if (userActionBusy || isProtectedAdminUser(targetUser, user?.userId)) return;
+    userActionTriggerRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    setPendingUserAction({ kind, user: targetUser });
+    setDeleteConfirmation("");
+    setUserActionError(null);
+    setError(null);
+    setNotice(null);
+  };
+
+  const closeUserAction = () => {
+    if (userActionBusy) return;
+    setPendingUserAction(null);
+    setDeleteConfirmation("");
+    setUserActionError(null);
+  };
+
+  const handleAdminUserAction = async () => {
+    if (!pendingUserAction || userActionBusy) return;
+
+    const { kind, user: targetUser } = pendingUserAction;
+    if (
+      kind === "delete-user" &&
+      !isExactEmailConfirmation(deleteConfirmation, targetUser.email)
+    ) {
+      return;
+    }
+
+    userActionBusyRef.current = true;
+    setUserActionBusy(true);
+    setUserActionError(null);
+    setError(null);
+
+    try {
+      let result: AdminUserActionResult;
+      if (kind === "revoke-subscription") {
+        result = await revokeSubscriptionFromUser(targetUser.user_id);
+      } else if (kind === "reset-tokens") {
+        result = await resetUserTokens(targetUser.user_id);
+      } else {
+        try {
+          result = await deleteAdminUser(targetUser.user_id);
+        } catch (firstError) {
+          if (!isAmbiguousAdminUserDeleteError(firstError)) throw firstError;
+
+          // DELETE may have committed before the connection was interrupted.
+          // Retry once; a 404 now proves the requested end state was reached.
+          try {
+            result = await deleteAdminUser(targetUser.user_id);
+          } catch (retryError) {
+            if (isAdminUserNotFoundError(retryError)) {
+              result = reconciledDeletedAdminUserResult(targetUser.user_id);
+            } else if (isAmbiguousAdminUserDeleteError(retryError)) {
+              const refreshed = await fetchUsers(false, false);
+              if (refreshed && !refreshed.users.some(
+                (candidate) => candidate.user_id === targetUser.user_id,
+              )) {
+                result = reconciledDeletedAdminUserResult(targetUser.user_id);
+              } else {
+                throw retryError;
+              }
+            } else {
+              throw retryError;
+            }
+          }
+        }
+      }
+
+      setUsers((current) => applyAdminUserAction(current, kind, result));
+      if (kind === "delete-user") setTotal((current) => Math.max(0, current - 1));
+
+      const successMessage = {
+        "revoke-subscription": t.admin?.revokeSubscriptionSuccess || "Подписка снята",
+        "reset-tokens": t.admin?.resetTokensSuccess || "Баланс токенов обнулён",
+        "delete-user": t.admin?.deleteUserSuccess || "Пользователь удалён",
+      } satisfies Record<AdminUserActionKind, string>;
+      setNotice(`${successMessage[kind]}: ${targetUser.email}`);
+      setPendingUserAction(null);
+      setDeleteConfirmation("");
+
+      if (kind === "delete-user" && users.length === 1 && offset > 0) {
+        setOffset((current) => Math.max(0, current - limit));
+      } else {
+        await fetchUsers(false);
+      }
+    } catch (err) {
+      setUserActionError(adminUserActionErrorMessage(err, language, kind));
+    } finally {
+      userActionBusyRef.current = false;
+      setUserActionBusy(false);
     }
   };
 
@@ -382,8 +596,31 @@ export default function AdminPage() {
     );
   }
 
+  const currentAdminUserId = user.userId;
+  const pendingActionCopy = pendingUserAction ? {
+    "revoke-subscription": {
+      title: t.admin?.revokeSubscriptionTitle || "Снять подписку?",
+      message: t.admin?.revokeSubscriptionMessage || "Пользователь потеряет доступ к разделам по подписке. Баланс токенов не изменится.",
+    },
+    "reset-tokens": {
+      title: t.admin?.resetTokensTitle || "Обнулить токены?",
+      message: t.admin?.resetTokensMessage || "Баланс пользователя станет равен нулю. Подписка останется без изменений.",
+    },
+    "delete-user": {
+      title: t.admin?.deleteUserTitle || "Удалить пользователя?",
+      message: t.admin?.deleteUserMessage || "Аккаунт и связанные с ним данные будут удалены.",
+    },
+  }[pendingUserAction.kind] : null;
+  const deleteConfirmationMatches = pendingUserAction?.kind !== "delete-user" ||
+    isExactEmailConfirmation(deleteConfirmation, pendingUserAction.user.email);
+
   return (
-    <div className="space-y-6">
+    <>
+    <div
+      className="space-y-6"
+      aria-hidden={pendingUserAction ? true : undefined}
+      inert={Boolean(pendingUserAction)}
+    >
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">
           {t.admin?.title || "Админ панель"}
@@ -460,6 +697,14 @@ export default function AdminPage() {
               {error}
             </div>
           )}
+          {notice && (
+            <div
+              role="status"
+              className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+            >
+              {notice}
+            </div>
+          )}
 
           {/* Users List */}
       <div className="glass-card rounded-3xl border border-white/60 p-6 shadow-xl">
@@ -475,6 +720,7 @@ export default function AdminPage() {
         {/* Search Input */}
         <div className="mb-4">
           <input
+            ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -571,7 +817,8 @@ export default function AdminPage() {
                             setSelectedUser(user);
                             setShowAddTokensModal(true);
                           }}
-                          className="rounded-lg bg-[color:var(--primary)] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"
+                          disabled={userActionBusy}
+                          className="rounded-lg bg-[color:var(--primary)] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {t.admin?.addTokens || "Добавить токены"}
                         </button>
@@ -581,9 +828,55 @@ export default function AdminPage() {
                             setSelectedUserForSubscription(user);
                             setShowAddSubscriptionModal(true);
                           }}
-                          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"
+                          disabled={userActionBusy}
+                          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {t.admin?.addSubscription || "Выдать подписку"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openUserAction("revoke-subscription", user)}
+                          disabled={
+                            userActionBusy ||
+                            !user.has_subscription ||
+                            isProtectedAdminUser(user, currentAdminUserId)
+                          }
+                          title={isProtectedAdminUser(user, currentAdminUserId)
+                            ? t.admin?.protectedAdminAction || "Аккаунты администраторов защищены"
+                            : !user.has_subscription
+                              ? language === "kk" ? "Жазылым белсенді емес" : "Подписка уже неактивна"
+                              : undefined}
+                          className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 shadow-sm transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {t.admin?.revokeSubscription || "Снять подписку"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openUserAction("reset-tokens", user)}
+                          disabled={
+                            userActionBusy ||
+                            user.balance <= 0 ||
+                            isProtectedAdminUser(user, currentAdminUserId)
+                          }
+                          title={isProtectedAdminUser(user, currentAdminUserId)
+                            ? t.admin?.protectedAdminAction || "Аккаунты администраторов защищены"
+                            : user.balance <= 0
+                              ? language === "kk" ? "Токен балансы нөлге тең" : "Баланс уже равен нулю"
+                              : undefined}
+                          className="rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 shadow-sm transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {t.admin?.resetTokens || "Обнулить токены"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openUserAction("delete-user", user)}
+                          disabled={userActionBusy || isProtectedAdminUser(user, currentAdminUserId)}
+                          title={isProtectedAdminUser(user, currentAdminUserId)
+                            ? t.admin?.protectedAdminAction || "Аккаунты администраторов защищены"
+                            : undefined}
+                          className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {t.admin?.deleteUser || "Удалить"}
                         </button>
                         <button
                           type="button"
@@ -812,6 +1105,7 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
         </>
       )}
 
@@ -1193,5 +1487,102 @@ export default function AdminPage() {
         </div>
       )}
     </div>
+    {pendingUserAction && pendingActionCopy && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4">
+        <div
+          ref={userActionDialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-user-action-title"
+          aria-describedby="admin-user-action-description"
+          aria-busy={userActionBusy}
+          className="w-full max-w-md rounded-3xl border border-white/70 bg-white p-6 shadow-2xl"
+        >
+          <h3 id="admin-user-action-title" className="text-xl font-semibold text-slate-950">
+            {pendingActionCopy.title}
+          </h3>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleAdminUserAction();
+            }}
+          >
+            <p id="admin-user-action-description" className="mt-2 text-sm leading-6 text-slate-600">
+              {pendingActionCopy.message}
+            </p>
+
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <p className="break-all text-sm font-semibold text-slate-900">
+                {pendingUserAction.user.email}
+              </p>
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                <span>{t.admin?.balance || "Баланс"}: {pendingUserAction.user.balance}</span>
+                <span>
+                  {t.admin?.subscription || "Подписка"}: {pendingUserAction.user.has_subscription
+                    ? t.admin?.subscriptionActive || "Активна"
+                    : t.admin?.subscriptionInactive || "Неактивна"}
+                </span>
+              </div>
+            </div>
+
+            {pendingUserAction.kind === "delete-user" && (
+              <div className="mt-4">
+                <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800">
+                  {t.admin?.deleteUserWarning || "Это действие нельзя отменить."}
+                </p>
+                <label htmlFor="delete-user-confirmation" className="mt-4 block text-sm font-medium text-slate-800">
+                  {t.admin?.deleteUserConfirmationLabel || "Для подтверждения введите email пользователя"}
+                </label>
+                <input
+                  ref={deleteConfirmationInputRef}
+                  id="delete-user-confirmation"
+                  type="email"
+                  value={deleteConfirmation}
+                  onChange={(event) => setDeleteConfirmation(event.target.value)}
+                  disabled={userActionBusy}
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder={t.admin?.deleteUserConfirmationPlaceholder || "Введите email точно как указано"}
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                />
+              </div>
+            )}
+
+            {userActionError && (
+              <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                {userActionError}
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
+              <button
+                ref={cancelUserActionButtonRef}
+                type="button"
+                onClick={closeUserAction}
+                disabled={userActionBusy}
+                className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t.admin?.cancel || "Отмена"}
+              </button>
+              <button
+                type="submit"
+                disabled={userActionBusy || !deleteConfirmationMatches}
+                aria-busy={userActionBusy}
+                className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  pendingUserAction.kind === "delete-user"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-amber-600 hover:bg-amber-700"
+                }`}
+              >
+                {userActionBusy
+                  ? t.admin?.actionInProgress || "Выполняется..."
+                  : t.admin?.confirmAction || "Подтвердить"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

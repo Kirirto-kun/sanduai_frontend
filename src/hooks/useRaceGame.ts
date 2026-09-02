@@ -72,7 +72,7 @@ export function useRaceGame(
     };
   });
 
-  // Re-initialize teams when questions are loaded (e.g., when data loads from sessionStorage)
+  // Re-initialize teams when a retained durable generation finishes loading.
   useEffect(() => {
     if (questions && questions.length > 0) {
       queueMicrotask(() => {

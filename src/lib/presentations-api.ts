@@ -21,6 +21,7 @@ import type {
   PresentationListResponse,
   PresentationPlan,
   PresentationProject,
+  SavedKmzhSourceList,
   SlideSpec,
   UpdatePlanInput,
 } from "@/types/presentations";
@@ -178,6 +179,29 @@ export async function createPresentation(input: CreatePresentationInput): Promis
       idempotent: true,
     }),
   );
+}
+
+/**
+ * Lists only KMJ jobs that the current teacher owns and can still use.
+ * Ownership, completion and expiry are enforced by the API as well as by the
+ * project-creation endpoint, so a stale browser selection cannot bypass them.
+ */
+export async function listSavedKmzhSources(signal?: AbortSignal): Promise<SavedKmzhSourceList> {
+  const params = new URLSearchParams({
+    kind: "kmzh.generate",
+    status: "completed",
+    limit: "100",
+    offset: "0",
+  });
+  const payload = await request<SavedKmzhSourceList>(
+    `/api/v1/generations?${params.toString()}`,
+    { signal },
+  );
+  return {
+    items: Array.isArray(payload.items) ? payload.items : [],
+    total: payload.total,
+    has_more: payload.has_more,
+  };
 }
 
 export async function getPresentation(id: string, signal?: AbortSignal): Promise<PresentationProject> {

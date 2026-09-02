@@ -1,15 +1,23 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { useTranslations } from "../../../../i18n/LanguageContext";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, FormEvent, Suspense } from "react";
+import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
+import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import {
-  generateExam,
+  enqueueGenerationJob,
   exportExamDocx,
+  getGenerationJob,
   type ExamGeneratePayload,
   type ExamGenerateResponse,
   type ExamTask,
   InsufficientTokensError,
 } from "../../../../lib/api";
+import {
+  generationJobIdFromSearchParam,
+  isActiveGenerationJob,
+} from "../../../../lib/generation-history";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { LatexRenderer } from "../../../../components/LatexRenderer";
 import { useTokens } from "../../../../hooks/useTokens";
@@ -22,10 +30,22 @@ const TASK_TYPE_IDS = [
   "text_open",
 ] as const;
 
-export default function ExamPage() {
+const KIND = "bjb.generate";
+const MODULE_KINDS = [KIND] as const;
+const SOURCE_PATH = "/dashboard/ai/bjb-tjb";
+
+function ExamContent() {
   const t = useTranslations();
+  const { language } = useLanguage();
   const toTeacherErrorMessage = useTeacherErrorMessage();
   const { refreshBalance, costs, balance, checkBalance } = useTokens();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const requestedJobId = generationJobIdFromSearchParam(searchParams.get("job"));
+  const [sessionJobId, setSessionJobId] = useState<string | null>(null);
+  const currentJobId = requestedJobId ?? sessionJobId;
+  const settledJobId = useRef<string | null>(null);
   
   // BJB/TJB exam generation page
 
@@ -51,7 +71,57 @@ export default function ExamPage() {
   const [examProject, setExamProject] = useState<ExamGenerateResponse | null>(null);
   const [tasks, setTasks] = useState<ExamTask[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const job = useQuery({
+    queryKey: ["generation-job", currentJobId],
+    queryFn: () => getGenerationJob(currentJobId as string),
+    enabled: Boolean(currentJobId),
+    retry: 2,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
+  });
+  const loading = submitting || Boolean(
+    currentJobId && (job.isPending || (job.data && isActiveGenerationJob(job.data))),
+  );
+
+  useEffect(() => {
+    setExamProject(null);
+    setTasks([]);
+    setError(null);
+    settledJobId.current = null;
+  }, [currentJobId]);
+
+  useEffect(() => {
+    const value = job.data;
+    if (!value || isActiveGenerationJob(value) || settledJobId.current === value.id) return;
+    settledJobId.current = value.id;
+    if (value.kind !== KIND) {
+      setError(language === "kk" ? "Бұл материал басқа бөлімде жасалған." : "Этот материал создан в другом разделе.");
+      return;
+    }
+    if ((value.status === "completed" || value.status === "billing_error") && value.result) {
+      const restored = value.result as unknown as ExamGenerateResponse;
+      setExamProject(restored);
+      setTasks(restored.tasks);
+      setForm((previous) => ({ ...previous, ...restored.meta }));
+      setError(null);
+      refreshBalance();
+      return;
+    }
+    setError(
+      value.status === "cancelled"
+        ? language === "kk" ? "Жасау тоқтатылды. Монеталар қайтарылды." : "Создание остановлено. Монеты возвращены."
+        : language === "kk" ? "БЖБ/ТЖБ жасау мүмкін болмады. Монеталар қайтарылды." : "Не удалось создать БЖБ/ТЖБ. Монеты возвращены.",
+    );
+    refreshBalance();
+  }, [job.data, language, refreshBalance]);
+
+  useEffect(() => {
+    if (job.error) setError(toTeacherErrorMessage(job.error, t.exam.errors.generic));
+  }, [job.error, t.exam.errors.generic, toTeacherErrorMessage]);
 
   // Calculate current total score
   const currentTotal = tasks.reduce((sum, task) => sum + task.grading.score, 0);
@@ -72,16 +142,21 @@ export default function ExamPage() {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
       const filteredObjectives = form.learning_objectives.filter((obj) => obj.trim());
-      const response = await generateExam({
+      const payload: ExamGeneratePayload = {
         ...form,
         learning_objectives: filteredObjectives,
-      });
-      setExamProject(response);
-      setTasks(response.tasks);
-      refreshBalance();
+      };
+      const created = await enqueueGenerationJob(
+        KIND,
+        payload as unknown as Record<string, unknown>,
+        { title: payload.topic },
+      );
+      setSessionJobId(created.id);
+      queryClient.setQueryData(["generation-job", created.id], created);
+      router.replace(`${SOURCE_PATH}?job=${encodeURIComponent(created.id)}`, { scroll: false });
     } catch (err: unknown) {
       if (err instanceof InsufficientTokensError) {
         setError(
@@ -91,7 +166,7 @@ export default function ExamPage() {
         setError(toTeacherErrorMessage(err, t.exam.errors.generic));
       }
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -531,6 +606,22 @@ export default function ExamPage() {
           </form>
         </div>
 
+        {loading && (
+          <div aria-live="polite" className="mb-6 flex items-center gap-4 rounded-3xl border border-sky-200 bg-gradient-to-r from-sky-50 to-indigo-50 p-6 shadow-sm">
+            <div className="h-11 w-11 shrink-0 animate-spin rounded-full border-4 border-sky-200 border-t-sky-600" />
+            <div>
+              <p className="font-bold text-slate-900">
+                {language === "kk" ? "БЖБ/ТЖБ жасалып жатыр" : "Создаём БЖБ/ТЖБ"}
+              </p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {language === "kk"
+                  ? "Бетті жаңартуға немесе жабуға болады — жұмыс серверде жалғасады."
+                  : "Страницу можно обновить или закрыть — работа продолжится на сервере."}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Results */}
         {examProject && tasks.length > 0 && (
           <div className="animate-fade-in space-y-6">
@@ -591,8 +682,18 @@ export default function ExamPage() {
             </div>
           </div>
         )}
+
+        <ModuleGenerationHistory kinds={MODULE_KINDS} />
       </div>
     </div>
+  );
+}
+
+export default function ExamPage() {
+  return (
+    <Suspense fallback={<div className="min-h-96 animate-pulse rounded-3xl bg-white/70" />}>
+      <ExamContent />
+    </Suspense>
   );
 }
 

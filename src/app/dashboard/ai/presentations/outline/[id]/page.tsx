@@ -15,11 +15,12 @@ import {
   useStartPlanJob,
   useUpdatePlan,
 } from "@/hooks/usePresentations";
-import type { CostEstimate, PlanSlide, PresentationPlan, PresentationProject, UpdatePlanInput } from "@/types/presentations";
+import type { PlanSlide, PresentationPlan, PresentationProject, UpdatePlanInput } from "@/types/presentations";
 import LegacyPresentationView from "@/components/presentations/LegacyPresentationView";
 import OutlineList from "@/components/presentations/OutlineList";
 import { ConfirmDialog, ErrorNotice, ModeBadge, PresentationStepper } from "@/components/presentations/PresentationUI";
 import { getPresentationCopy } from "@/components/presentations/copy";
+import { teacherVisibleCoinCost } from "@/components/presentations/creation-policy";
 import { presentationErrorMessage } from "@/components/presentations/error-copy";
 import { isLegacyReadOnly } from "@/components/presentations/legacy-utils";
 
@@ -35,13 +36,6 @@ function getPlanJobId(project: PresentationProject | undefined, queryValue: stri
     return project.latest_job.job_id ?? project.latest_job.id;
   }
   return null;
-}
-
-function teacherCoinCost(estimate: CostEstimate | undefined) {
-  if (!estimate) return null;
-  return [estimate.coin_cost, estimate.retail_tokens].find(
-    (value): value is number => typeof value === "number",
-  ) ?? null;
 }
 
 function planSlideForApi(slide: PlanSlide, index: number, mode: PresentationProject["mode"]): PlanSlide {
@@ -228,7 +222,7 @@ function PlanEditor({ project, initialPlan }: { project: PresentationProject; in
     }
   };
 
-  const total = teacherCoinCost(costMutation.data);
+  const total = teacherVisibleCoinCost(costMutation.data);
   const currencyLabel = copy.coins;
 
   return (

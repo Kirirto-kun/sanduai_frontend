@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -10,6 +10,11 @@ import CreateForm from "@/components/presentations/CreateForm";
 import { ErrorNotice, PresentationStepper } from "@/components/presentations/PresentationUI";
 import { getPresentationCopy } from "@/components/presentations/copy";
 import { presentationErrorMessage } from "@/components/presentations/error-copy";
+import {
+  PRESENTATION_CREATE_PATH,
+  resolvePresentationCreationMode,
+  shouldCanonicalizePresentationCreationMode,
+} from "@/components/presentations/creation-policy";
 
 export default function CreatePresentationPage() {
   const router = useRouter();
@@ -17,14 +22,20 @@ export default function CreatePresentationPage() {
   const { language } = useLanguage();
   const copy = getPresentationCopy(language);
   const simpleSubtitle = language === "kk"
-    ? "Тақырыпты, пәнді және сыныпты көрсетіңіз — қалғанын ЖИ өзі дайындайды."
-    : "Укажите тему, предмет и класс — всё остальное подготовит ИИ.";
+    ? "Тақырыптан бастаңыз, дайын ҚМЖ таңдаңыз немесе сабақ жоспарын енгізіңіз."
+    : "Начните с темы, выберите готовый КМЖ или вставьте план урока.";
   const requestedMode = searchParams.get("mode");
-  const mode: PresentationMode = requestedMode === "creative" ? "creative" : "classic";
+  const mode: PresentationMode = resolvePresentationCreationMode(requestedMode);
   const createMutation = useCreatePresentation();
   const planMutation = useStartPlanJob();
   const [error, setError] = useState<string | null>(null);
   const loading = createMutation.isPending || planMutation.isPending;
+
+  useEffect(() => {
+    if (shouldCanonicalizePresentationCreationMode(requestedMode)) {
+      router.replace(PRESENTATION_CREATE_PATH, { scroll: false });
+    }
+  }, [requestedMode, router]);
 
   const handleSubmit = async (input: CreatePresentationInput) => {
     setError(null);
