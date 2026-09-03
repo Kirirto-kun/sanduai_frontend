@@ -18,6 +18,7 @@ import { useTokens } from "../../../../hooks/useTokens";
 import { errorMessageIncludes } from "../../../../lib/error-utils";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
+import { generationServerStatusCopy } from "../../../../lib/generation-history";
 
 export default function ClassHoursPage() {
   const t = useTranslations();
@@ -51,9 +52,11 @@ export default function ClassHoursPage() {
 
   // Loading and error states
   const [isLoading, setIsLoading] = useState(false);
+  const [enqueueing, setEnqueueing] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [error, setError] = useState("");
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [acknowledgedJobId, setAcknowledgedJobId] = useState<string | null>(null);
 
   const showClassHour = useCallback((data: ClassHourResponse) => {
     setLessonData(data);
@@ -84,6 +87,7 @@ export default function ClassHoursPage() {
         if (job.kind !== "class_hour.generate") {
           throw new Error("MATERIAL_NOT_FOUND");
         }
+        setAcknowledgedJobId(job.id);
         if ((job.status === "completed" || job.status === "billing_error") && job.result) {
           showClassHour(job.result as unknown as ClassHourResponse);
           setIsLoading(false);
@@ -151,11 +155,14 @@ export default function ClassHoursPage() {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    setEnqueueing(true);
+    setAcknowledgedJobId(null);
     try {
       const job = await enqueueGenerationJob("class_hour.generate", formData, {
         title: formData.topic,
       });
       setCurrentJobId(job.id);
+      setAcknowledgedJobId(job.id);
       router.replace(`/dashboard/ai/class-hours?job=${encodeURIComponent(job.id)}`, {
         scroll: false,
       });
@@ -170,6 +177,8 @@ export default function ClassHoursPage() {
         setError(toTeacherErrorMessage(err, t.classHour.errors.generic));
       }
       setIsLoading(false);
+    } finally {
+      setEnqueueing(false);
     }
   };
 
@@ -303,13 +312,11 @@ export default function ClassHoursPage() {
           {t.classHour.form.title}
         </h1>
 
-        {isLoading && currentJobId ? (
+        {isLoading ? (
           <div role="status" className="mb-6 rounded-3xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-950 shadow-sm">
             <p className="font-bold">{language === "kk" ? "Сынып сағаты жасалып жатыр" : "Классный час создаётся"}</p>
             <p className="mt-1 text-sky-800">
-              {language === "kk"
-                ? "Жұмыс серверде жалғасады. Бетті жаңартсаңыз да нәтиже жоғалмайды."
-                : "Работа продолжается на сервере. После обновления страницы результат не потеряется."}
+              {generationServerStatusCopy(language, !enqueueing && acknowledgedJobId === currentJobId)}
             </p>
           </div>
         ) : null}

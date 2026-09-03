@@ -64,7 +64,7 @@ describe("auth error copy", () => {
         "ru",
         "login",
       ),
-    ).toContain("Проверьте интернет");
+    ).toContain("Подождите немного");
     expect(authErrorMessage(new ApiRequestError("raw", 401), "kk", "login"))
       .toBe("Пошта немесе құпиясөз қате.");
     expect(authErrorMessage(

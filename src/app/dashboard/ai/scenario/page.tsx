@@ -160,8 +160,10 @@ export default function ScenarioPage() {
   const [result, setResult] = useState<ScenarioResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [enqueueing, setEnqueueing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [acknowledgedJobId, setAcknowledgedJobId] = useState<string | null>(null);
 
   const enoughTokens = balance === null || balance >= cost;
 
@@ -209,6 +211,7 @@ export default function ScenarioPage() {
         if (job.kind !== "scenario.generate") {
           throw new Error("MATERIAL_NOT_FOUND");
         }
+        setAcknowledgedJobId(job.id);
         if ((job.status === "completed" || job.status === "billing_error") && job.result) {
           showScenario(job.result as unknown as ScenarioResult);
           setLoading(false);
@@ -260,6 +263,8 @@ export default function ScenarioPage() {
 
     setError(null);
     setLoading(true);
+    setEnqueueing(true);
+    setAcknowledgedJobId(null);
     setResult(null);
     setCopied(false);
 
@@ -276,6 +281,7 @@ export default function ScenarioPage() {
         title: topic.trim(),
       });
       setCurrentJobId(job.id);
+      setAcknowledgedJobId(job.id);
       router.replace(`/dashboard/ai/scenario?job=${encodeURIComponent(job.id)}`, {
         scroll: false,
       });
@@ -286,6 +292,8 @@ export default function ScenarioPage() {
         setError(toTeacherErrorMessage(err));
       }
       setLoading(false);
+    } finally {
+      setEnqueueing(false);
     }
   };
 
@@ -397,12 +405,11 @@ export default function ScenarioPage() {
           {error && <ErrorState message={error} />}
           {loading && (
             <div className="space-y-3" role="status">
-              <LoadingState title={t.loadingTitle} steps={[...t.steps]} />
-              {currentJobId ? (
-                <p className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                  {t.resumeHint}
-                </p>
-              ) : null}
+              <LoadingState
+                title={t.loadingTitle}
+                steps={[...t.steps]}
+                serverAccepted={!enqueueing && acknowledgedJobId === currentJobId}
+              />
             </div>
           )}
           {!loading && !result && !error && (

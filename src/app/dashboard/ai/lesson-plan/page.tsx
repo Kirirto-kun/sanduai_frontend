@@ -19,7 +19,10 @@ import {
 } from "../../../../lib/api";
 import {
   generationJobIdFromSearchParam,
+  generationServerStatusCopy,
+  isAcknowledgedGenerationJob,
   isActiveGenerationJob,
+  isUnavailableGenerationJobError,
 } from "../../../../lib/generation-history";
 import { useTokens } from "../../../../hooks/useTokens";
 import { errorMessageIncludes } from "../../../../lib/error-utils";
@@ -89,7 +92,8 @@ function LessonPlanContent() {
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
-    retry: 2,
+    retry: (failureCount, requestError) =>
+      !isUnavailableGenerationJobError(requestError) && failureCount < 2,
     refetchOnReconnect: true,
     refetchOnWindowFocus: true,
     refetchInterval: (query) => {
@@ -140,8 +144,25 @@ function LessonPlanContent() {
   }, [job.data, language, refreshBalance]);
 
   useEffect(() => {
-    if (job.error) setError(toTeacherErrorMessage(job.error));
-  }, [job.error, toTeacherErrorMessage]);
+    if (!job.error) return;
+    const acknowledged = isAcknowledgedGenerationJob(
+      job.data,
+      currentJobId,
+      ["kmzh.generate"],
+    );
+    if (isUnavailableGenerationJobError(job.error) && !acknowledged) {
+      if (currentJobId) loadedJobId.current = currentJobId;
+      setSessionJobId(null);
+      setError(
+        language === "kk"
+          ? "Бұл тапсырма енді қолжетімді емес. Жаңа ҚМЖ жасап көріңіз."
+          : "Эта задача больше недоступна. Создайте новый КМЖ.",
+      );
+      router.replace("/dashboard/ai/kmzh", { scroll: false });
+      return;
+    }
+    setError(toTeacherErrorMessage(job.error));
+  }, [currentJobId, job.data, job.error, language, router, toTeacherErrorMessage]);
 
   // Convert image to Base64
   const convertImageToBase64 = (file: File): Promise<string> => {
@@ -473,8 +494,13 @@ function LessonPlanContent() {
   };
 
   const currentJob = job.data;
+  const currentJobAcknowledged = isAcknowledgedGenerationJob(
+    currentJob,
+    currentJobId,
+    ["kmzh.generate"],
+  );
   const showJobProgress = Boolean(
-    currentJobId && (job.isLoading || (currentJob && isActiveGenerationJob(currentJob))),
+    currentJobId && (job.isLoading || (currentJobAcknowledged && currentJob && isActiveGenerationJob(currentJob))),
   );
   const progressCurrent = Math.max(0, Number(currentJob?.progress.current ?? 0));
   const progressTotal = Math.max(1, Number(currentJob?.progress.total ?? 1));
@@ -500,9 +526,7 @@ function LessonPlanContent() {
               {language === "kk" ? "ҚМЖ жасалып жатыр" : "Создаём КМЖ"}
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600">
-              {language === "kk"
-                ? "Жұмыс серверде жалғасады. Бұл бетті жаңартуға немесе жабуға болады — нәтиже жоғалмайды."
-                : "Работа продолжается на сервере. Страницу можно обновить или закрыть — результат не потеряется."}
+              {generationServerStatusCopy(language, currentJobAcknowledged)}
             </p>
             <div className="mx-auto mt-6 h-3 max-w-2xl overflow-hidden rounded-full bg-sky-100">
               <div

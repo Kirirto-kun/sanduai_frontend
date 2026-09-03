@@ -17,7 +17,12 @@ import {
   type GenerationJobStatus,
   type GenerationJobSummary,
 } from "@/lib/api";
-import { generationJobIdFromSearchParam } from "@/lib/generation-history";
+import {
+  generationJobIdFromSearchParam,
+  generationServerStatusCopy,
+  isAcknowledgedGenerationJob,
+  isUnavailableGenerationJobError,
+} from "@/lib/generation-history";
 import {
   downloadPedagogicalIdeas,
   pedagogicalIdeasResultFromJob,
@@ -176,6 +181,8 @@ function PedagogicalIdeasContent() {
     queryKey: ["generation-job", requestedJobId],
     queryFn: () => getGenerationJob(requestedJobId as string),
     enabled: Boolean(requestedJobId),
+    retry: (failureCount, requestError) =>
+      !isUnavailableGenerationJobError(requestError) && failureCount < 2,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       return status && !TERMINAL_STATUSES.includes(status) ? 1_800 : false;
@@ -248,6 +255,12 @@ function PedagogicalIdeasContent() {
   const selectedJob = current.data;
   const selectedResult = pedagogicalIdeasResultFromJob(selectedJob);
   const wrongKind = Boolean(selectedJob && selectedJob.kind !== KIND);
+  const selectedJobAcknowledged = isAcknowledgedGenerationJob(
+    selectedJob,
+    requestedJobId,
+    [KIND],
+  );
+  const unavailableJob = current.isError && isUnavailableGenerationJobError(current.error);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 pb-12">
@@ -317,15 +330,32 @@ function PedagogicalIdeasContent() {
           {!requestedJobId ? (
             <EmptyResult title={copy.readyHint} text={copy.readyText} />
           ) : current.isLoading ? (
-            <LoadingResult copy={copy} />
+            <LoadingResult
+              copy={copy}
+              statusHint={generationServerStatusCopy(language, false)}
+            />
           ) : current.isError ? (
-            <ErrorResult message={teacherFacingErrorMessage(current.error, language)} retry={() => void current.refetch()} label={copy.retry} />
+            <ErrorResult
+              message={unavailableJob
+                ? language === "kk"
+                  ? "Бұл тапсырма енді қолжетімді емес. Жаңа идеялар жасап көріңіз."
+                  : "Эта задача больше недоступна. Создайте новые идеи."
+                : teacherFacingErrorMessage(current.error, language)}
+              retry={unavailableJob
+                ? () => router.replace(SOURCE_PATH)
+                : () => void current.refetch()}
+              label={copy.retry}
+            />
           ) : wrongKind ? (
             <ErrorResult message={copy.wrongJob} retry={() => router.replace(SOURCE_PATH)} label={copy.retry} />
           ) : !selectedJob ? (
             <EmptyResult title={copy.readyHint} text={copy.readyText} />
           ) : !TERMINAL_STATUSES.includes(selectedJob.status) ? (
-            <LoadingResult copy={copy} job={selectedJob} />
+            <LoadingResult
+              copy={copy}
+              job={selectedJob}
+              statusHint={generationServerStatusCopy(language, selectedJobAcknowledged)}
+            />
           ) : selectedJob.status === "failed" || selectedJob.status === "cancelled" ? (
             <ErrorResult message={copy.failed} retry={() => router.replace(SOURCE_PATH)} label={copy.retry} />
           ) : selectedResult ? (
@@ -412,7 +442,15 @@ function EmptyResult({ title, text }: { title: string; text: string }) {
   );
 }
 
-function LoadingResult({ copy, job }: { copy: typeof COPY.kk | typeof COPY.ru; job?: GenerationJob }) {
+function LoadingResult({
+  copy,
+  job,
+  statusHint,
+}: {
+  copy: typeof COPY.kk | typeof COPY.ru;
+  job?: GenerationJob;
+  statusHint: string;
+}) {
   const current = Number(job?.progress.current ?? 0);
   const total = Math.max(1, Number(job?.progress.total ?? 1));
   const progress = Math.max(8, Math.min(94, (current / total) * 100));
@@ -423,7 +461,7 @@ function LoadingResult({ copy, job }: { copy: typeof COPY.kk | typeof COPY.ru; j
         <div className="relative grid size-20 place-items-center rounded-full bg-violet-700 text-3xl text-white">✦</div>
       </div>
       <h2 className="mt-6 text-2xl font-black text-slate-950">{copy.working}</h2>
-      <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">{copy.workingHint}</p>
+      <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">{statusHint}</p>
       <div className="mt-6 h-2 w-full max-w-md overflow-hidden rounded-full bg-violet-100">
         <div className="h-full animate-pulse rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 transition-[width] duration-500" style={{ width: `${progress}%` }} />
       </div>

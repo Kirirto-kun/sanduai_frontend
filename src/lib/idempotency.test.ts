@@ -52,22 +52,30 @@ function jsonResponse(value: unknown, status = 200): Response {
 
 function durableQueueFetchMock() {
   let sequence = 0;
-  const results = new Map<string, Record<string, never>>();
+  const results = new Map<string, { kind: string; result: Record<string, never> }>();
   return vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? "GET";
     if (method === "POST" && url.endsWith("/api/v1/generations")) {
-      const id = `job-${++sequence}`;
-      results.set(id, {});
-      return Promise.resolve(jsonResponse({ id, status: "queued", result: null }));
+      const id = `00000000-0000-4000-8000-${String(++sequence).padStart(12, "0")}`;
+      const body = JSON.parse(String(init?.body)) as { kind: string };
+      results.set(id, { kind: body.kind, result: {} });
+      return Promise.resolve(jsonResponse({
+        id,
+        kind: body.kind,
+        status: "queued",
+        result: null,
+      }, 202));
     }
     const match = url.match(/\/api\/v1\/generations\/([^/?]+)$/);
     if (method === "GET" && match) {
       const id = match[1];
+      const saved = results.get(id);
       return Promise.resolve(jsonResponse({
         id,
+        kind: saved?.kind,
         status: "completed",
-        result: results.get(id) ?? {},
+        result: saved?.result ?? {},
       }));
     }
     return Promise.resolve(jsonResponse({}));
@@ -102,9 +110,19 @@ describe("paid request idempotency", () => {
         if ((init?.method ?? "GET") === "POST" && url.endsWith("/api/v1/generations")) {
           enqueueAttempts += 1;
           if (enqueueAttempts === 1) return Promise.reject(new TypeError("offline"));
-          return Promise.resolve(jsonResponse({ id: "job-retry", status: "queued", result: null }));
+          return Promise.resolve(jsonResponse({
+            id: "00000000-0000-4000-8000-000000000099",
+            kind: "essay.generate",
+            status: "queued",
+            result: null,
+          }, 202));
         }
-        return Promise.resolve(jsonResponse({ id: "job-retry", status: "completed", result: {} }));
+        return Promise.resolve(jsonResponse({
+          id: "00000000-0000-4000-8000-000000000099",
+          kind: "essay.generate",
+          status: "completed",
+          result: {},
+        }));
       },
     );
     vi.stubGlobal("fetch", fetchMock);

@@ -19,6 +19,7 @@ import {
 } from "../../../../lib/api";
 import {
   generationJobIdFromSearchParam,
+  generationServerStatusCopy,
   isActiveGenerationJob,
 } from "../../../../lib/generation-history";
 import { LatexRenderer } from "../../../../components/LatexRenderer";
@@ -788,9 +789,7 @@ function TestsContent() {
                 {language === "kk" ? "Тест жасалып жатыр" : "Создаём тест"}
               </p>
               <p className="mt-1 text-sm leading-6 text-slate-600">
-                {language === "kk"
-                  ? "Бетті жаңартуға немесе жабуға болады — жұмыс серверде жалғасады."
-                  : "Страницу можно обновить или закрыть — работа продолжится на сервере."}
+                {generationServerStatusCopy(language, !isSubmitting && job.data?.id === currentJobId)}
               </p>
             </div>
           </div>

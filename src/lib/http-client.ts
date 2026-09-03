@@ -70,6 +70,7 @@ export type FetchPolicyOptions = {
   notifyOnUnauthorized?: boolean;
   attemptAuthRefresh?: boolean;
   errorFactory?: ApiErrorFactory;
+  expectedStatuses?: readonly number[];
 };
 
 export type AuthRefreshHandler = (failedAccessToken?: string) => Promise<string | null>;
@@ -337,6 +338,21 @@ export function requestJson<T>(
           status: response.status,
           code: apiErrorCodeForStatus(response.status),
           details: payload.data,
+        },
+        options.errorFactory,
+      );
+    }
+
+    if (
+      options.expectedStatuses
+      && !options.expectedStatuses.includes(response.status)
+    ) {
+      throw makeError(
+        {
+          message: "The server returned an unexpected success status.",
+          status: response.status,
+          code: API_ERROR_CODES.INVALID_RESPONSE,
+          details: null,
         },
         options.errorFactory,
       );

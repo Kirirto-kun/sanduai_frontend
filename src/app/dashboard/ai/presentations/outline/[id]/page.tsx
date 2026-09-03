@@ -15,7 +15,7 @@ import {
   useStartPlanJob,
   useUpdatePlan,
 } from "@/hooks/usePresentations";
-import type { PlanSlide, PresentationPlan, PresentationProject, UpdatePlanInput } from "@/types/presentations";
+import type { JobState, PlanSlide, PresentationPlan, PresentationProject, UpdatePlanInput } from "@/types/presentations";
 import LegacyPresentationView from "@/components/presentations/LegacyPresentationView";
 import OutlineList from "@/components/presentations/OutlineList";
 import { ConfirmDialog, ErrorNotice, ModeBadge, PresentationStepper } from "@/components/presentations/PresentationUI";
@@ -23,6 +23,7 @@ import { getPresentationCopy } from "@/components/presentations/copy";
 import { teacherVisibleCoinCost } from "@/components/presentations/creation-policy";
 import { presentationErrorMessage } from "@/components/presentations/error-copy";
 import { isLegacyReadOnly } from "@/components/presentations/legacy-utils";
+import { generationServerStatusCopy } from "@/lib/generation-history";
 
 function getPlanJobId(project: PresentationProject | undefined, queryValue: string | null) {
   if (queryValue) return queryValue;
@@ -36,6 +37,18 @@ function getPlanJobId(project: PresentationProject | undefined, queryValue: stri
     return project.latest_job.job_id ?? project.latest_job.id;
   }
   return null;
+}
+
+function isExactPlanJob(
+  job: JobState | null | undefined,
+  expectedJobId: string | null,
+  expectedProjectId: string,
+): boolean {
+  if (!job || !expectedJobId) return false;
+  const actualJobId = job.id || job.job_id;
+  return actualJobId === expectedJobId &&
+    job.kind === "plan" &&
+    (!job.project_id || job.project_id === expectedProjectId);
 }
 
 function planSlideForApi(slide: PlanSlide, index: number, mode: PresentationProject["mode"]): PlanSlide {
@@ -306,16 +319,19 @@ export default function OutlinePage() {
   const projectQuery = usePresentation(projectId);
   const planJobId = getPlanJobId(projectQuery.data, searchParams.get("job"));
   const jobQuery = useJob(planJobId);
-  useJobEventStream(planJobId, projectId);
+  const planJobAcknowledged = isExactPlanJob(jobQuery.data, planJobId, projectId);
+  useJobEventStream(planJobAcknowledged ? planJobId : null, projectId);
   const startPlanMutation = useStartPlanJob();
   const autoRetryAttempted = useRef(false);
 
   useEffect(() => {
     const status = jobQuery.data?.status?.toLowerCase();
-    if (status === "completed" || status === "completed_with_errors") void projectQuery.refetch();
+    if (planJobAcknowledged && (status === "completed" || status === "completed_with_errors")) {
+      void projectQuery.refetch();
+    }
     // Refetching here is the polling fallback when SSE is unavailable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobQuery.data?.status]);
+  }, [jobQuery.data?.status, planJobAcknowledged]);
 
   useEffect(() => {
     const project = projectQuery.data;
@@ -327,7 +343,7 @@ export default function OutlinePage() {
   useEffect(() => {
     const project = projectQuery.data;
     const status = jobQuery.data?.status?.toLowerCase();
-    const recoverFailedJob = status === "failed" || status === "error";
+    const recoverFailedJob = planJobAcknowledged && (status === "failed" || status === "error");
     const resumeMissingJob = Boolean(
       project &&
       !planJobId &&
@@ -350,7 +366,7 @@ export default function OutlinePage() {
     }
     // One automatic recovery attempt per page visit; a visible manual retry remains afterwards.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobQuery.data?.status, projectQuery.data?.active_plan, projectId, router]);
+  }, [jobQuery.data?.status, planJobAcknowledged, projectQuery.data?.active_plan, projectId, router]);
 
   const restartPlan = async (regenerate = true) => {
     startPlanMutation.reset();
@@ -381,8 +397,12 @@ export default function OutlinePage() {
   }
   const plan = project.active_plan;
   const planJobStatus = jobQuery.data?.status?.toLowerCase();
-  const jobFailed = planJobStatus === "failed" || planJobStatus === "error" || planJobStatus === "cancelled";
-  const jobStatusUnavailable = Boolean(planJobId && jobQuery.isError);
+  const jobFailed = planJobAcknowledged && (
+    planJobStatus === "failed" || planJobStatus === "error" || planJobStatus === "cancelled"
+  );
+  const jobStatusUnavailable = Boolean(
+    planJobId && (jobQuery.isError || (jobQuery.data && !planJobAcknowledged)),
+  );
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 pb-8">
@@ -416,7 +436,9 @@ export default function OutlinePage() {
         <section aria-live="polite" className="rounded-[2rem] border border-white/80 bg-white/90 px-6 py-16 text-center shadow-sm">
           <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
           <h2 className="mt-5 text-xl font-bold text-slate-900">{copy.planGenerating}</h2>
-          <p className="mt-2 text-sm text-slate-500">{startPlanMutation.isPending ? copy.planAutoRetrying : copy.planGeneratingHint}</p>
+          <p className="mt-2 text-sm text-slate-500">
+            {generationServerStatusCopy(language, planJobAcknowledged)}
+          </p>
         </section>
       ) : jobFailed && !plan ? (
         <section aria-live="polite" className="rounded-[2rem] border border-amber-200 bg-amber-50 px-6 py-12 text-center shadow-sm">

@@ -20,6 +20,7 @@ import {
 import { useTokens } from "../../../../hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
+import { generationServerStatusCopy } from "../../../../lib/generation-history";
 
 const GRADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 const LANGUAGES = [
@@ -66,8 +67,10 @@ export default function WorksheetsPage() {
   // Result State
   const [worksheetData, setWorksheetData] = useState<WorksheetContent | null>(null);
   const [loading, setLoading] = useState(false);
+  const [enqueueing, setEnqueueing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [acknowledgedJobId, setAcknowledgedJobId] = useState<string | null>(null);
 
   // Editing State
   const [editSection, setEditSection] = useState<EditableSectionKey | null>(null);
@@ -102,6 +105,7 @@ export default function WorksheetsPage() {
         if (job.kind !== "worksheet.generate") {
           throw new Error("MATERIAL_NOT_FOUND");
         }
+        setAcknowledgedJobId(job.id);
         if ((job.status === "completed" || job.status === "billing_error") && job.result) {
           showWorksheet(job.result as unknown as WorksheetResponse);
           setLoading(false);
@@ -159,6 +163,8 @@ export default function WorksheetsPage() {
     }
 
     setLoading(true);
+    setEnqueueing(true);
+    setAcknowledgedJobId(null);
     setError(null);
     setWorksheetData(null);
 
@@ -173,6 +179,7 @@ export default function WorksheetsPage() {
       };
       const job = await enqueueGenerationJob("worksheet.generate", payload, { title: topic });
       setCurrentJobId(job.id);
+      setAcknowledgedJobId(job.id);
       router.replace(`/dashboard/ai/worksheets?job=${encodeURIComponent(job.id)}`, {
         scroll: false,
       });
@@ -185,6 +192,8 @@ export default function WorksheetsPage() {
         setError(toTeacherErrorMessage(err, t.worksheet.errors.generic));
       }
       setLoading(false);
+    } finally {
+      setEnqueueing(false);
     }
   };
 
@@ -233,13 +242,11 @@ export default function WorksheetsPage() {
           {t.worksheet.form.title}
         </h1>
 
-        {loading && currentJobId ? (
+        {loading ? (
           <div role="status" className="mb-6 rounded-3xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-950 shadow-sm">
             <p className="font-bold">{interfaceLanguage === "kk" ? "Жұмыс парағы жасалып жатыр" : "Рабочий лист создаётся"}</p>
             <p className="mt-1 text-sky-800">
-              {interfaceLanguage === "kk"
-                ? "Жұмыс серверде жалғасады. Бетті жаңартсаңыз да нәтиже жоғалмайды."
-                : "Работа продолжается на сервере. После обновления страницы результат не потеряется."}
+              {generationServerStatusCopy(interfaceLanguage, !enqueueing && acknowledgedJobId === currentJobId)}
             </p>
           </div>
         ) : null}

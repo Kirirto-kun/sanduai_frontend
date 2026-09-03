@@ -9,6 +9,7 @@
 
 import { ReactNode, useCallback, useRef, useState } from "react";
 import { downloadImage } from "../../lib/api";
+import { generationServerStatusCopy } from "../../lib/generation-history";
 import { useLanguage } from "../../i18n/LanguageContext";
 
 // --- Каркас страницы ---------------------------------------------------------
@@ -278,7 +279,15 @@ export function EmptyState({ icon, title, hint }: { icon: string; title: string;
   );
 }
 
-export function LoadingState({ title, steps }: { title: string; steps: string[] }) {
+export function LoadingState({
+  title,
+  steps,
+  serverAccepted,
+}: {
+  title: string;
+  steps: string[];
+  serverAccepted: boolean;
+}) {
   const { language } = useLanguage();
 
   return (
@@ -286,9 +295,7 @@ export function LoadingState({ title, steps }: { title: string; steps: string[] 
       <div className="mb-4 h-10 w-10 animate-spin rounded-full border-[3px] border-[color:var(--primary)] border-r-transparent" />
       <p className="text-sm font-semibold text-slate-700">{title}</p>
       <p className="mt-2 max-w-md text-xs leading-5 text-slate-500">
-        {language === "kk"
-          ? "Жұмыс серверде жалғасады. Бұл бетті жабуға болады — дайын материал «Менің материалдарым» бөлімінде сақталады."
-          : "Работа продолжится на сервере. Страницу можно закрыть — готовый материал сохранится в разделе «Мои материалы»."}
+        {generationServerStatusCopy(language, serverAccepted)}
       </p>
 
       {steps.length > 0 && (

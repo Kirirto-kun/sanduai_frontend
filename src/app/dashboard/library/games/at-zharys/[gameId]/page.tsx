@@ -11,7 +11,10 @@ import { useLanguage } from "../../../../../../i18n/LanguageContext";
 import { getGenerationJob } from "../../../../../../lib/api";
 import {
   generationJobIdFromSearchParam,
+  generationServerStatusCopy,
+  isAcknowledgedGenerationJob,
   isActiveGenerationJob,
+  isUnavailableGenerationJobError,
 } from "../../../../../../lib/generation-history";
 import {
   restoreRaceGame,
@@ -217,13 +220,19 @@ function AtZharysGameContent() {
     queryKey: ["generation-job", requestedJobId],
     queryFn: () => getGenerationJob(requestedJobId as string),
     enabled: Boolean(requestedJobId),
-    retry: 2,
+    retry: (failureCount, requestError) =>
+      !isUnavailableGenerationJobError(requestError) && failureCount < 2,
     refetchOnReconnect: true,
     refetchOnWindowFocus: true,
     refetchInterval: (query) =>
       query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
   });
   const backLabel = language === "kk" ? "Ойындарға оралу" : "Вернуться к играм";
+  const jobAcknowledged = isAcknowledgedGenerationJob(
+    job.data,
+    requestedJobId,
+    [RACE_GENERATION_KIND],
+  );
 
   if (!requestedJobId) {
     return (
@@ -239,26 +248,27 @@ function AtZharysGameContent() {
     );
   }
 
-  if (job.isPending || (job.data && isActiveGenerationJob(job.data))) {
+  if (job.isPending || (jobAcknowledged && job.data && isActiveGenerationJob(job.data))) {
     return (
       <GameMessage
         loading
         title={language === "kk" ? "Ойын жасалып жатыр" : "Создаём игру"}
-        description={
-          language === "kk"
-            ? "Сұрақтар серверде жасалып жатыр. Бетті жаңартуға немесе жабуға болады."
-            : "Вопросы создаются на сервере. Страницу можно обновить или закрыть."
-        }
+        description={generationServerStatusCopy(language, jobAcknowledged)}
         backLabel={backLabel}
       />
     );
   }
 
   if (job.error) {
+    const unavailable = isUnavailableGenerationJobError(job.error) && !jobAcknowledged;
     return (
       <GameMessage
         title={language === "kk" ? "Ойынды жүктеу мүмкін болмады" : "Не удалось загрузить игру"}
-        description={toTeacherErrorMessage(job.error)}
+        description={unavailable
+          ? language === "kk"
+            ? "Бұл ойын енді қолжетімді емес. «Ат жарыс» бөлімінен басқа ойынды ашыңыз немесе жаңасын жасаңыз."
+            : "Эта игра больше недоступна. Откройте другую игру в разделе «Ат жарыс» или создайте новую."
+          : toTeacherErrorMessage(job.error)}
         backLabel={backLabel}
       />
     );

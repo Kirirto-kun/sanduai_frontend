@@ -30,6 +30,25 @@ describe("requestJson", () => {
     expect(DEFAULT_HTTP_TIMEOUT_MS).toBe(620_000);
   });
 
+  it("requires the exact acknowledgement status when requested", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ id: "job" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    await expect(
+      requestJson("https://api.example.test/jobs", {}, { expectedStatuses: [202] }),
+    ).rejects.toMatchObject({
+      status: 200,
+      code: API_ERROR_CODES.INVALID_RESPONSE,
+    });
+  });
+
   it("returns a stable timeout error when the deadline expires", async () => {
     vi.useFakeTimers();
     vi.stubGlobal(

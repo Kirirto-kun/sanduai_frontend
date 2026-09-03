@@ -1,9 +1,112 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  createExport,
   createPresentation,
   listSavedKmzhSources,
   PresentationApiError,
+  regenerateSlide,
+  startGeneration,
+  startPlanJob,
+  updateSlide,
 } from "./presentations-api";
+import { API_ERROR_CODES } from "./http-client";
+
+const PROJECT_ID = "182a6bdf-54c6-41c4-9fa2-fb98259441e7";
+const PLAN_ID = "44f9ce20-c082-4dc5-862c-5726ed57427a";
+const JOB_ID = "30bdc3b2-41e6-4399-877c-cbab8e93a5d9";
+
+const enqueueCases = [
+  {
+    label: "plan generation",
+    kind: "plan",
+    request: () => startPlanJob(PROJECT_ID),
+  },
+  {
+    label: "slide generation",
+    kind: "generate",
+    request: () => startGeneration(PROJECT_ID, PLAN_ID),
+  },
+  {
+    label: "classic slide update",
+    kind: "regenerate",
+    request: () => updateSlide(PROJECT_ID, "slide-1", { title: "Updated" }),
+  },
+  {
+    label: "slide regeneration",
+    kind: "regenerate",
+    request: () => regenerateSlide(PROJECT_ID, "slide-1", "Try again"),
+  },
+  {
+    label: "export generation",
+    kind: "export",
+    request: () => createExport(PROJECT_ID, { format: "pptx", variant: "editable" }),
+  },
+] as const;
+
+describe("presentation job acknowledgement", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each(enqueueCases)("accepts an exact 202 for $label", async ({ kind, request }) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        id: JOB_ID,
+        job_id: JOB_ID,
+        kind,
+        status: "queued",
+      }), {
+        status: 202,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ));
+
+    await expect(request()).resolves.toMatchObject({
+      job_id: JOB_ID,
+      kind,
+      status: "queued",
+    });
+  });
+
+  it.each(enqueueCases)("rejects a non-202 success for $label", async ({ kind, request }) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        id: JOB_ID,
+        job_id: JOB_ID,
+        kind,
+        status: "queued",
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ));
+
+    await expect(request()).rejects.toMatchObject({
+      status: 200,
+      code: API_ERROR_CODES.INVALID_RESPONSE,
+    });
+  });
+
+  it.each([
+    ["a missing job_id", { id: JOB_ID, kind: "plan", status: "queued" }],
+    ["a malformed job_id", { job_id: "not-a-uuid", kind: "plan", status: "queued" }],
+    ["the wrong job kind", { job_id: JOB_ID, kind: "generate", status: "queued" }],
+    ["an unknown job status", { job_id: JOB_ID, kind: "plan", status: "unknown" }],
+  ])("rejects a 202 acknowledgement with %s", async (_label, payload) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(payload), {
+        status: 202,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ));
+
+    await expect(startPlanJob(PROJECT_ID)).rejects.toMatchObject({
+      status: 502,
+      code: API_ERROR_CODES.INVALID_RESPONSE,
+      message: "The server returned an invalid presentation job acknowledgement.",
+    });
+  });
+});
 
 describe("presentation API errors", () => {
   afterEach(() => {

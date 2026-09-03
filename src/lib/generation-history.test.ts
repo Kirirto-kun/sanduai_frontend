@@ -5,9 +5,12 @@ import {
   generationExpiryCopy,
   generationJobIdFromSearchParam,
   generationResultHref,
+  generationServerStatusCopy,
   generationSourceHref,
+  isAcknowledgedGenerationJob,
   isActiveGenerationJob,
   isPrimaryGenerationMaterial,
+  isUnavailableGenerationJobError,
   selectGenerationHistoryPage,
   sortUniqueGenerationJobs,
 } from "./generation-history";
@@ -54,6 +57,29 @@ describe("generation history deep links", () => {
     expect(isActiveGenerationJob({ status: "queued" })).toBe(true);
     expect(isActiveGenerationJob({ status: "running" })).toBe(true);
     expect(isActiveGenerationJob({ status: "completed" })).toBe(false);
+  });
+
+  it("allows closing the page only after the server accepted a durable job", () => {
+    expect(generationServerStatusCopy("ru", false)).toContain("Не закрывайте");
+    expect(generationServerStatusCopy("kk", false)).toContain("жаппаңыз");
+    expect(generationServerStatusCopy("ru", true)).toContain("принято сервером");
+    expect(generationServerStatusCopy("kk", true)).toContain("серверге қабылданды");
+  });
+
+  it("accepts a server acknowledgement only for the exact job and module", () => {
+    const job = { id: JOB_ID, kind: "kmzh.generate" } as GenerationJobSummary;
+    expect(isAcknowledgedGenerationJob(job, JOB_ID, ["kmzh.generate"])).toBe(true);
+    expect(isAcknowledgedGenerationJob(job, "69f83eb1-c315-4d51-b1c5-7413d0493f9e", ["kmzh.generate"]))
+      .toBe(false);
+    expect(isAcknowledgedGenerationJob(job, JOB_ID, ["science.plan"])).toBe(false);
+    expect(isAcknowledgedGenerationJob(undefined, JOB_ID, ["kmzh.generate"])).toBe(false);
+  });
+
+  it("recognizes expired and missing generation deep links", () => {
+    expect(isUnavailableGenerationJobError({ status: 404 })).toBe(true);
+    expect(isUnavailableGenerationJobError({ status: 410 })).toBe(true);
+    expect(isUnavailableGenerationJobError({ status: 500 })).toBe(false);
+    expect(isUnavailableGenerationJobError(new Error("offline"))).toBe(false);
   });
 
   it("combines paged module histories without duplicates and keeps newest first", () => {

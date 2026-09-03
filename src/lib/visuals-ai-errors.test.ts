@@ -32,7 +32,10 @@ describe("visualGenerationErrorMessage", () => {
     );
 
     expect(visualGenerationErrorMessage(error, "ru")).toBe(
-      "Не удалось связаться с сервисом. Проверьте интернет и попробуйте ещё раз.",
+      "Не удалось связаться с сервисом. Подождите немного и попробуйте ещё раз.",
+    );
+    expect(visualGenerationErrorMessage(error, "kk")).toBe(
+      "Қызметке қосылу мүмкін болмады. Сәлден кейін қайталап көріңіз.",
     );
   });
 

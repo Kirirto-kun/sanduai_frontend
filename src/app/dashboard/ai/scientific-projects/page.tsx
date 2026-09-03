@@ -14,7 +14,10 @@ import {
 } from "../../../../lib/api";
 import {
   generationJobIdFromSearchParam,
+  generationServerStatusCopy,
+  isAcknowledgedGenerationJob,
   isActiveGenerationJob,
+  isUnavailableGenerationJobError,
 } from "../../../../lib/generation-history";
 import { useTokens } from "../../../../hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
@@ -49,7 +52,8 @@ function ScientificProjectContent() {
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
-    retry: 2,
+    retry: (failureCount, requestError) =>
+      !isUnavailableGenerationJobError(requestError) && failureCount < 2,
     refetchOnReconnect: true,
     refetchOnWindowFocus: true,
     refetchInterval: (query) => {
@@ -96,8 +100,25 @@ function ScientificProjectContent() {
   }, [interfaceLanguage, job.data, queryClient, refreshBalance, router, toTeacherErrorMessage]);
 
   useEffect(() => {
-    if (job.error) setError(toTeacherErrorMessage(job.error));
-  }, [job.error, toTeacherErrorMessage]);
+    if (!job.error) return;
+    const acknowledged = isAcknowledgedGenerationJob(
+      job.data,
+      currentJobId,
+      ["science.plan"],
+    );
+    if (isUnavailableGenerationJobError(job.error) && !acknowledged) {
+      if (currentJobId) handledJobId.current = currentJobId;
+      setSessionJobId(null);
+      setError(
+        interfaceLanguage === "kk"
+          ? "Бұл тапсырма енді қолжетімді емес. Жаңа жоба жоспарын жасап көріңіз."
+          : "Эта задача больше недоступна. Создайте новый план проекта.",
+      );
+      router.replace("/dashboard/ai/scientific-projects", { scroll: false });
+      return;
+    }
+    setError(toTeacherErrorMessage(job.error));
+  }, [currentJobId, interfaceLanguage, job.data, job.error, router, toTeacherErrorMessage]);
 
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,8 +165,13 @@ function ScientificProjectContent() {
   };
 
   const currentJob = job.data;
+  const currentJobAcknowledged = isAcknowledgedGenerationJob(
+    currentJob,
+    currentJobId,
+    ["science.plan"],
+  );
   const showJobProgress = Boolean(
-    currentJobId && (job.isLoading || (currentJob && isActiveGenerationJob(currentJob))),
+    currentJobId && (job.isLoading || (currentJobAcknowledged && currentJob && isActiveGenerationJob(currentJob))),
   );
   const progressCurrent = Math.max(0, Number(currentJob?.progress.current ?? 0));
   const progressTotal = Math.max(1, Number(currentJob?.progress.total ?? 1));
@@ -173,9 +199,7 @@ function ScientificProjectContent() {
               {interfaceLanguage === "kk" ? "Жоба жоспары жасалып жатыр" : "Создаём план проекта"}
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600">
-              {interfaceLanguage === "kk"
-                ? "Бетті жаңартуға немесе жабуға болады — жұмыс серверде жалғасады."
-                : "Страницу можно обновить или закрыть — работа продолжится на сервере."}
+              {generationServerStatusCopy(interfaceLanguage, currentJobAcknowledged)}
             </p>
             <div className="mx-auto mt-6 h-3 max-w-2xl overflow-hidden rounded-full bg-sky-100">
               <div

@@ -17,6 +17,7 @@ import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import { useTokens } from "../../../../hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
+import { generationServerStatusCopy } from "../../../../lib/generation-history";
 
 type PendingRevision = {
   id: string;
@@ -49,7 +50,9 @@ export default function ArticlePage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [generationPending, setGenerationPending] = useState(false);
+  const [enqueueing, setEnqueueing] = useState(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [acknowledgedJobId, setAcknowledgedJobId] = useState<string | null>(null);
 
   // Modal state for adding a revision
   const [showModal, setShowModal] = useState(false);
@@ -95,6 +98,7 @@ export default function ArticlePage() {
         if (job.kind !== "article.generate") {
           throw new Error("MATERIAL_NOT_FOUND");
         }
+        setAcknowledgedJobId(job.id);
         if ((job.status === "completed" || job.status === "billing_error") && job.result) {
           showArticle(job.result as unknown as ArticleResponse);
           setLoading(false);
@@ -150,9 +154,12 @@ export default function ArticlePage() {
     setError(null);
     setLoading(true);
     setGenerationPending(true);
+    setEnqueueing(true);
+    setAcknowledgedJobId(null);
     try {
       const job = await enqueueGenerationJob("article.generate", form, { title: form.topic });
       setCurrentJobId(job.id);
+      setAcknowledgedJobId(job.id);
       router.replace(`/dashboard/ai/article?job=${encodeURIComponent(job.id)}`, { scroll: false });
     } catch (err) {
       if (err instanceof InsufficientTokensError) {
@@ -164,6 +171,8 @@ export default function ArticlePage() {
       }
       setLoading(false);
       setGenerationPending(false);
+    } finally {
+      setEnqueueing(false);
     }
   };
 
@@ -275,13 +284,11 @@ export default function ArticlePage() {
       <div className="mx-auto max-w-5xl">
         <h1 className="mb-6 text-3xl font-bold text-slate-900">{t.article.form.title}</h1>
 
-        {generationPending && currentJobId ? (
+        {generationPending ? (
           <div role="status" className="mb-6 rounded-3xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-950 shadow-sm">
             <p className="font-bold">{language === "kk" ? "Мақала жасалып жатыр" : "Статья создаётся"}</p>
             <p className="mt-1 text-sky-800">
-              {language === "kk"
-                ? "Жұмыс серверде жалғасады. Бетті жаңартсаңыз да нәтиже жоғалмайды."
-                : "Работа продолжается на сервере. После обновления страницы результат не потеряется."}
+              {generationServerStatusCopy(language, !enqueueing && acknowledgedJobId === currentJobId)}
             </p>
           </div>
         ) : null}

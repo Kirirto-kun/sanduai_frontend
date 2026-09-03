@@ -19,7 +19,10 @@ import { useTokens } from "../../../../../../hooks/useTokens";
 import { InsufficientTokensError } from "../../../../../../lib/api";
 import {
   generationJobIdFromSearchParam,
+  generationServerStatusCopy,
+  isAcknowledgedGenerationJob,
   isActiveGenerationJob,
+  isUnavailableGenerationJobError,
 } from "../../../../../../lib/generation-history";
 import { completeScienceProjectFromState } from "../../../../../../lib/science-project-history";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
@@ -51,7 +54,8 @@ function EditProjectContent() {
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
-    retry: 2,
+    retry: (failureCount, requestError) =>
+      !isUnavailableGenerationJobError(requestError) && failureCount < 2,
     refetchOnReconnect: true,
     refetchOnWindowFocus: true,
     refetchInterval: (query) => {
@@ -135,8 +139,30 @@ function EditProjectContent() {
   }, [job.data, language, projectId, queryClient, refreshBalance, router, toTeacherErrorMessage]);
 
   useEffect(() => {
-    if (job.error) setError(toTeacherErrorMessage(job.error));
-  }, [job.error, toTeacherErrorMessage]);
+    if (!job.error) return;
+    const acknowledged = isAcknowledgedGenerationJob(
+      job.data,
+      currentJobId,
+      ["science.regenerate", "science.finalize"],
+    );
+    if (isUnavailableGenerationJobError(job.error) && !acknowledged) {
+      if (currentJobId) handledJobId.current = currentJobId;
+      setSessionJobId(null);
+      setRegenerating(null);
+      setFinalizing(false);
+      setError(
+        language === "kk"
+          ? "Бұл әрекет енді қолжетімді емес. Жоба сақталған күйінде ашылды."
+          : "Эта операция больше недоступна. Проект открыт в сохранённом состоянии.",
+      );
+      router.replace(
+        `/dashboard/ai/scientific-projects/${encodeURIComponent(projectId)}/edit`,
+        { scroll: false },
+      );
+      return;
+    }
+    setError(toTeacherErrorMessage(job.error));
+  }, [currentJobId, job.data, job.error, language, projectId, router, toTeacherErrorMessage]);
 
   const handleRegenerate = async (sectionType: string) => {
     const instruction = regenerateInstructions[sectionType]?.trim() ?? "";
@@ -223,8 +249,13 @@ function EditProjectContent() {
     chapter_2: t.scientificProject.results.chapterResearch,
     conclusion: t.scientificProject.results.conclusion,
   };
+  const operationAcknowledged = isAcknowledgedGenerationJob(
+    job.data,
+    currentJobId,
+    ["science.regenerate", "science.finalize"],
+  );
   const operationActive = Boolean(
-    currentJobId && (job.isLoading || (job.data && isActiveGenerationJob(job.data))),
+    currentJobId && (job.isLoading || (operationAcknowledged && job.data && isActiveGenerationJob(job.data))),
   );
 
   if (loading) {
@@ -256,9 +287,7 @@ function EditProjectContent() {
                   : language === "kk" ? "Бөлім жаңартылып жатыр" : "Обновляем раздел"}
               </p>
               <p className="mt-1 text-sm leading-6 text-sky-800">
-                {language === "kk"
-                  ? "Бетті жаңартуға немесе жабуға болады — нәтиже жоғалмайды."
-                  : "Страницу можно обновить или закрыть — результат не потеряется."}
+                {generationServerStatusCopy(language, operationAcknowledged)}
               </p>
             </div>
           </div>

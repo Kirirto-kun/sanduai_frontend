@@ -38,6 +38,42 @@ export function isActiveGenerationJob(
 }
 
 
+export function generationServerStatusCopy(
+  language: "ru" | "kk",
+  serverAccepted: boolean,
+): string {
+  if (serverAccepted) {
+    return language === "kk"
+      ? "Тапсырма серверге қабылданды. Бетті жаңартуға немесе жабуға болады."
+      : "Задание принято сервером. Страницу можно обновить или закрыть.";
+  }
+  return language === "kk"
+    ? "Тапсырманы серверге жіберіп жатырмыз. Растау шыққанша бетті жаппаңыз."
+    : "Передаём задание серверу. Не закрывайте страницу до подтверждения.";
+}
+
+
+export function isAcknowledgedGenerationJob(
+  job: Pick<GenerationJobSummary, "id" | "kind"> | null | undefined,
+  expectedJobId: string | null | undefined,
+  expectedKinds: readonly string[],
+): boolean {
+  return Boolean(
+    job &&
+    expectedJobId &&
+    job.id === expectedJobId &&
+    expectedKinds.includes(job.kind),
+  );
+}
+
+
+export function isUnavailableGenerationJobError(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("status" in error)) return false;
+  const status = Number((error as { status?: unknown }).status);
+  return status === 404 || status === 410;
+}
+
+
 export function generationSourceHref(
   job: Pick<GenerationJobSummary, "id" | "source_path">,
 ): string {

@@ -339,7 +339,7 @@ function ComicsContent() {
         result={
           <div className="space-y-4">
           {error && <ErrorState message={error} />}
-          {loading && <LoadingState title={t.loadingTitle} steps={[...t.steps]} />}
+          {loading && <LoadingState title={t.loadingTitle} steps={[...t.steps]} serverAccepted={!submitting && job.data?.id === currentJobId} />}
           {!loading && !result && !error && (
             <EmptyState icon="💥" title={t.emptyTitle} hint={t.emptyHint} />
           )}

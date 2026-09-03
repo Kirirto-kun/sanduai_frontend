@@ -631,6 +631,7 @@ async function request<T>(
     skipAuthRefresh?: boolean;
     notifyOnUnauthorized?: boolean;
     timeoutMs?: number | null;
+    expectedStatuses?: readonly number[];
   } = {},
 ): Promise<T> {
   const {
@@ -638,6 +639,7 @@ async function request<T>(
     skipAuthRefresh,
     notifyOnUnauthorized,
     timeoutMs,
+    expectedStatuses,
     ...requestInit
   } = options;
   const headers = new Headers(options.headers);
@@ -662,6 +664,7 @@ async function request<T>(
     attemptAuthRefresh: !skipAuthRefresh,
     notifyOnUnauthorized,
     timeoutMs,
+    expectedStatuses,
     errorFactory: requestError,
   });
 }
@@ -701,6 +704,43 @@ export type GenerationJob = GenerationJobSummary & {
   result: Record<string, unknown> | unknown[] | null;
   artifact_urls: string[];
 };
+
+const GENERATION_JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const GENERATION_JOB_STATUSES = new Set<GenerationJobStatus>([
+  "queued",
+  "running",
+  "settling",
+  "refunding",
+  "completed",
+  "failed",
+  "cancelled",
+  "billing_error",
+]);
+
+export function validateGenerationJobAcknowledgement(
+  value: unknown,
+  expectedKind: string,
+): GenerationJob {
+  const candidate = value && typeof value === "object"
+    ? value as Partial<GenerationJob>
+    : null;
+  if (
+    !candidate
+    || typeof candidate.id !== "string"
+    || !GENERATION_JOB_ID_PATTERN.test(candidate.id)
+    || candidate.kind !== expectedKind
+    || typeof candidate.status !== "string"
+    || !GENERATION_JOB_STATUSES.has(candidate.status as GenerationJobStatus)
+  ) {
+    throw new ApiRequestError(
+      "The server returned an invalid generation acknowledgement.",
+      502,
+      undefined,
+      API_ERROR_CODES.INVALID_RESPONSE,
+    );
+  }
+  return candidate as GenerationJob;
+}
 
 export type GenerationJobList = {
   items: GenerationJobSummary[];
@@ -839,13 +879,15 @@ export async function enqueueGenerationJob(
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const job = await request<GenerationJob>("/api/v1/generations", {
+        const response = await request<GenerationJob>("/api/v1/generations", {
           method: "POST",
           auth: true,
           timeoutMs: 20_000,
+          expectedStatuses: [202],
           headers: { "Idempotency-Key": intent.key },
           body: JSON.stringify({ kind, payload, title: options.title }),
         });
+        const job = validateGenerationJobAcknowledgement(response, kind);
         attachJobToGenerationIntent(fingerprint, job.id);
         invalidateCachedBalance();
         announceGenerationUpdate();

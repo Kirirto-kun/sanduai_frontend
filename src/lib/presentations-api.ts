@@ -1,6 +1,7 @@
 import { getToken } from "./api";
 import { getApiBase } from "./api-base";
 import {
+  API_ERROR_CODES,
   ApiRequestError,
   apiErrorCodeForStatus,
   fetchWithPolicy,
@@ -116,9 +117,12 @@ async function parseError(response: Response): Promise<PresentationApiError> {
 
 async function request<T>(
   path: string,
-  options: RequestInit & { idempotent?: boolean } = {},
+  options: RequestInit & {
+    idempotent?: boolean;
+    expectedStatuses?: readonly number[];
+  } = {},
 ): Promise<T> {
-  const { idempotent, ...requestInit } = options;
+  const { idempotent, expectedStatuses, ...requestInit } = options;
   const token = getToken();
   const headers = new Headers(options.headers);
   if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
@@ -134,6 +138,7 @@ async function request<T>(
     cache: "no-store",
   }, {
     errorFactory: presentationError,
+    expectedStatuses,
   });
 }
 
@@ -151,12 +156,47 @@ function unwrapPlan(payload: unknown): PresentationPlan {
   return data.plan ?? data.data ?? (payload as PresentationPlan);
 }
 
-function unwrapJobRef(payload: unknown): JobRef {
-  const data = payload as { job?: JobRef; data?: JobRef; id?: string; job_id?: string };
-  const value = data.job ?? data.data ?? data;
+type PresentationJobKind = "plan" | "generate" | "regenerate" | "export";
+
+const PRESENTATION_JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PRESENTATION_ACK_STATUSES = new Set([
+  "pending",
+  "queued",
+  "running",
+  "processing",
+  "completed",
+  "completed_with_errors",
+  "failed",
+  "cancelled",
+]);
+
+function unwrapJobRef(payload: unknown, expectedKind: PresentationJobKind): JobRef {
+  const data = payload && typeof payload === "object" && !Array.isArray(payload)
+    ? payload as { job?: unknown; data?: unknown }
+    : null;
+  const nested = data?.job ?? data?.data ?? data;
+  const value = nested && typeof nested === "object" && !Array.isArray(nested)
+    ? nested as Record<string, unknown>
+    : null;
+  if (
+    !value
+    || typeof value.job_id !== "string"
+    || !PRESENTATION_JOB_ID_PATTERN.test(value.job_id)
+    || value.kind !== expectedKind
+    || typeof value.status !== "string"
+    || !PRESENTATION_ACK_STATUSES.has(value.status)
+  ) {
+    throw new PresentationApiError(
+      "The server returned an invalid presentation job acknowledgement.",
+      502,
+      undefined,
+      payload,
+      API_ERROR_CODES.INVALID_RESPONSE,
+    );
+  }
   return {
     ...value,
-    job_id: value.job_id ?? value.id ?? "",
+    job_id: value.job_id,
   } as JobRef;
 }
 
@@ -242,7 +282,9 @@ export async function startPlanJob(id: string, input: PlanJobInput = {}): Promis
       method: "POST",
       body: JSON.stringify(input),
       idempotent: true,
+      expectedStatuses: [202],
     }),
+    "plan",
   );
 }
 
@@ -304,7 +346,9 @@ export async function startGeneration(
       method: "POST",
       body: JSON.stringify({ plan_version_id: planVersionId }),
       idempotent: true,
+      expectedStatuses: [202],
     }),
+    "generate",
   );
 }
 
@@ -339,7 +383,9 @@ export async function updateSlide(
     await request(`${PREFIX}/${encodeURIComponent(presentationId)}/slides/${encodeURIComponent(slideKey)}`, {
       method: "PATCH",
       body: JSON.stringify({ spec }),
+      expectedStatuses: [202],
     }),
+    "regenerate",
   );
 }
 
@@ -355,8 +401,10 @@ export async function regenerateSlide(
         method: "POST",
         body: JSON.stringify({ instruction: instruction?.trim() || undefined }),
         idempotent: true,
+        expectedStatuses: [202],
       },
     ),
+    "regenerate",
   );
 }
 
@@ -374,12 +422,16 @@ export async function activateSlideVersion(
 export async function createExport(
   presentationId: string,
   input: CreateExportInput,
-): Promise<PresentationExport | JobRef> {
-  return request(`${PREFIX}/${encodeURIComponent(presentationId)}/exports`, {
-    method: "POST",
-    body: JSON.stringify(input),
-    idempotent: true,
-  });
+): Promise<JobRef> {
+  return unwrapJobRef(
+    await request(`${PREFIX}/${encodeURIComponent(presentationId)}/exports`, {
+      method: "POST",
+      body: JSON.stringify(input),
+      idempotent: true,
+      expectedStatuses: [202],
+    }),
+    "export",
+  );
 }
 
 export async function listExports(

@@ -16,6 +16,7 @@ import { useLanguage, useTranslations } from "../../../i18n/LanguageContext";
 import { useTokens } from "../../../hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { ModuleGenerationHistory } from "../../../components/generations/ModuleGenerationHistory";
+import { generationServerStatusCopy } from "../../../lib/generation-history";
 
 type PendingRevision = {
   id: string;
@@ -48,7 +49,9 @@ export default function AiDocsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [generationPending, setGenerationPending] = useState(false);
+  const [enqueueing, setEnqueueing] = useState(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [acknowledgedJobId, setAcknowledgedJobId] = useState<string | null>(null);
 
   // Modal state for adding a revision
   const [showModal, setShowModal] = useState(false);
@@ -91,6 +94,7 @@ export default function AiDocsPage() {
         if (job.kind !== "essay.generate") {
           throw new Error("MATERIAL_NOT_FOUND");
         }
+        setAcknowledgedJobId(job.id);
 
         if ((job.status === "completed" || job.status === "billing_error") && job.result) {
           showEssay(job.result as unknown as EssayGenerateResponse);
@@ -144,9 +148,12 @@ export default function AiDocsPage() {
     setError(null);
     setLoading(true);
     setGenerationPending(true);
+    setEnqueueing(true);
+    setAcknowledgedJobId(null);
     try {
       const job = await enqueueGenerationJob("essay.generate", form, { title: form.topic });
       setCurrentJobId(job.id);
+      setAcknowledgedJobId(job.id);
       router.replace(`/dashboard/ai/essay?job=${encodeURIComponent(job.id)}`, { scroll: false });
     } catch (err) {
       if (err instanceof InsufficientTokensError) {
@@ -158,6 +165,8 @@ export default function AiDocsPage() {
       }
       setLoading(false);
       setGenerationPending(false);
+    } finally {
+      setEnqueueing(false);
     }
   };
 
@@ -280,13 +289,11 @@ export default function AiDocsPage() {
 
   return (
     <div className="space-y-6">
-      {generationPending && currentJobId ? (
+      {generationPending ? (
         <div role="status" className="rounded-3xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-950 shadow-sm">
           <p className="font-bold">{language === "kk" ? "Эссе жасалып жатыр" : "Эссе создаётся"}</p>
           <p className="mt-1 text-sky-800">
-            {language === "kk"
-              ? "Жұмыс серверде жалғасады. Бетті жаңартсаңыз да нәтиже жоғалмайды."
-              : "Работа продолжается на сервере. После обновления страницы результат не потеряется."}
+            {generationServerStatusCopy(language, !enqueueing && acknowledgedJobId === currentJobId)}
           </p>
         </div>
       ) : null}

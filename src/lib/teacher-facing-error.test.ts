@@ -37,7 +37,7 @@ describe("teacherFacingErrorMessage", () => {
         new ApiRequestError("Unable to reach", 0, undefined, API_ERROR_CODES.NETWORK_ERROR),
         "ru",
       ),
-    ).toContain("Проверьте интернет");
+    ).toBe("Не удалось связаться с сервисом. Подождите немного и попробуйте ещё раз.");
   });
 
   it("preserves an explicitly supplied feature-specific insufficient-coins message", () => {

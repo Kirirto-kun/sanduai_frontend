@@ -13,6 +13,7 @@ import {
 } from "../../../../../../lib/api";
 import {
   generationJobIdFromSearchParam,
+  generationServerStatusCopy,
   isActiveGenerationJob,
 } from "../../../../../../lib/generation-history";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
@@ -23,6 +24,12 @@ type GenerationIssue = {
   message: string;
   action: "restart" | "back";
 };
+
+function requestStatus(error: unknown): number | null {
+  if (!error || typeof error !== "object") return null;
+  const status = (error as { status?: unknown }).status;
+  return typeof status === "number" ? status : null;
+}
 
 function GenerateProgressContent() {
   const t = useTranslations();
@@ -37,6 +44,7 @@ function GenerateProgressContent() {
   const [sessionJobId, setSessionJobId] = useState<string | null>(null);
   const currentJobId = requestedJobId ?? sessionJobId;
   const [generationIssue, setGenerationIssue] = useState<GenerationIssue | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const startingJob = useRef(false);
   const handledJobId = useRef<string | null>(null);
 
@@ -73,15 +81,16 @@ function GenerateProgressContent() {
     }
   }, [currentStep, projectId, projectState.data, router]);
 
-  const startGeneration = useCallback(async (freshAttempt = false) => {
+  const startGeneration = useCallback(async () => {
     if (!plan || startingJob.current) return;
     startingJob.current = true;
+    setSubmitting(true);
     setGenerationIssue(null);
     try {
-      const createdJob = await enqueueAllProjectSections(
-        { project_id: projectId, approved_plan: plan },
-        freshAttempt ? { idempotencyKey: globalThis.crypto.randomUUID() } : undefined,
-      );
+      const createdJob = await enqueueAllProjectSections({
+        project_id: projectId,
+        approved_plan: plan,
+      });
       handledJobId.current = null;
       setSessionJobId(createdJob.id);
       queryClient.setQueryData(["generation-job", createdJob.id], createdJob);
@@ -96,6 +105,7 @@ function GenerateProgressContent() {
       });
     } finally {
       startingJob.current = false;
+      setSubmitting(false);
     }
   }, [plan, projectId, queryClient, router, toTeacherErrorMessage]);
 
@@ -150,6 +160,24 @@ function GenerateProgressContent() {
       return;
     }
 
+    if ((value.status === "completed" || value.status === "billing_error") && !value.result) {
+      handledJobId.current = value.id;
+      clearGenerationIntentForJob(value.id);
+      setSessionJobId(null);
+      void queryClient.invalidateQueries({ queryKey: ["science-project-status", projectId] });
+      setGenerationIssue({
+        message: language === "kk"
+          ? "Жобаның сақталған күйін тексердік. Қалған бөлімдерді жалғастыруға болады."
+          : "Проверили сохранённое состояние проекта. Можно продолжить оставшиеся разделы.",
+        action: "restart",
+      });
+      router.replace(
+        `/dashboard/ai/scientific-projects/${encodeURIComponent(projectId)}/generate`,
+        { scroll: false },
+      );
+      return;
+    }
+
     if (value.status === "failed" || value.status === "cancelled") {
       handledJobId.current = value.id;
       clearGenerationIntentForJob(value.id);
@@ -161,6 +189,26 @@ function GenerateProgressContent() {
       });
     }
   }, [job.data, language, projectId, queryClient, router, toTeacherErrorMessage]);
+
+  useEffect(() => {
+    if (!currentJobId || handledJobId.current === currentJobId || !job.error) return;
+    const status = requestStatus(job.error);
+    if (status !== 404 && status !== 410) return;
+
+    handledJobId.current = currentJobId;
+    clearGenerationIntentForJob(currentJobId);
+    setSessionJobId(null);
+    setGenerationIssue({
+      message: language === "kk"
+        ? "Алдыңғы тапсырма енді қолжетімсіз. Жоба сақталған жерінен жалғасады."
+        : "Предыдущее задание больше недоступно. Проект можно продолжить с сохранённого места.",
+      action: "restart",
+    });
+    router.replace(
+      `/dashboard/ai/scientific-projects/${encodeURIComponent(projectId)}/generate`,
+      { scroll: false },
+    );
+  }, [currentJobId, job.error, language, projectId, router]);
 
   const sectionLabels: Record<(typeof SECTIONS)[number], string> = {
     introduction: t.scientificProject.wizard.progress.introduction,
@@ -214,11 +262,11 @@ function GenerateProgressContent() {
         <h1 className="mb-6 text-3xl font-bold text-slate-900">{t.scientificProject.wizard.step3}</h1>
 
         <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md">
-          <p className="mb-6 text-sm leading-6 text-slate-600">
-            {language === "kk"
-              ? "Жұмыс серверде жалғасады. Бетті жаңартуға немесе жабуға болады."
-              : "Работа продолжается на сервере. Страницу можно обновить или закрыть."}
-          </p>
+          {!visibleError ? (
+            <p className="mb-6 text-sm leading-6 text-slate-600">
+              {generationServerStatusCopy(language, !submitting && job.data?.id === currentJobId)}
+            </p>
+          ) : null}
           <div className="mb-8 space-y-4" aria-live="polite">
             {SECTIONS.map((section, index) => (
               <div
@@ -275,7 +323,7 @@ function GenerateProgressContent() {
               ) : generationIssue?.action === "restart" ? (
                 <button
                   type="button"
-                  onClick={() => void startGeneration(true)}
+                  onClick={() => void startGeneration()}
                   className="mt-3 rounded-xl bg-slate-950 px-4 py-2 font-bold text-white"
                 >
                   {language === "kk" ? "Сақталған жерден жалғастыру" : "Продолжить с сохранённого места"}
