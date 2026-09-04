@@ -95,12 +95,9 @@ export function ContentLibraryPage() {
   );
 
   useEffect(() => {
-    const isVisualType = params.type === "visual_aid" || params.type === "safety_visual_aid";
     if (params.segment === "library" && params.type && params.type !== "event") {
       updateUrl({ type: undefined, grade: undefined, page: 1 });
     } else if (params.segment && params.segment !== "school" && params.grade) {
-      updateUrl({ grade: undefined, page: 1 });
-    } else if (isVisualType && (params.grade ?? 0) > 4) {
       updateUrl({ grade: undefined, page: 1 });
     }
   }, [params.grade, params.segment, params.type, updateUrl]);

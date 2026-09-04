@@ -35,6 +35,7 @@ import {
 } from "@/features/content-library/components/TaxonomySelect";
 import { createCategory } from "@/lib/api";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
+import { SCHOOL_GRADES } from "@/lib/school-grades";
 import {
   InlineTaxonomyCreate,
   type TaxonomyCreateInput,
@@ -130,7 +131,6 @@ export function ContentEditorForm({
   })();
 
   const config = MATERIAL_TYPE_CONFIG[materialType];
-  const isVisualType = materialType === "visual_aid" || materialType === "safety_visual_aid";
   const visibleRoles = new Set(config.assets.map((rule) => rule.role));
   const selectedFiles = useMemo(
     () => {
@@ -273,16 +273,18 @@ export function ContentEditorForm({
           : "У материала вне раздела «Школа» не должно быть классов.",
       );
     }
-    if (
-      isPublished &&
-      (materialType === "visual_aid" || materialType === "safety_visual_aid") &&
-      segments.includes("school") &&
-      (grades.length === 0 || grades.some((grade) => grade < 1 || grade > 4))
-    ) {
+    if (isPublished && segments.includes("school") && grades.length === 0) {
       errors.push(
         language === "kk"
-          ? "Мектеп көрнекілігі үшін 1–4 сыныптың кемінде біреуін таңдаңыз."
-          : "Для школьной наглядности выберите хотя бы один класс с 1 по 4.",
+          ? "Мектеп материалы үшін кемінде бір сыныпты таңдаңыз."
+          : "Для школьного материала выберите хотя бы один класс.",
+      );
+    }
+    if (isPublished && segments.includes("school") && !inferredSubjectId) {
+      errors.push(
+        language === "kk"
+          ? "Мектеп материалы үшін пәнді таңдаңыз."
+          : "Для школьного материала выберите предмет.",
       );
     }
 
@@ -412,9 +414,6 @@ export function ContentEditorForm({
                   return next.length > 0 ? next : ["school"];
                 });
               }
-              if (nextType === "visual_aid" || nextType === "safety_visual_aid") {
-                setGrades((current) => current.filter((grade) => grade <= 4));
-              }
             }}
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-orange-400 disabled:cursor-wait disabled:bg-slate-50 disabled:text-slate-400"
           >
@@ -439,7 +438,7 @@ export function ContentEditorForm({
 
         <div className="space-y-2">
           <SearchableSelect
-            label={language === "kk" ? "Пән" : "Предмет"}
+            label={`${language === "kk" ? "Пән" : "Предмет"}${segments.includes("school") ? " *" : ""}`}
             labelClassName="mb-1.5 block text-sm font-semibold text-slate-700"
             options={subjects}
             value={inferredSubjectId || undefined}
@@ -509,14 +508,17 @@ export function ContentEditorForm({
       </fieldset>
 
       <fieldset>
-        <legend className="text-sm font-semibold text-slate-700">{language === "kk" ? "Сыныптар" : "Классы"}</legend>
+        <legend className="text-sm font-semibold text-slate-700">
+          {language === "kk" ? "Сыныптар" : "Классы"}
+          {segments.includes("school") && <span className="text-red-600"> *</span>}
+        </legend>
         <p className="mt-1 text-xs text-slate-500">
-          {isVisualType
-            ? language === "kk" ? "Көрнекіліктер 1–4 сынып беттерінде көрсетіледі." : "Наглядные материалы показываются на страницах 1–4 классов."
-            : language === "kk" ? "Қажет болса, бірнеше сыныпты таңдаңыз." : "Если применимо, выберите один или несколько классов."}
+          {segments.includes("school")
+            ? language === "kk" ? "Материал көрсетілетін бір немесе бірнеше сыныпты таңдаңыз." : "Выберите один или несколько классов, для которых предназначен материал."
+            : language === "kk" ? "Сыныпты таңдау тек мектеп бөлімі үшін қажет." : "Класс нужно выбирать только для раздела «Школа»."}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {Array.from({ length: isVisualType ? 4 : 11 }, (_, index) => index + 1).map((grade) => (
+          {SCHOOL_GRADES.map((grade) => (
             <label key={grade} className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition ${!segments.includes("school") ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400" : grades.includes(grade) ? "cursor-pointer border-orange-400 bg-orange-50 text-orange-800" : "cursor-pointer border-slate-200 bg-white text-slate-600"}`}>
               <input type="checkbox" disabled={!segments.includes("school")} checked={grades.includes(grade)} onChange={() => toggleGrade(grade)} className="h-3.5 w-3.5 accent-orange-600" />
               {grade}

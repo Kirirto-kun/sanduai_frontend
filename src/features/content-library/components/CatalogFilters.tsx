@@ -12,6 +12,7 @@ import {
   type MaterialType,
 } from "../types";
 import { SearchableSelect } from "./TaxonomySelect";
+import { SCHOOL_GRADES } from "@/lib/school-grades";
 
 type CatalogFiltersProps = {
   params: ContentListParams;
@@ -36,7 +37,6 @@ export function CatalogFilters({
   const hasFilters = Boolean(
     params.q || params.segment || params.type || params.grade || params.subject || params.category,
   );
-  const isVisualType = params.type === "visual_aid" || params.type === "safety_visual_aid";
   const gradeDisabled = Boolean(params.segment && params.segment !== "school");
   const availableTypes = params.segment === "library"
     ? MATERIAL_TYPES.filter((type) => type === "event")
@@ -111,10 +111,9 @@ export function CatalogFilters({
             value={params.type ?? ""}
             onChange={(event) => {
               const nextType = (event.target.value || undefined) as MaterialType | undefined;
-              const nextIsVisual = nextType === "visual_aid" || nextType === "safety_visual_aid";
               onChange({
                 type: nextType,
-                grade: nextIsVisual && (params.grade ?? 0) > 4 ? undefined : params.grade,
+                grade: params.grade,
                 page: 1,
               });
             }}
@@ -136,7 +135,7 @@ export function CatalogFilters({
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-orange-400 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
           >
             <option value="">{language === "kk" ? "Барлық сыныптар" : "Все классы"}</option>
-            {Array.from({ length: isVisualType ? 4 : 11 }, (_, index) => index + 1).map((grade) => (
+            {SCHOOL_GRADES.map((grade) => (
               <option key={grade} value={grade}>{grade} {language === "kk" ? "сынып" : "класс"}</option>
             ))}
           </select>

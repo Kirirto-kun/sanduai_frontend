@@ -16,6 +16,7 @@ import {
   type GenerationJobSummary,
   type LessonPlanResponse,
   type QuizGenerateResponse,
+  type WorksheetImageResult,
   type WorksheetResponse,
 } from "./api";
 import { getApiBase } from "./api-base";
@@ -179,6 +180,19 @@ export async function downloadGenerationMaterial(
   const artifact = job.artifact_urls[0];
   if (artifact) {
     await downloadArtifact(job, artifact);
+    return;
+  }
+
+  if (
+    job.kind === "worksheet.image" &&
+    job.result &&
+    !Array.isArray(job.result) &&
+    typeof (job.result as Partial<WorksheetImageResult>).image_url === "string"
+  ) {
+    await downloadArtifact(
+      job,
+      (job.result as WorksheetImageResult).image_url,
+    );
     return;
   }
 

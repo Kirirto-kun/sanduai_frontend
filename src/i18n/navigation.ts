@@ -1,4 +1,5 @@
 import type { AccessPolicy } from "../lib/access-policy";
+import { SCHOOL_GRADES } from "../lib/school-grades";
 
 /**
  * Структура навигации дашборда.
@@ -178,26 +179,14 @@ const SCHOOL: NavSegment = {
       access: "subscription",
       label: { ru: "Готовые материалы", kk: "Дайын материалдар" },
       items: [
-        {
-          key: "visual-aids-1",
-          href: catalog("school", "visual_aid", 1),
-          label: { ru: "Наглядность — 1 класс", kk: "Көрнекіліктер — 1 сынып" },
-        },
-        {
-          key: "visual-aids-2",
-          href: catalog("school", "visual_aid", 2),
-          label: { ru: "Наглядность — 2 класс", kk: "Көрнекіліктер — 2 сынып" },
-        },
-        {
-          key: "visual-aids-3",
-          href: catalog("school", "visual_aid", 3),
-          label: { ru: "Наглядность — 3 класс", kk: "Көрнекіліктер — 3 сынып" },
-        },
-        {
-          key: "visual-aids-4",
-          href: catalog("school", "visual_aid", 4),
-          label: { ru: "Наглядность — 4 класс", kk: "Көрнекіліктер — 4 сынып" },
-        },
+        ...SCHOOL_GRADES.map((grade) => ({
+          key: `visual-aids-${grade}`,
+          href: catalog("school", "visual_aid", grade),
+          label: {
+            ru: `Наглядность — ${grade} класс`,
+            kk: `Көрнекіліктер — ${grade} сынып`,
+          },
+        })),
         {
           key: "visual-aids-all",
           href: catalog("school", "visual_aid"),
@@ -215,26 +204,14 @@ const SCHOOL: NavSegment = {
           href: catalog("school", "event"),
           label: { ru: "Мероприятия", kk: "Іс-шаралар" },
         },
-        {
-          key: "safety-1",
-          href: catalog("school", "safety_visual_aid", 1),
-          label: { ru: "Безопасность — 1 класс", kk: "Қауіпсіздік — 1 сынып" },
-        },
-        {
-          key: "safety-2",
-          href: catalog("school", "safety_visual_aid", 2),
-          label: { ru: "Безопасность — 2 класс", kk: "Қауіпсіздік — 2 сынып" },
-        },
-        {
-          key: "safety-3",
-          href: catalog("school", "safety_visual_aid", 3),
-          label: { ru: "Безопасность — 3 класс", kk: "Қауіпсіздік — 3 сынып" },
-        },
-        {
-          key: "safety-4",
-          href: catalog("school", "safety_visual_aid", 4),
-          label: { ru: "Безопасность — 4 класс", kk: "Қауіпсіздік — 4 сынып" },
-        },
+        ...SCHOOL_GRADES.map((grade) => ({
+          key: `safety-${grade}`,
+          href: catalog("school", "safety_visual_aid", grade),
+          label: {
+            ru: `Безопасность — ${grade} класс`,
+            kk: `Қауіпсіздік — ${grade} сынып`,
+          },
+        })),
         {
           key: "safety-all",
           href: catalog("school", "safety_visual_aid"),

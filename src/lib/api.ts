@@ -525,6 +525,28 @@ export type WorksheetExportPayload = {
   content: WorksheetContent;
 };
 
+export type WorksheetImageLanguage = "kk" | "ru" | "en";
+
+export type WorksheetStylePreset = "bright" | "calm" | "print";
+
+export type WorksheetImageGeneratePayload = {
+  subject: string;
+  grade: number;
+  language: WorksheetImageLanguage;
+  topic?: string;
+  content?: string;
+  task_types: WorksheetTaskType[];
+  style_description?: string;
+  source_pages_base64?: string[];
+};
+
+export type WorksheetImageResult = {
+  title: string;
+  image_url: string;
+  answer_key: string[];
+  cost_tokens: number;
+};
+
 // Voiceover (Озвучка ИИ) — ElevenLabs
 export type VoiceoverGeneratePayload = {
   text: string;
