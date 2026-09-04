@@ -19,6 +19,8 @@ import {
   isBalanceCacheValid,
   getOrCreateBalanceFetchPromise,
   clearCachedBalance,
+  getSubscriptionExpiryTimerDelay,
+  parseSubscriptionEndTimestamp,
   TOKEN_BALANCE_INVALIDATED_EVENT,
 } from "../lib/tokenCache";
 import {
@@ -94,17 +96,23 @@ export function useTokens() {
 
       if (requestId !== balanceRequestId.current || currentSessionUserId() !== sessionUserId) return;
 
+      const expiresAt = balanceData.subscription_end
+        ? parseSubscriptionEndTimestamp(balanceData.subscription_end)
+        : Number.NaN;
+      const hasEffectiveSubscription = balanceData.has_subscription
+        && (!Number.isFinite(expiresAt) || expiresAt > Date.now());
+
       setBalance(balanceData.balance);
-      setHasSubscription(balanceData.has_subscription);
+      setHasSubscription(hasEffectiveSubscription);
       setSubscriptionEnd(balanceData.subscription_end);
-      setSubscriptionPlan(balanceData.subscription_plan);
+      setSubscriptionPlan(hasEffectiveSubscription ? balanceData.subscription_plan : "free");
       
       // Сохраняем в кэш для следующего раза
       setCachedBalance(sessionUserId, {
         balance: balanceData.balance,
-        has_subscription: balanceData.has_subscription,
+        has_subscription: hasEffectiveSubscription,
         subscription_end: balanceData.subscription_end,
-        subscription_plan: balanceData.subscription_plan,
+        subscription_plan: hasEffectiveSubscription ? balanceData.subscription_plan : "free",
       });
     } catch {
       if (requestId !== balanceRequestId.current || currentSessionUserId() !== sessionUserId) return;
@@ -229,15 +237,34 @@ export function useTokens() {
 
   useEffect(() => {
     if (!subscriptionEnd || hasSubscription !== true) return;
-    const expiresAt = Date.parse(subscriptionEnd);
-    if (!Number.isFinite(expiresAt)) return;
-    const delay = Math.max(0, Math.min(expiresAt - Date.now() + 1_000, 2_147_000_000));
-    const timer = window.setTimeout(() => {
-      setHasSubscription(false);
-      setSubscriptionPlan("free");
-      void refreshBalance();
-    }, delay);
-    return () => window.clearTimeout(timer);
+    let timer: number | undefined;
+
+    const scheduleExpiryCheck = () => {
+      const delay = getSubscriptionExpiryTimerDelay(subscriptionEnd);
+      if (delay === null) return;
+      if (delay === 0) {
+        setHasSubscription(false);
+        setSubscriptionPlan("free");
+        return;
+      }
+
+      timer = window.setTimeout(() => {
+        const expiresAt = parseSubscriptionEndTimestamp(subscriptionEnd);
+        if (!Number.isFinite(expiresAt)) return;
+        if (expiresAt > Date.now()) {
+          scheduleExpiryCheck();
+          return;
+        }
+        setHasSubscription(false);
+        setSubscriptionPlan("free");
+        void refreshBalance();
+      }, delay);
+    };
+
+    scheduleExpiryCheck();
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
   }, [hasSubscription, refreshBalance, subscriptionEnd]);
 
   const checkBalance = useCallback(

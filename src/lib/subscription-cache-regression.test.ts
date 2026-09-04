@@ -34,7 +34,7 @@ describe("subscription balance cache", () => {
     setCachedBalance("teacher-1", {
       balance: 250,
       has_subscription: true,
-      subscription_end: "2026-09-10T08:00:00Z",
+      subscription_end: "2026-09-10T08:00:00",
       subscription_plan: "premium",
     });
 
@@ -62,7 +62,7 @@ describe("subscription balance cache", () => {
     setCachedBalance("teacher-1", {
       balance: 250,
       has_subscription: true,
-      subscription_end: "2026-09-04T08:00:10Z",
+      subscription_end: "2026-09-04T08:00:10",
       subscription_plan: "premium",
     });
 

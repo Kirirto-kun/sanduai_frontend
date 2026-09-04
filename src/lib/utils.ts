@@ -1,3 +1,5 @@
+import { parseSubscriptionEndTimestamp } from "./tokenCache";
+
 /**
  * Format subscription end date from ISO format to readable format
  * @param dateString - ISO format date string (e.g., "2026-02-15T00:00:00") or null
@@ -7,7 +9,7 @@ export function formatSubscriptionDate(dateString: string | null): string {
   if (!dateString) return "—";
 
   try {
-    const date = new Date(dateString);
+    const date = new Date(parseSubscriptionEndTimestamp(dateString));
     if (isNaN(date.getTime())) {
       return "—";
     }
@@ -33,7 +35,7 @@ export function isSubscriptionActive(subscriptionEnd: string | null): boolean {
   if (!subscriptionEnd) return false;
 
   try {
-    const endDate = new Date(subscriptionEnd);
+    const endDate = new Date(parseSubscriptionEndTimestamp(subscriptionEnd));
     if (isNaN(endDate.getTime())) {
       return false;
     }
@@ -75,4 +77,3 @@ export function isTokenExpired(expirationTime: number): boolean {
   const now = Date.now();
   return now >= expirationTime;
 }
-

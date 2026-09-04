@@ -7,7 +7,9 @@ import {
   clearCachedBalance,
   getCachedBalance,
   getOrCreateBalanceFetchPromise,
+  getSubscriptionExpiryTimerDelay,
   isBalanceCacheValid,
+  parseSubscriptionEndTimestamp,
   setCachedBalance,
 } from "./tokenCache";
 
@@ -45,6 +47,34 @@ afterEach(() => {
 });
 
 describe("token balance request deduplication", () => {
+  it("treats a timezone-naive backend subscription timestamp as UTC", () => {
+    expect(parseSubscriptionEndTimestamp("2026-09-04T11:57:47.23667"))
+      .toBe(Date.parse("2026-09-04T11:57:47.23667Z"));
+  });
+
+  it("preserves an explicit subscription timezone", () => {
+    const expected = Date.parse("2026-09-04T08:00:00Z");
+    expect(parseSubscriptionEndTimestamp("2026-09-04T08:00:00Z")).toBe(expected);
+    expect(parseSubscriptionEndTimestamp("2026-09-04T13:00:00+05:00")).toBe(expected);
+    expect(parseSubscriptionEndTimestamp("2026-09-04T04:00:00-04:00")).toBe(expected);
+  });
+
+  it("uses checkpoint timers without expiring a long subscription early", () => {
+    const now = Date.parse("2026-09-04T08:00:00Z");
+    const ninetyDaysLater = "2026-12-03T08:00:00";
+    expect(getSubscriptionExpiryTimerDelay(ninetyDaysLater, now)).toBe(2_147_000_000);
+    expect(getSubscriptionExpiryTimerDelay(ninetyDaysLater, now + 2_147_000_000))
+      .toBe(2_147_000_000);
+  });
+
+  it("returns zero only after the actual UTC expiry boundary", () => {
+    const expiresAt = "2026-09-04T08:00:10";
+    expect(getSubscriptionExpiryTimerDelay(expiresAt, Date.parse("2026-09-04T08:00:09.999Z")))
+      .toBe(1_001);
+    expect(getSubscriptionExpiryTimerDelay(expiresAt, Date.parse("2026-09-04T08:00:10Z")))
+      .toBe(0);
+  });
+
   it("does not let an obsolete request clear a newer in-flight request", async () => {
     vi.stubGlobal("window", {
       localStorage: { removeItem: vi.fn() },
@@ -142,7 +172,7 @@ describe("token balance request deduplication", () => {
     setCachedBalance("teacher-1", {
       balance: 150,
       has_subscription: true,
-      subscription_end: "2026-09-04T07:59:59Z",
+      subscription_end: "2026-09-04T07:59:59",
       subscription_plan: "premium",
     });
 

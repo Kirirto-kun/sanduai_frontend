@@ -7,6 +7,31 @@ const TOKEN_BALANCE_CACHE_KEY = "sanduai_token_balance";
 export const TOKEN_BALANCE_INVALIDATED_EVENT = "sanduai:token-balance-invalidated";
 const CACHE_TTL = 60 * 60 * 1000; // 1 час в миллисекундах для costs
 const BALANCE_CACHE_TTL = 30 * 1000; // 30 секунд для баланса (может меняться чаще)
+const MAX_BROWSER_TIMER_DELAY = 2_147_000_000;
+
+/**
+ * Backend datetime values are UTC, but some responses omit the timezone suffix.
+ * Browsers otherwise interpret those values in the device timezone, which can
+ * make a valid subscription look expired for users east of UTC.
+ */
+export function parseSubscriptionEndTimestamp(value: string): number {
+  const trimmed = value.trim();
+  const normalized = /(?:z|[+-]\d{2}:?\d{2})$/i.test(trimmed)
+    ? trimmed
+    : `${trimmed}Z`;
+  return Date.parse(normalized);
+}
+
+export function getSubscriptionExpiryTimerDelay(
+  value: string,
+  now = Date.now(),
+): number | null {
+  const expiresAt = parseSubscriptionEndTimestamp(value);
+  if (!Number.isFinite(expiresAt)) return null;
+  const remaining = expiresAt - now;
+  if (remaining <= 0) return 0;
+  return Math.min(remaining + 1_000, MAX_BROWSER_TIMER_DELAY);
+}
 
 interface CachedCosts {
   costs: Record<string, number>;
@@ -118,7 +143,7 @@ export function getCachedBalance(userId: string): CachedBalance | null {
       return null;
     }
     if (data.has_subscription && data.subscription_end) {
-      const expiresAt = Date.parse(data.subscription_end);
+      const expiresAt = parseSubscriptionEndTimestamp(data.subscription_end);
       if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
         return {
           ...data,
