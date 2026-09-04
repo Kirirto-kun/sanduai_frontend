@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useLanguage, useTranslations } from "../../../i18n/LanguageContext";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
@@ -38,6 +39,42 @@ import {
   type AdminUserActionResult,
 } from "../../../lib/admin-user-management";
 import { canRestoreDialogFocus, focusTrapTargetIndex } from "../../../lib/dialog-focus";
+import { LocalFilePreview } from "../../../components/uploads/LocalFilePreview";
+
+function SavedVideoThumbnail({ url, title }: { url: string | null; title: string }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const failed = Boolean(url && failedUrl === url);
+
+  if (!url || failed) {
+    return (
+      <div
+        className="flex h-14 w-24 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400"
+        aria-label={`${title}: preview unavailable`}
+      >
+        <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.8}
+            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+          />
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={url}
+      alt={title}
+      width={192}
+      height={108}
+      unoptimized
+      onError={() => setFailedUrl(url)}
+      className="h-14 w-24 shrink-0 rounded-lg bg-slate-100 object-cover"
+    />
+  );
+}
 
 export default function AdminPage() {
   const t = useTranslations();
@@ -97,6 +134,8 @@ export default function AdminPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const uploadAbortRef = useRef<AbortController | null>(null);
+  const videoFileInputRef = useRef<HTMLInputElement | null>(null);
+  const videoThumbnailInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadedVideos, setUploadedVideos] = useState<Video[]>([]);
   const [loadingVideos, setLoadingVideos] = useState(false);
   const [syncingStatuses, setSyncingStatuses] = useState(false);
@@ -105,6 +144,7 @@ export default function AdminPage() {
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [youtubeTitle, setYoutubeTitle] = useState("");
   const [youtubeThumbnail, setYoutubeThumbnail] = useState<File | null>(null);
+  const youtubeThumbnailInputRef = useRef<HTMLInputElement | null>(null);
   const [importingYouTube, setImportingYouTube] = useState(false);
 
   // Video deletion state
@@ -475,6 +515,7 @@ export default function AdminPage() {
       setYoutubeUrl("");
       setYoutubeTitle("");
       setYoutubeThumbnail(null);
+      if (youtubeThumbnailInputRef.current) youtubeThumbnailInputRef.current.value = "";
       
       // Refresh videos list
       fetchVideos();
@@ -530,6 +571,8 @@ export default function AdminPage() {
       setVideoTitle("");
       setSelectedFile(null);
       setSelectedThumbnail(null);
+      if (videoFileInputRef.current) videoFileInputRef.current.value = "";
+      if (videoThumbnailInputRef.current) videoThumbnailInputRef.current.value = "";
       setUploadProgress(0);
       fetchVideos();
     } catch (err) {
@@ -1133,31 +1176,54 @@ export default function AdminPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="admin-video-file" className="block text-sm font-medium text-slate-700 mb-1">
                   {t.admin?.videos?.selectFile || "Выберите видеофайл"}
                 </label>
                 <input
+                  id="admin-video-file"
+                  ref={videoFileInputRef}
                   type="file"
                   accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                   required
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                  disabled={uploading}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)] disabled:cursor-wait disabled:bg-slate-100"
                 />
+                {selectedFile && (
+                  <LocalFilePreview
+                    file={selectedFile}
+                    language={language}
+                    onRemove={uploading ? undefined : () => {
+                      setSelectedFile(null);
+                      if (videoFileInputRef.current) videoFileInputRef.current.value = "";
+                    }}
+                    className="mt-3 max-w-md"
+                  />
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="admin-video-thumbnail" className="block text-sm font-medium text-slate-700 mb-1">
                   {t.admin?.videos?.selectThumbnail || "Выберите обложку (необязательно)"}
                 </label>
                 <input
+                  id="admin-video-thumbnail"
+                  ref={videoThumbnailInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={(e) => setSelectedThumbnail(e.target.files?.[0] || null)}
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                  disabled={uploading}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)] disabled:cursor-wait disabled:bg-slate-100"
                 />
                 {selectedThumbnail && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    {t.admin?.selectedFile || "Выбрано"}: {selectedThumbnail.name}
-                  </p>
+                  <LocalFilePreview
+                    file={selectedThumbnail}
+                    language={language}
+                    onRemove={uploading ? undefined : () => {
+                      setSelectedThumbnail(null);
+                      if (videoThumbnailInputRef.current) videoThumbnailInputRef.current.value = "";
+                    }}
+                    className="mt-3 max-w-md"
+                  />
                 )}
               </div>
               {uploading && (
@@ -1235,19 +1301,28 @@ export default function AdminPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="admin-youtube-thumbnail" className="block text-sm font-medium text-slate-700 mb-1">
                   {t.admin?.videos?.youtubeThumbnailLabel || "Превью (необязательно)"}
                 </label>
                 <input
+                  id="admin-youtube-thumbnail"
+                  ref={youtubeThumbnailInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={(e) => setYoutubeThumbnail(e.target.files?.[0] || null)}
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
+                  disabled={importingYouTube}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)] disabled:cursor-wait disabled:bg-slate-100"
                 />
                 {youtubeThumbnail && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    {t.admin?.selectedFile || "Выбрано"}: {youtubeThumbnail.name}
-                  </p>
+                  <LocalFilePreview
+                    file={youtubeThumbnail}
+                    language={language}
+                    onRemove={importingYouTube ? undefined : () => {
+                      setYoutubeThumbnail(null);
+                      if (youtubeThumbnailInputRef.current) youtubeThumbnailInputRef.current.value = "";
+                    }}
+                    className="mt-3 max-w-md"
+                  />
                 )}
               </div>
               {importingYouTube && (
@@ -1340,7 +1415,12 @@ export default function AdminPage() {
                   <tbody>
                     {uploadedVideos.map((video) => (
                       <tr key={video.id} className="border-b border-slate-100">
-                        <td className="py-3 px-4 text-sm text-slate-900">{video.title}</td>
+                        <td className="py-3 px-4 text-sm text-slate-900">
+                          <div className="flex min-w-60 items-center gap-3">
+                            <SavedVideoThumbnail url={video.thumbnail_url} title={video.title} />
+                            <span className="line-clamp-2 font-medium">{video.title}</span>
+                          </div>
+                        </td>
                         <td className="py-3 px-4 text-sm">
                           <span
                             className={`rounded-full px-2 py-0.5 text-xs font-semibold ${

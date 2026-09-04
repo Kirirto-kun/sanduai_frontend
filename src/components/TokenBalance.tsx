@@ -11,11 +11,12 @@ type TokenBalanceProps = {
 export function TokenBalance({ showCost, compact = false }: TokenBalanceProps) {
   const { balance, costs, loading, hasSubscription, subscriptionPlan } = useTokens();
   const t = useTranslations();
+  const isColdLoading = loading && balance === null;
 
   if (compact) {
     return (
       <div className="flex items-center gap-2">
-        {loading ? (
+        {isColdLoading ? (
           <div className="h-5 w-16 animate-pulse rounded-full bg-slate-200"></div>
         ) : (
           <div className="flex items-center gap-1 sm:gap-1.5">
@@ -45,7 +46,7 @@ export function TokenBalance({ showCost, compact = false }: TokenBalanceProps) {
 
   return (
     <div className="glass-card rounded-2xl border border-white/60 px-4 py-3 shadow-sm">
-      {loading ? (
+      {isColdLoading ? (
         <div className="flex items-center gap-2">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-[color:var(--primary)] border-r-transparent"></div>
           <span className="text-sm text-slate-600">
@@ -77,4 +78,3 @@ export function TokenBalance({ showCost, compact = false }: TokenBalanceProps) {
     </div>
   );
 }
-

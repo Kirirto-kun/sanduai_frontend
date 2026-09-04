@@ -7,6 +7,7 @@ import {
   clearCachedBalance,
   getCachedBalance,
   getOrCreateBalanceFetchPromise,
+  isBalanceCacheValid,
   setCachedBalance,
 } from "./tokenCache";
 
@@ -124,5 +125,32 @@ describe("token balance request deduplication", () => {
     expect(currentSessionUserId()).toBe("teacher-1");
     markAuthLogoutTombstone("explicit_logout");
     expect(currentSessionUserId()).toBeNull();
+  });
+
+  it("fails closed from cache as soon as a subscription has expired", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-04T08:00:00Z"));
+    const values = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+    });
+
+    setCachedBalance("teacher-1", {
+      balance: 150,
+      has_subscription: true,
+      subscription_end: "2026-09-04T07:59:59Z",
+      subscription_plan: "premium",
+    });
+
+    expect(getCachedBalance("teacher-1")).toMatchObject({
+      has_subscription: false,
+      subscription_plan: "free",
+    });
+    expect(isBalanceCacheValid("teacher-1")).toBe(true);
+    vi.useRealTimers();
   });
 });

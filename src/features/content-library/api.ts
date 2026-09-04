@@ -33,20 +33,27 @@ export class ApiError extends ApiRequestError {
 }
 
 type RequestOptions = RequestInit & { auth?: boolean };
+const LIBRARY_PREVIEW_TIMEOUT_MS = 20_000;
 
 export function resolveLibraryUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
   return `${getApiBase()}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-export async function fetchAdminLibraryPreviewBlob(
+export async function fetchLibraryPreviewBlob(
   path: string,
   signal?: AbortSignal,
 ): Promise<Blob> {
   const url = new URL(resolveLibraryUrl(path));
   const apiUrl = new URL(getApiBase());
-  if (url.origin !== apiUrl.origin || !url.pathname.startsWith("/api/admin/library/")) {
-    throw new ApiError("Invalid admin preview URL", 400);
+  const isPublicPreview =
+    /^\/api\/library\/previews\/[0-9a-f-]+\/?$/i.test(url.pathname) ||
+    /^\/api\/library\/assets\/[0-9a-f-]+\/preview\/?$/i.test(url.pathname);
+  const isAdminPreview =
+    /^\/api\/admin\/library\/previews\/[0-9a-f-]+\/?$/i.test(url.pathname) ||
+    /^\/api\/admin\/library\/assets\/[0-9a-f-]+\/preview\/?$/i.test(url.pathname);
+  if (url.origin !== apiUrl.origin || (!isPublicPreview && !isAdminPreview)) {
+    throw new ApiError("Invalid library preview URL", 400);
   }
 
   const token = getToken();
@@ -60,6 +67,7 @@ export async function fetchAdminLibraryPreviewBlob(
     },
   }, {
     errorFactory: contentApiError,
+    timeoutMs: LIBRARY_PREVIEW_TIMEOUT_MS,
   });
   if (!response.ok) {
     const { data } = await readResponsePayload(response);
@@ -67,6 +75,8 @@ export async function fetchAdminLibraryPreviewBlob(
   }
   return response.blob();
 }
+
+export const fetchAdminLibraryPreviewBlob = fetchLibraryPreviewBlob;
 
 type BackwardCompatibleContentItem = ContentItem & {
   is_published?: boolean;

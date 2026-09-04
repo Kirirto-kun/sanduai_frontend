@@ -34,8 +34,7 @@ export function currentSessionUserId(): string | null {
   return typeof subject === "string" && subject.length > 0 ? subject : null;
 }
 
-export function useTokens(options: { requireFreshSubscription?: boolean } = {}) {
-  const requireFreshSubscription = options.requireFreshSubscription === true;
+export function useTokens() {
   const [balance, setBalance] = useState<number | null>(null);
   const [costs, setCosts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -63,18 +62,12 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
     const cachedBalance = getCachedBalance(sessionUserId);
     if (cachedBalance) {
       setBalance(cachedBalance.balance);
-      if (!requireFreshSubscription) {
-        setHasSubscription(cachedBalance.has_subscription);
-        setSubscriptionEnd(cachedBalance.subscription_end);
-        setSubscriptionPlan(cachedBalance.subscription_plan);
-      } else {
-        setHasSubscription(null);
-        setSubscriptionEnd(null);
-        setSubscriptionPlan(null);
-      }
+      setHasSubscription(cachedBalance.has_subscription);
+      setSubscriptionEnd(cachedBalance.subscription_end);
+      setSubscriptionPlan(cachedBalance.subscription_plan);
       
       // Если кэш актуален (не старше TTL), не делаем запрос к серверу
-      if (isBalanceCacheValid(sessionUserId) && !requireFreshSubscription) {
+      if (isBalanceCacheValid(sessionUserId)) {
         setLoading(false);
         return;
       }
@@ -120,15 +113,9 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
       // Если fetch не удался, используем кэш (если он есть)
       if (cachedBalance) {
         setBalance(cachedBalance.balance);
-        if (!requireFreshSubscription) {
-          setHasSubscription(cachedBalance.has_subscription);
-          setSubscriptionEnd(cachedBalance.subscription_end);
-          setSubscriptionPlan(cachedBalance.subscription_plan);
-        } else {
-          setHasSubscription(null);
-          setSubscriptionEnd(null);
-          setSubscriptionPlan(null);
-        }
+        setHasSubscription(cachedBalance.has_subscription);
+        setSubscriptionEnd(cachedBalance.subscription_end);
+        setSubscriptionPlan(cachedBalance.subscription_plan);
       } else {
         setBalance(null);
         setHasSubscription(null);
@@ -140,7 +127,7 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
         setLoading(false);
       }
     }
-  }, [requireFreshSubscription]);
+  }, []);
 
   const fetchCosts = useCallback(async () => {
     // Сначала загружаем из кэша для мгновенного отображения
@@ -196,20 +183,16 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
   const refreshBalance = useCallback(() => {
     // Очищаем кэш при принудительном обновлении
     clearCachedBalance();
-    if (requireFreshSubscription) {
-      // Ready materials fail closed while the server revalidates access.
-      setHasSubscription(null);
-      setSubscriptionEnd(null);
-      setSubscriptionPlan(null);
-    }
     return fetchBalance();
-  }, [fetchBalance, requireFreshSubscription]);
+  }, [fetchBalance]);
+
+  const refreshBalanceIfStale = useCallback(() => fetchBalance(), [fetchBalance]);
 
   useEffect(() => {
-    if (!requireFreshSubscription || typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
 
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refreshBalance();
+      if (document.visibilityState === "visible") void refreshBalanceIfStale();
     };
     window.addEventListener("focus", refreshWhenVisible);
     document.addEventListener("visibilitychange", refreshWhenVisible);
@@ -217,7 +200,7 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
       window.removeEventListener("focus", refreshWhenVisible);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, [refreshBalance, requireFreshSubscription]);
+  }, [refreshBalanceIfStale]);
 
   useEffect(() => subscribeToAuthSessionChanges(() => {
     setBalance(null);
@@ -245,13 +228,17 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
   }, [fetchBalance]);
 
   useEffect(() => {
-    if (!requireFreshSubscription || !subscriptionEnd) return;
+    if (!subscriptionEnd || hasSubscription !== true) return;
     const expiresAt = Date.parse(subscriptionEnd);
     if (!Number.isFinite(expiresAt)) return;
     const delay = Math.max(0, Math.min(expiresAt - Date.now() + 1_000, 2_147_000_000));
-    const timer = window.setTimeout(refreshBalance, delay);
+    const timer = window.setTimeout(() => {
+      setHasSubscription(false);
+      setSubscriptionPlan("free");
+      void refreshBalance();
+    }, delay);
     return () => window.clearTimeout(timer);
-  }, [refreshBalance, requireFreshSubscription, subscriptionEnd]);
+  }, [hasSubscription, refreshBalance, subscriptionEnd]);
 
   const checkBalance = useCallback(
     (operationType: string): boolean => {
@@ -268,6 +255,7 @@ export function useTokens(options: { requireFreshSubscription?: boolean } = {}) 
     loading,
     error,
     refreshBalance,
+    refreshBalanceIfStale,
     checkBalance,
     hasSubscription,
     subscriptionEnd,

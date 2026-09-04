@@ -33,9 +33,11 @@ import {
   SearchableMultiSelect,
   SearchableSelect,
 } from "@/features/content-library/components/TaxonomySelect";
+import { ContentPreview } from "@/features/content-library/components/ContentPreview";
 import { createCategory } from "@/lib/api";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
 import { SCHOOL_GRADES } from "@/lib/school-grades";
+import { LocalFilePreview } from "@/components/uploads/LocalFilePreview";
 import {
   InlineTaxonomyCreate,
   type TaxonomyCreateInput,
@@ -654,14 +656,26 @@ export function ContentEditorForm({
                   const orderIndex = assetOrder.indexOf(asset.id);
                   const reorderable = asset.role === "visual";
                   return (
-                    <li key={asset.id} className={`flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between ${removed ? "opacity-55" : ""}`}>
-                      <div className="min-w-0">
-                        <p className={`truncate text-sm font-medium text-slate-800 ${removed ? "line-through" : ""}`} title={asset.original_filename}>
-                          {asset.original_filename}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">
-                          {localize(ASSET_ROLE_LABELS[asset.role], language)} · {(asset.file_size / 1024 / 1024).toFixed(asset.file_size >= 10 * 1024 * 1024 ? 0 : 1)} МБ
-                        </p>
+                    <li key={asset.id} className={`flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between ${removed ? "opacity-55" : ""}`}>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <ContentPreview
+                          src={asset.preview_url ?? (asset.role === "visual" ? null : item.preview_url)}
+                          alt={asset.original_filename}
+                          materialType={materialType}
+                          previewStatus={asset.status ?? item.preview_status}
+                          language={language}
+                          sizes="112px"
+                          className="aspect-video w-28 shrink-0 rounded-xl border border-slate-200"
+                          fit="contain"
+                        />
+                        <div className="min-w-0">
+                          <p className={`truncate text-sm font-medium text-slate-800 ${removed ? "line-through" : ""}`} title={asset.original_filename}>
+                            {asset.original_filename}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">
+                            {localize(ASSET_ROLE_LABELS[asset.role], language)} · {(asset.file_size / 1024 / 1024).toFixed(asset.file_size >= 10 * 1024 * 1024 ? 0 : 1)} МБ
+                          </p>
+                        </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         {reorderable && !removed && (
@@ -712,14 +726,15 @@ export function ContentEditorForm({
           {config.assets.map((rule) => {
             const existingCount = item?.asset_counts?.[rule.role] ?? 0;
             return (
-              <label key={rule.role} className="block rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
-                <span className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-800">
+              <section key={rule.role} className="block rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <label htmlFor={`library-file-${rule.role}`} className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-800">
                   <span>{localize(rule.label, language)} {rule.required && <span className="text-red-600">*</span>}</span>
                   {existingCount > 0 && <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] text-emerald-700">{language === "kk" ? "Сақталған" : "Загружено"}: {existingCount}</span>}
-                </span>
+                </label>
                 <span id={`file-hint-${rule.role}`} className="mt-1 block text-xs leading-relaxed text-slate-500">{localize(rule.hint, language)}</span>
                 <input
                   key={`${rule.role}-${fileInputBatch}`}
+                  id={`library-file-${rule.role}`}
                   type="file"
                   accept={rule.accept}
                   multiple={rule.multiple}
@@ -731,11 +746,21 @@ export function ContentEditorForm({
                   className="mt-3 block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-semibold file:text-orange-700 file:shadow-sm hover:file:bg-orange-50"
                 />
                 {filesByRole[rule.role].length > 0 && (
-                  <ul className="mt-2 space-y-1 text-[11px] text-slate-600">
-                    {filesByRole[rule.role].map((file) => <li key={`${file.name}-${file.lastModified}`} className="truncate">• {file.name}</li>)}
-                  </ul>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {filesByRole[rule.role].map((file, index) => (
+                      <LocalFilePreview
+                        key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+                        file={file}
+                        language={language}
+                        onRemove={() => setFilesByRole((current) => ({
+                          ...current,
+                          [rule.role]: current[rule.role].filter((_, fileIndex) => fileIndex !== index),
+                        }))}
+                      />
+                    ))}
+                  </div>
                 )}
-              </label>
+              </section>
             );
           })}
         </div>

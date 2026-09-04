@@ -11,6 +11,7 @@ import { ReactNode, useCallback, useRef, useState } from "react";
 import { downloadImage } from "../../lib/api";
 import { generationServerStatusCopy } from "../../lib/generation-history";
 import { useLanguage } from "../../i18n/LanguageContext";
+import { LocalFilePreview } from "../uploads/LocalFilePreview";
 
 // --- Каркас страницы ---------------------------------------------------------
 
@@ -159,6 +160,7 @@ export function PhotoDropzone({
   max?: number;
   labels: { prompt: string; hint: string; remove: string };
 }) {
+  const { language } = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -211,25 +213,16 @@ export function PhotoDropzone({
       </div>
 
       {files.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {files.map((file, index) => (
-            <div key={`${file.name}-${index}`} className="group relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={URL.createObjectURL(file)}
-                alt={file.name}
-                className="h-16 w-16 rounded-lg border border-slate-200 object-cover"
-              />
-              <button
-                type="button"
-                title={labels.remove}
-                disabled={disabled}
-                onClick={() => onChange(files.filter((_, i) => i !== index))}
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[10px] text-white opacity-0 shadow transition group-hover:opacity-100"
-              >
-                ✕
-              </button>
-            </div>
+            <LocalFilePreview
+              key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+              file={file}
+              language={language}
+              disabled={disabled}
+              onRemove={() => onChange(files.filter((_, i) => i !== index))}
+              className="[&>div:first-child]:aspect-square"
+            />
           ))}
         </div>
       )}

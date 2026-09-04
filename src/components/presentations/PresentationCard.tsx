@@ -5,7 +5,8 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import type { PresentationProject } from "@/types/presentations";
 import { getPresentationCopy } from "./copy";
 import { isLegacyReadOnly, isLegacySourceMissing } from "./legacy-utils";
-import { ModeBadge, ProjectStatusBadge } from "./PresentationUI";
+import { firstSlideImageSource } from "./slide-utils";
+import { ModeBadge, ProjectStatusBadge, ProtectedImage } from "./PresentationUI";
 
 function projectHref(project: PresentationProject) {
   const status = project.status.toLowerCase();
@@ -26,6 +27,8 @@ export default function PresentationCard({
 }) {
   const { language } = useLanguage();
   const copy = getPresentationCopy(language);
+  const title = presentation.title || copy.editorTitle;
+  const previewSource = firstSlideImageSource(presentation.slides);
   const locale = language === "kk" ? "kk-KZ" : "ru-RU";
   const date = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(
     new Date(presentation.updated_at ?? presentation.created_at),
@@ -68,6 +71,25 @@ export default function PresentationCard({
             : "bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400"
         }`}
       />
+      <div className="relative aspect-video overflow-hidden border-b border-slate-100 bg-slate-100">
+        {previewSource ? (
+          <ProtectedImage
+            source={previewSource}
+            alt={language === "kk" ? `${title} — бірінші слайд` : `${title} — первый слайд`}
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+          />
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-white to-sky-50 px-5 text-center text-slate-400">
+            <span className="text-3xl" aria-hidden="true">▤</span>
+            <span className="mt-2 text-xs font-semibold">{copy.previewUnavailable}</span>
+          </div>
+        )}
+        {previewSource && slideCount > 0 ? (
+          <span className="absolute bottom-3 right-3 rounded-full bg-slate-950/75 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm backdrop-blur">
+            1 / {slideCount}
+          </span>
+        ) : null}
+      </div>
       <div className="flex flex-1 flex-col p-5">
         <div className="flex flex-wrap items-center gap-2">
           {legacyReadOnly ? (
@@ -81,7 +103,7 @@ export default function PresentationCard({
           <ProjectStatusBadge status={presentation.status} />
         </div>
         <h3 className="mt-4 line-clamp-2 text-lg font-bold leading-snug text-slate-950">
-          {presentation.title || copy.editorTitle}
+          {title}
         </h3>
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
           {legacyReadOnly

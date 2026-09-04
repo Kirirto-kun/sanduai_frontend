@@ -31,7 +31,6 @@ function getServerDesktopSnapshot() {
 }
 
 function SubscriptionAccessGate({
-  pathname,
   hasSubscription,
   loading,
   error,
@@ -39,7 +38,6 @@ function SubscriptionAccessGate({
   language,
   children,
 }: {
-  pathname: string;
   hasSubscription: boolean | null;
   loading: boolean;
   error: string | null;
@@ -47,19 +45,7 @@ function SubscriptionAccessGate({
   language: "ru" | "kk";
   children: ReactNode;
 }) {
-  const [validated, setValidated] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    void refreshBalance().finally(() => {
-      if (active) setValidated(true);
-    });
-    return () => {
-      active = false;
-    };
-  }, [pathname, refreshBalance]);
-
-  if (!validated || loading) {
+  if (hasSubscription === null && loading) {
     return (
       <section className="mx-auto max-w-2xl rounded-3xl border border-white/70 bg-white/95 px-6 py-12 text-center shadow-sm" aria-live="polite">
         <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[color:var(--primary)] border-r-transparent" />
@@ -143,7 +129,8 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
     loading: subscriptionLoading,
     error: subscriptionError,
     refreshBalance,
-  } = useTokens({ requireFreshSubscription: true });
+    refreshBalanceIfStale,
+  } = useTokens();
 
   const [queryClient] = useState(
     () =>
@@ -164,6 +151,11 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
       router.replace("/login");
     }
   }, [isAuthenticated, loading, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void refreshBalanceIfStale();
+  }, [isAuthenticated, pathname, refreshBalanceIfStale]);
 
   useEffect(() => {
     if (pathname !== "/dashboard/library/catalog") return;
@@ -598,8 +590,6 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
             <GenerationCenter />
             {routeAccessPolicy === "subscription" ? (
               <SubscriptionAccessGate
-                key={pathname}
-                pathname={pathname}
                 hasSubscription={hasSubscription}
                 loading={subscriptionLoading}
                 error={subscriptionError}

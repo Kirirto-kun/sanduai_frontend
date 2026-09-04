@@ -4,7 +4,7 @@
  */
 
 import type { VisualItem } from "../lib/api";
-import Image from "next/image";
+import { ProtectedImage } from "./presentations/PresentationUI";
 
 interface VisualGroupCardProps {
   item: VisualItem;
@@ -26,12 +26,9 @@ export function VisualGroupCard({ item, onClick }: VisualGroupCardProps) {
       {/* Preview */}
       {previewUrl && isImage ? (
         <div className="relative">
-          <Image
-            src={previewUrl}
+          <ProtectedImage
+            source={previewUrl}
             alt={item.title}
-            width={640}
-            height={360}
-            unoptimized
             className="w-full rounded-xl mb-3 aspect-video object-cover bg-slate-100"
           />
           <span className="absolute top-2 right-2 inline-block px-2 py-0.5 text-xs font-medium bg-amber-500/90 text-white rounded-full">

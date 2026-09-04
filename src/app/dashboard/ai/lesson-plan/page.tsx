@@ -760,21 +760,29 @@ function LessonPlanContent() {
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
                 />
                 {formData.textbook_images && formData.textbook_images.length > 0 && (
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {formData.textbook_images.map((img, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2"
+                        className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
                       >
-                        <span className="text-sm text-slate-600">
-                          Изображение {index + 1}
+                        {/* Data URLs selected by the teacher cannot be optimized by next/image. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img}
+                          alt={`${language === "kk" ? "Оқулық беті" : "Страница учебника"} ${index + 1}`}
+                          className="aspect-[3/4] w-full object-cover"
+                        />
+                        <span className="absolute left-2 top-2 rounded-full bg-slate-950/80 px-2 py-0.5 text-[10px] font-bold text-white">
+                          {index + 1}
                         </span>
                         <button
                           type="button"
                           onClick={() => removeImage(index)}
-                          className="rounded-lg bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-100"
+                          aria-label={`${language === "kk" ? "Оқулық бетін жою" : "Удалить страницу учебника"} ${index + 1}`}
+                          className="absolute right-2 top-2 rounded-lg bg-white/95 px-2 py-1 text-[10px] font-semibold text-red-700 shadow-sm hover:bg-red-50"
                         >
-                          Удалить
+                          {language === "kk" ? "Жою" : "Удалить"}
                         </button>
                       </div>
                     ))}

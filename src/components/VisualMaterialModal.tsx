@@ -3,15 +3,72 @@
  * Modal for viewing visual materials in full size
  */
 
+import { useEffect, useState } from "react";
 import type { VisualMaterial } from "../lib/api";
-import Image from "next/image";
+import { fetchPresentationAsset } from "../lib/presentations-api";
+import { ProtectedImage } from "./presentations/PresentationUI";
 
 interface VisualMaterialModalProps {
   material: VisualMaterial;
   onClose: () => void;
 }
 
+function ProtectedPdfPreview({ source, title }: { source: string; title: string }) {
+  const [state, setState] = useState<{
+    source?: string;
+    objectUrl?: string;
+    failed?: boolean;
+  }>({});
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let objectUrl: string | undefined;
+    let disposed = false;
+
+    void fetchPresentationAsset(source, controller.signal)
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        if (!disposed) setState({ source, objectUrl });
+      })
+      .catch((error) => {
+        if (!disposed && !(error instanceof DOMException && error.name === "AbortError")) {
+          setState({ source, failed: true });
+        }
+      });
+
+    return () => {
+      disposed = true;
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [source]);
+
+  const current = state.source === source ? state : {};
+  if (current.failed) {
+    return (
+      <div role="alert" className="flex min-h-[420px] items-center justify-center rounded-xl bg-slate-100 px-6 text-center text-sm text-slate-600">
+        Предпросмотр PDF недоступен. Файл можно скачать.
+      </div>
+    );
+  }
+  if (!current.objectUrl) {
+    return (
+      <div role="status" aria-label="Загрузка предпросмотра PDF" className="min-h-[600px] animate-pulse rounded-xl bg-slate-100" />
+    );
+  }
+  return (
+    <iframe
+      src={current.objectUrl}
+      className="min-h-[600px] w-full rounded-xl border border-slate-200"
+      title={title}
+    />
+  );
+}
+
 export function VisualMaterialModal({ material, onClose }: VisualMaterialModalProps) {
+  const [downloading, setDownloading] = useState(false);
+  const [downloadFailed, setDownloadFailed] = useState(false);
+
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -20,6 +77,32 @@ export function VisualMaterialModal({ material, onClose }: VisualMaterialModalPr
 
   const isImage = material.mime_type.startsWith("image/");
   const isPDF = material.mime_type === "application/pdf";
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    setDownloadFailed(false);
+    try {
+      const blob = await fetchPresentationAsset(material.url);
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const safeTitle = material.title.trim().replace(/[\\/:*?"<>|]+/g, "-") || "material";
+      const mimeExtension = material.mime_type === "application/pdf"
+        ? "pdf"
+        : material.mime_type === "image/jpeg"
+          ? "jpg"
+          : material.mime_type.split("/")[1]?.split("+")[0] || "bin";
+      anchor.href = objectUrl;
+      anchor.download = /\.[a-z0-9]{1,8}$/i.test(safeTitle) ? safeTitle : `${safeTitle}.${mimeExtension}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
+    } catch {
+      setDownloadFailed(true);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div
@@ -66,20 +149,13 @@ export function VisualMaterialModal({ material, onClose }: VisualMaterialModalPr
         {/* Content */}
         <div className="flex-1 overflow-auto p-4">
           {isImage ? (
-            <Image
-              src={material.url}
+            <ProtectedImage
+              source={material.url}
               alt={material.title}
-              width={1600}
-              height={1200}
-              unoptimized
-              className="w-full h-auto rounded-xl"
+              className="w-full min-h-80 max-h-[70vh] rounded-xl bg-slate-100 object-contain"
             />
           ) : isPDF ? (
-            <iframe
-              src={material.url}
-              className="w-full h-full min-h-[600px] rounded-xl border border-slate-200"
-              title={material.title}
-            />
+            <ProtectedPdfPreview source={material.url} title={material.title} />
           ) : (
             <div className="flex flex-col items-center justify-center py-12">
               <svg
@@ -98,16 +174,20 @@ export function VisualMaterialModal({ material, onClose }: VisualMaterialModalPr
               <p className="text-slate-600 mb-4">
                 Предпросмотр недоступен для этого типа файла
               </p>
-              <a
-                href={material.url}
-                download
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={handleDownload}
+                disabled={downloading}
                 className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
               >
-                Скачать файл
-              </a>
+                {downloading ? "Подготовка…" : "Скачать файл"}
+              </button>
             </div>
+          )}
+          {downloadFailed && (
+            <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Не удалось скачать файл. Попробуйте ещё раз.
+            </p>
           )}
         </div>
 
@@ -118,15 +198,14 @@ export function VisualMaterialModal({ material, onClose }: VisualMaterialModalPr
             <span className="mx-2">•</span>
             <span>{material.mime_type}</span>
           </div>
-          <a
-            href={material.url}
-            download
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={downloading}
             className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
-            Скачать
-          </a>
+            {downloading ? "Подготовка…" : "Скачать"}
+          </button>
         </div>
       </div>
     </div>

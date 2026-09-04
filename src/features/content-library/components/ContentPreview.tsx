@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { fetchAdminLibraryPreviewBlob, resolveLibraryUrl } from "../api";
+import { fetchLibraryPreviewBlob } from "../api";
 import { MATERIAL_TYPE_CONFIG, localize, type UiLanguage } from "../config";
 import type { MaterialType, PreviewStatus } from "../types";
 
@@ -15,7 +15,6 @@ type ContentPreviewProps = {
   sizes?: string;
   priority?: boolean;
   className?: string;
-  authenticated?: boolean;
   fit?: "cover" | "contain";
 };
 
@@ -28,23 +27,21 @@ export function ContentPreview({
   sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw",
   priority = false,
   className = "aspect-video",
-  authenticated = false,
   fit = "cover",
 }: ContentPreviewProps) {
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const [privatePreview, setPrivatePreview] = useState<{
+  const [preview, setPreview] = useState<{
     path: string;
     objectUrl: string | null;
     failed: boolean;
   } | null>(null);
 
   useEffect(() => {
-    if (!authenticated || !src) return;
+    if (!src) return;
     const controller = new AbortController();
     let live = true;
     let objectUrl: string | null = null;
 
-    void fetchAdminLibraryPreviewBlob(src, controller.signal)
+    void fetchLibraryPreviewBlob(src, controller.signal)
       .then((blob) => {
         objectUrl = URL.createObjectURL(blob);
         if (!live) {
@@ -52,11 +49,11 @@ export function ContentPreview({
           objectUrl = null;
           return;
         }
-        setPrivatePreview({ path: src, objectUrl, failed: false });
+        setPreview({ path: src, objectUrl, failed: false });
       })
       .catch((error) => {
         if (live && !(error instanceof DOMException && error.name === "AbortError")) {
-          setPrivatePreview({ path: src, objectUrl: null, failed: true });
+          setPreview({ path: src, objectUrl: null, failed: true });
         }
       });
 
@@ -65,25 +62,21 @@ export function ContentPreview({
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [authenticated, src]);
+  }, [src]);
 
   const config = MATERIAL_TYPE_CONFIG[materialType];
-  const currentPrivatePreview = privatePreview?.path === src ? privatePreview : null;
-  const resolvedSource = authenticated
-    ? currentPrivatePreview?.objectUrl ?? null
-    : src
-      ? resolveLibraryUrl(src)
-      : null;
-  const failed = authenticated ? currentPrivatePreview?.failed === true : failedUrl === src;
+  const currentPreview = preview?.path === src ? preview : null;
+  const resolvedSource = currentPreview?.objectUrl ?? null;
+  const failed = currentPreview?.failed === true;
   const canShowImage = Boolean(src && resolvedSource && !failed);
-  const isLoadingPrivatePreview = Boolean(
-    authenticated && src && !currentPrivatePreview?.objectUrl && !currentPrivatePreview?.failed,
+  const isLoadingPreview = Boolean(
+    src && !currentPreview?.objectUrl && !currentPreview?.failed,
   );
   const isProcessing = previewStatus === "pending" || previewStatus === "processing";
 
   return (
     <div className={`relative overflow-hidden bg-slate-100 ${className}`}>
-      {isLoadingPrivatePreview ? (
+      {isLoadingPreview ? (
         <div className="absolute inset-0 animate-pulse bg-slate-200" role="status" aria-label={language === "kk" ? "Превью жүктелуде" : "Загрузка превью"} />
       ) : canShowImage && src && resolvedSource ? (
         <Image
@@ -95,11 +88,8 @@ export function ContentPreview({
           sizes={sizes}
           className={fit === "contain" ? "object-contain" : "object-cover"}
           onError={() => {
-            if (authenticated) {
-              setPrivatePreview({ path: src, objectUrl: null, failed: true });
-            } else {
-              setFailedUrl(src);
-            }
+            URL.revokeObjectURL(resolvedSource);
+            setPreview({ path: src, objectUrl: null, failed: true });
           }}
         />
       ) : (

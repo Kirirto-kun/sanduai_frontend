@@ -373,7 +373,7 @@ export function AdminLibraryPage() {
               return (
                 <article key={item.id} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:px-6">
                   <div className="w-full shrink-0 sm:w-32">
-                    <ContentPreview src={item.preview_url} alt="" materialType={item.material_type} previewStatus={item.preview_status} language={language} sizes="128px" className="aspect-video w-full rounded-xl border border-slate-200" authenticated />
+                    <ContentPreview src={item.preview_url} alt="" materialType={item.material_type} previewStatus={item.preview_status} language={language} sizes="128px" className="aspect-video w-full rounded-xl border border-slate-200" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">

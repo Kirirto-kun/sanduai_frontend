@@ -4,7 +4,7 @@
  */
 
 import type { VisualMaterial } from "../lib/api";
-import Image from "next/image";
+import { ProtectedImage } from "./presentations/PresentationUI";
 
 interface VisualMaterialCardProps {
   material: VisualMaterial;
@@ -41,12 +41,9 @@ export function VisualMaterialCard({ material, onClick }: VisualMaterialCardProp
     >
       {/* Preview */}
       {isImage ? (
-        <Image
-          src={material.url}
+        <ProtectedImage
+          source={material.url}
           alt={material.title}
-          width={640}
-          height={360}
-          unoptimized
           className="w-full rounded-xl mb-3 aspect-video object-cover bg-slate-100"
         />
       ) : (

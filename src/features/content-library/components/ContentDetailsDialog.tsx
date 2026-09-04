@@ -206,13 +206,23 @@ export function ContentDetailsDialog({ item, onClose }: ContentDetailsDialogProp
                       aria-label={`${language === "kk" ? "Көрнекілік" : "Материал"} ${index + 1}: ${asset.original_filename}`}
                       aria-pressed={selectedVisual?.id === asset.id}
                       onClick={() => setSelectedVisualId(asset.id)}
-                      className={`min-w-28 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ${
+                      className={`w-36 min-w-36 rounded-xl border p-2 text-left text-xs font-semibold transition ${
                         selectedVisual?.id === asset.id
-                          ? "border-orange-400 bg-orange-50 text-orange-800"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                          ? "border-orange-400 bg-orange-50 text-orange-800 ring-2 ring-orange-100"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                       }`}
                     >
-                      <span className="block truncate">{index + 1}. {asset.original_filename}</span>
+                      <ContentPreview
+                        src={asset.preview_url}
+                        alt=""
+                        materialType={content.material_type}
+                        previewStatus={asset.status ?? content.preview_status}
+                        language={language}
+                        sizes="144px"
+                        className="aspect-video w-full rounded-lg border border-slate-200 bg-white"
+                        fit="contain"
+                      />
+                      <span className="mt-2 block truncate">{index + 1}. {asset.original_filename}</span>
                     </button>
                   ))}
                 </div>

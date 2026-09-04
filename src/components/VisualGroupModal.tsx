@@ -4,11 +4,11 @@
  */
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import type { VisualItem, VisualMaterial } from "../lib/api";
 import { downloadVisualGroupZip, getVisualGroup } from "../lib/api";
 import { useLanguage } from "../i18n/LanguageContext";
 import { teacherFacingErrorMessage } from "../lib/teacher-facing-error";
+import { ProtectedImage } from "./presentations/PresentationUI";
 
 interface VisualGroupModalProps {
   item: VisualItem;
@@ -104,12 +104,9 @@ export function VisualGroupModal({ item, onClose }: VisualGroupModalProps) {
                   <div key={m.id} className="flex flex-col rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
                     <div className="aspect-video bg-slate-200 flex items-center justify-center overflow-hidden">
                       {isImage && m.url ? (
-                        <Image
-                          src={m.url}
+                        <ProtectedImage
+                          source={m.url}
                           alt={m.title}
-                          width={640}
-                          height={360}
-                          unoptimized
                           className="w-full h-full object-cover"
                         />
                       ) : (

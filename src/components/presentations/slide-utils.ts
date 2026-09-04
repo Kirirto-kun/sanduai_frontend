@@ -24,6 +24,12 @@ export function slideImageSource(slide: PresentationSlide): string | null {
   );
 }
 
+export function firstSlideImageSource(slides: PresentationSlide[] | undefined): string | null {
+  if (!slides?.length) return null;
+  const first = slides.reduce((earliest, slide) => (slide.order < earliest.order ? slide : earliest));
+  return slideImageSource(first);
+}
+
 export function slideTitle(slide: PresentationSlide, fallback: string) {
   const spec = normalizeSlideSpec(slide.spec);
   return slide.title ?? spec.title ?? fallback;

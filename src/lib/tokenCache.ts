@@ -117,6 +117,16 @@ export function getCachedBalance(userId: string): CachedBalance | null {
       window.localStorage.removeItem(TOKEN_BALANCE_CACHE_KEY);
       return null;
     }
+    if (data.has_subscription && data.subscription_end) {
+      const expiresAt = Date.parse(data.subscription_end);
+      if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
+        return {
+          ...data,
+          has_subscription: false,
+          subscription_plan: "free",
+        };
+      }
+    }
     return data;
   } catch (err) {
     console.error("Failed to parse cached token balance:", err);
