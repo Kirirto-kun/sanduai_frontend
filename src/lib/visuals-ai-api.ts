@@ -9,8 +9,9 @@ import {
   enqueueGenerationJob,
   waitForGenerationResult,
 } from "./api";
+import type { ContentLanguage } from "./content-languages";
 
-export type Language = "kk" | "ru";
+export type Language = ContentLanguage;
 export type Orientation = "portrait" | "landscape" | "square";
 export type ComicStyle = "cartoon" | "manga" | "watercolor" | "retro";
 
@@ -18,12 +19,14 @@ export type KornekilikResult = {
   image_url: string;
   title: string;
   cost_tokens: number;
+  language?: ContentLanguage;
 };
 
 export type InfographicResult = {
   image_url: string;
   title: string;
   cost_tokens: number;
+  language?: ContentLanguage;
 };
 
 export type ComicDialogueLine = { speaker: string; text: string };
@@ -38,6 +41,7 @@ export type ComicResult = {
   image_url: string;
   panels: ComicPanelResult[];
   cost_tokens: number;
+  language?: ContentLanguage;
 };
 
 // --- Сценарий ----------------------------------------------------------------
@@ -73,6 +77,7 @@ export type ScenarioResult = {
   total_minutes: number;
   cost_tokens: number;
   disclaimer: string;
+  language?: ContentLanguage;
 };
 
 // --- Транспорт ---------------------------------------------------------------

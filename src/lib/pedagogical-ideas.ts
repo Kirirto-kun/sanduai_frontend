@@ -1,6 +1,7 @@
 import type { GenerationJob } from "./api";
+import type { ContentLanguage } from "./content-languages";
 
-export type PedagogicalIdeasLanguage = "kk" | "ru";
+export type PedagogicalIdeasLanguage = ContentLanguage;
 
 export type PedagogicalIdeaTask = {
   title: string;
@@ -41,6 +42,7 @@ export type PedagogicalIdeasResult = {
     action: string;
     idea_title: string;
   }>;
+  language?: ContentLanguage;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -119,12 +121,8 @@ function list(items: string[]): string {
   return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
 }
 
-export function pedagogicalIdeasHtml(
-  result: PedagogicalIdeasResult,
-  language: PedagogicalIdeasLanguage,
-): string {
-  const copy = language === "kk"
-    ? {
+const PEDAGOGICAL_IDEAS_CONTENT_COPY = {
+    kk: {
         goal: "Сабақ мақсаты",
         hook: "Қызықты бастама",
         why: "Неліктен тиімді",
@@ -141,8 +139,8 @@ export function pedagogicalIdeasHtml(
         reflection: "Рефлексия",
         flow: "Ұсынылатын сабақ барысы",
         minutes: "мин",
-      }
-    : {
+    },
+    ru: {
         goal: "Цель урока",
         hook: "Яркое начало",
         why: "Почему это работает",
@@ -159,7 +157,77 @@ export function pedagogicalIdeasHtml(
         reflection: "Рефлексия",
         flow: "Рекомендуемый ход урока",
         minutes: "мин",
-      };
+    },
+    en: {
+        goal: "Lesson objective",
+        hook: "Engaging opener",
+        why: "Why it works",
+        method: "Method",
+        teacher: "Teacher actions",
+        students: "Student actions",
+        materials: "Materials",
+        tasks: "Ready-to-use tasks",
+        expected: "Expected outcome",
+        criteria: "Success criteria",
+        support: "Support",
+        challenge: "Extension",
+        assessment: "Formative assessment",
+        reflection: "Reflection",
+        flow: "Recommended lesson flow",
+        minutes: "min",
+    },
+    ky: {
+        goal: "Сабактын максаты",
+        hook: "Кызыктуу башталыш",
+        why: "Эмне үчүн натыйжалуу",
+        method: "Метод",
+        teacher: "Мугалимдин аракеттери",
+        students: "Окуучулардын аракеттери",
+        materials: "Материалдар",
+        tasks: "Даяр тапшырмалар",
+        expected: "Күтүлгөн натыйжа",
+        criteria: "Ийгилик критерийлери",
+        support: "Колдоо",
+        challenge: "Татаалдаштыруу",
+        assessment: "Формативдик баалоо",
+        reflection: "Рефлексия",
+        flow: "Сунушталган сабактын жүрүшү",
+        minutes: "мүн",
+    },
+    uz: {
+        goal: "Dars maqsadi",
+        hook: "Qiziqarli kirish",
+        why: "Nega bu samarali",
+        method: "Metod",
+        teacher: "O‘qituvchi harakatlari",
+        students: "O‘quvchi harakatlari",
+        materials: "Materiallar",
+        tasks: "Tayyor topshiriqlar",
+        expected: "Kutiladigan natija",
+        criteria: "Muvaffaqiyat mezonlari",
+        support: "Qo‘llab-quvvatlash",
+        challenge: "Murakkablashtirish",
+        assessment: "Formativ baholash",
+        reflection: "Refleksiya",
+        flow: "Tavsiya etilgan dars jarayoni",
+        minutes: "daq",
+    },
+} as const satisfies Record<ContentLanguage, Record<string, string>>;
+
+export type PedagogicalIdeasContentCopy =
+  (typeof PEDAGOGICAL_IDEAS_CONTENT_COPY)[ContentLanguage];
+
+export function pedagogicalIdeasContentCopy(
+  language: ContentLanguage,
+): PedagogicalIdeasContentCopy {
+  return PEDAGOGICAL_IDEAS_CONTENT_COPY[language];
+}
+
+export function pedagogicalIdeasHtml(
+  result: PedagogicalIdeasResult,
+  language: PedagogicalIdeasLanguage,
+): string {
+  const copy = pedagogicalIdeasContentCopy(language);
 
   const ideas = result.ideas.map((idea, index) => `
     <section>

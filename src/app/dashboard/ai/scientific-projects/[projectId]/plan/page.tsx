@@ -12,6 +12,11 @@ import {
   updateScienceProjectPlan,
 } from "../../../../../../lib/api";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import {
+  tryNormalizeContentLanguage,
+  type ContentLanguage,
+} from "@/lib/content-languages";
+import { generatedContentCopy } from "@/lib/generated-content-copy";
 
 import {
   applyScienceProjectPlanEdit,
@@ -146,6 +151,7 @@ export default function PlanReviewPage() {
   const [submitting, setSubmitting] = useState(false);
   const submissionStarted = useRef(false);
   const [plan, setPlan] = useState<DraftPlanResponse | null>(null);
+  const [contentLanguage, setContentLanguage] = useState<ContentLanguage>(language);
   const [editing, setEditing] = useState<SciencePlanEditableField | null>(null);
   const [editValue, setEditValue] = useState("");
 
@@ -157,7 +163,10 @@ export default function PlanReviewPage() {
       setInitialError(null);
       try {
         const state: ProjectState = await getProjectStatus(projectId);
-        if (active) setPlan(state.plan);
+        if (active) {
+          setPlan(state.plan);
+          setContentLanguage(tryNormalizeContentLanguage(state.language) ?? language);
+        }
       } catch (error: unknown) {
         if (active) setInitialError(toTeacherErrorMessage(error));
       } finally {
@@ -169,7 +178,7 @@ export default function PlanReviewPage() {
     return () => {
       active = false;
     };
-  }, [loadAttempt, projectId, toTeacherErrorMessage]);
+  }, [language, loadAttempt, projectId, toTeacherErrorMessage]);
 
   const handleEdit = (field: SciencePlanEditableField, currentValue: string | string[]) => {
     setEditing(field);
@@ -248,6 +257,7 @@ export default function PlanReviewPage() {
   }
 
   const labels = t.scientificProject.plan;
+  const resultCopy = generatedContentCopy(contentLanguage).scientificProject;
   const commonFieldProps = {
     editing,
     editValue,
@@ -275,24 +285,24 @@ export default function PlanReviewPage() {
 
         <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md">
           <div className="grid gap-6 md:grid-cols-2">
-            <EditablePlanField field="hypothesis" label={labels.hypothesis} value={plan.hypothesis} multiline {...commonFieldProps} />
-            <EditablePlanField field="object" label={labels.object} value={plan.object} multiline {...commonFieldProps} />
-            <EditablePlanField field="subject_field" label={labels.subjectField} value={plan.subject_field} multiline {...commonFieldProps} />
-            <EditablePlanField field="methods" label={labels.methods} value={plan.methods} list {...commonFieldProps} />
-            <EditablePlanField field="scientific_novelty" label={labels.scientificNovelty} value={plan.scientific_novelty} multiline {...commonFieldProps} />
-            <EditablePlanField field="practical_significance" label={labels.practicalSignificance} value={plan.practical_significance} multiline {...commonFieldProps} />
+            <EditablePlanField field="hypothesis" label={resultCopy.hypothesis} value={plan.hypothesis} multiline {...commonFieldProps} />
+            <EditablePlanField field="object" label={resultCopy.object} value={plan.object} multiline {...commonFieldProps} />
+            <EditablePlanField field="subject_field" label={resultCopy.subject} value={plan.subject_field} multiline {...commonFieldProps} />
+            <EditablePlanField field="methods" label={resultCopy.methods} value={plan.methods} list {...commonFieldProps} />
+            <EditablePlanField field="scientific_novelty" label={resultCopy.scientificNovelty} value={plan.scientific_novelty} multiline {...commonFieldProps} />
+            <EditablePlanField field="practical_significance" label={resultCopy.practicalSignificance} value={plan.practical_significance} multiline {...commonFieldProps} />
           </div>
 
           <div className="my-8 border-t border-slate-200" />
 
           <div className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
-              <EditablePlanField field="chapter_1_title" label={labels.chapter1Title} value={plan.structure.chapter_1_title} {...commonFieldProps} />
-              <EditablePlanField field="chapter_2_title" label={labels.chapter2Title} value={plan.structure.chapter_2_title} {...commonFieldProps} />
+              <EditablePlanField field="chapter_1_title" label={`${resultCopy.chapter} 1`} value={plan.structure.chapter_1_title} {...commonFieldProps} />
+              <EditablePlanField field="chapter_2_title" label={`${resultCopy.chapter} 2`} value={plan.structure.chapter_2_title} {...commonFieldProps} />
             </div>
             <div className="grid gap-6 md:grid-cols-2">
-              <EditablePlanField field="chapter_1_subsections" label={labels.chapter1Subsections} value={plan.structure.chapter_1_subsections} list {...commonFieldProps} />
-              <EditablePlanField field="chapter_2_subsections" label={labels.chapter2Subsections} value={plan.structure.chapter_2_subsections} list {...commonFieldProps} />
+              <EditablePlanField field="chapter_1_subsections" label={`${resultCopy.chapter} 1 — ${resultCopy.subsections}`} value={plan.structure.chapter_1_subsections} list {...commonFieldProps} />
+              <EditablePlanField field="chapter_2_subsections" label={`${resultCopy.chapter} 2 — ${resultCopy.subsections}`} value={plan.structure.chapter_2_subsections} list {...commonFieldProps} />
             </div>
           </div>
 

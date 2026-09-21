@@ -16,6 +16,7 @@ import {
   isActiveGenerationJob,
 } from "../../../../lib/generation-history";
 import { visualGenerationErrorMessage } from "../../../../lib/visuals-ai-errors";
+import { CONTENT_LANGUAGE_OPTIONS } from "../../../../lib/content-languages";
 import {
   InfographicResult,
   Language,
@@ -163,10 +164,9 @@ function InfographicsContent() {
     { value: "square", label: t.orientations.square },
   ];
 
-  const langOptions: Option<Language>[] = [
-    { value: "kk", label: "Қазақша" },
-    { value: "ru", label: "Русский" },
-  ];
+  const langOptions: Option<Language>[] = CONTENT_LANGUAGE_OPTIONS.map(
+    ({ value, label }) => ({ value, label }),
+  );
 
   const enoughTokens = balance === null || balance >= cost;
 

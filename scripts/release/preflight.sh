@@ -9,7 +9,7 @@ fail() {
   exit 1
 }
 
-for command_name in docker git grep; do
+for command_name in docker git grep python3; do
   command -v "$command_name" >/dev/null 2>&1 \
     || fail "required command is missing: $command_name"
 done
@@ -48,6 +48,30 @@ grep -Fq 'host_ip: 127.0.0.1' <<<"$resolved_config" \
   || fail "frontend must bind to 127.0.0.1"
 grep -Fq 'read_only: true' <<<"$resolved_config" \
   || fail "frontend root filesystem must be read-only"
+if ! docker compose -f docker-compose.production.yml config --format json \
+  | python3 -c '
+import json
+import sys
+
+
+try:
+    frontend = json.load(sys.stdin)["services"]["frontend"]
+except (KeyError, TypeError, ValueError):
+    raise SystemExit("frontend production service is missing") from None
+
+logging = frontend.get("logging") or {}
+options = logging.get("options") or {}
+if (
+    logging.get("driver") != "json-file"
+    or str(options.get("max-size")) != "10m"
+    or str(options.get("max-file")) != "3"
+):
+    raise SystemExit(
+        "frontend logging must use json-file rotation (10m, 3 files)"
+    )
+'; then
+  fail "resolved Compose profile violates the frontend log rotation contract"
+fi
 
 if [[ "${PREFLIGHT_SKIP_IMAGE_CHECKS:-0}" != "1" ]]; then
   docker image inspect "$expected_image" >/dev/null 2>&1 \

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { AuthLanguageSwitch } from "@/components/AuthLanguageSwitch";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { authCopy, authErrorMessage, isValidEmail, normalizeEmail } from "@/lib/auth-forms";
+import { safeReturnPath } from "@/lib/safe-return-path";
 
 const fieldClassName =
   "min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-[color:var(--primary)] focus:ring-2 focus:ring-orange-200";
@@ -17,13 +18,19 @@ export default function LoginPage() {
   const { language } = useLanguage();
   const copy = authCopy(language);
   const router = useRouter();
+  const returnToRef = useRef("/dashboard");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loading && isAuthenticated) router.replace("/dashboard");
+    const value = new URLSearchParams(window.location.search).get("returnTo") ?? "";
+    returnToRef.current = safeReturnPath(value);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && isAuthenticated) router.replace(returnToRef.current);
   }, [isAuthenticated, loading, router]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -41,7 +48,7 @@ export default function LoginPage() {
 
     try {
       await login({ email: normalizedEmail, password });
-      router.replace("/dashboard");
+      router.replace(returnToRef.current);
     } catch (loginError) {
       setError(authErrorMessage(loginError, language, "login"));
     }

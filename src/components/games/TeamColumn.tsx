@@ -2,15 +2,19 @@
 
 import { useState } from "react";
 import type { TeamState } from "../../types/games";
+import type { ContentLanguage } from "../../lib/content-languages";
+import { generatedContentCopy } from "../../lib/generated-content-copy";
 
 interface TeamColumnProps {
   team: TeamState;
+  language: ContentLanguage;
   onAnswer: (isCorrect: boolean) => void;
   isGameFinished: boolean;
 }
 
-export function TeamColumn({ team, onAnswer, isGameFinished }: TeamColumnProps) {
+export function TeamColumn({ team, language, onAnswer, isGameFinished }: TeamColumnProps) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const copy = generatedContentCopy(language).race;
 
   const currentQuestion = team.questions[team.currentQuestionIndex];
 
@@ -19,7 +23,7 @@ export function TeamColumn({ team, onAnswer, isGameFinished }: TeamColumnProps) 
       <div className="glass-card rounded-2xl border border-white/60 p-6 shadow-md">
         <h3 className="mb-4 text-lg font-semibold text-slate-900">{team.name}</h3>
         <div className="flex h-32 items-center justify-center rounded-xl bg-slate-100 text-sm text-slate-500">
-          Вопросы закончились
+          {copy.questionsEnded}
         </div>
       </div>
     );
@@ -50,7 +54,7 @@ export function TeamColumn({ team, onAnswer, isGameFinished }: TeamColumnProps) 
         <h3 className="text-lg font-semibold text-slate-900">{team.name}</h3>
         {team.isBlocked && (
           <div className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
-            Заблокировано
+            {copy.blocked}
           </div>
         )}
       </div>
@@ -97,10 +101,10 @@ export function TeamColumn({ team, onAnswer, isGameFinished }: TeamColumnProps) 
               </span>
               {option}
               {showFeedback && isSelected && isCorrect && (
-                <span className="ml-2">✓</span>
+                <span className="ml-2" aria-hidden="true">✓</span>
               )}
               {showFeedback && isSelected && !isCorrect && (
-                <span className="ml-2">✗</span>
+                <span className="ml-2" aria-hidden="true">✗</span>
               )}
             </button>
           );
@@ -110,11 +114,16 @@ export function TeamColumn({ team, onAnswer, isGameFinished }: TeamColumnProps) 
       {/* Progress indicator */}
       <div className="mt-4">
         <div className="mb-1 flex items-center justify-between text-xs text-slate-600">
-          <span>Прогресс</span>
+          <span>{copy.progress}</span>
           <span className="font-semibold">{Math.round(team.progress)}%</span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
           <div
+            role="progressbar"
+            aria-label={`${copy.progress}: ${team.name}`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(team.progress)}
             className="h-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] transition-all duration-1000 ease-in-out"
             style={{ width: `${team.progress}%` }}
           />
@@ -123,4 +132,3 @@ export function TeamColumn({ team, onAnswer, isGameFinished }: TeamColumnProps) 
     </div>
   );
 }
-

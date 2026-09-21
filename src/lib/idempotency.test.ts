@@ -232,4 +232,24 @@ describe("paid request idempotency", () => {
       kind: "science.finalize",
     });
   });
+
+  it.each(["en", "ky", "uz"] as const)(
+    "sends %s as the selected Ybyrai response language",
+    async (language) => {
+      const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+        text: "response",
+        audio_url: "/audio/response.mp3",
+        duration: 1,
+        transcribed_text: "question",
+      }));
+      vi.stubGlobal("fetch", fetchMock);
+      const audio = new Blob(["audio"], { type: "audio/webm" }) as File;
+
+      await chatWithYbyrai(audio, language);
+
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+      expect(init?.body).toBeInstanceOf(FormData);
+      expect((init?.body as FormData).get("language")).toBe(language);
+    },
+  );
 });

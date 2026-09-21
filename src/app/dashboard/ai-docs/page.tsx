@@ -17,6 +17,12 @@ import { useTokens } from "../../../hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { ModuleGenerationHistory } from "../../../components/generations/ModuleGenerationHistory";
 import { generationServerStatusCopy } from "../../../lib/generation-history";
+import {
+  CONTENT_LANGUAGE_OPTIONS,
+  tryNormalizeContentLanguage,
+  type ContentLanguage,
+} from "../../../lib/content-languages";
+import { generatedContentCopy } from "../../../lib/generated-content-copy";
 
 type PendingRevision = {
   id: string;
@@ -27,7 +33,7 @@ type PendingRevision = {
 
 const initialPayload: EssayGeneratePayload = {
   topic: "",
-  language: "kaz",
+  language: "kk",
   grade_level: "",
   word_count: 400,
   essay_type: "argumentative",
@@ -60,8 +66,13 @@ export default function AiDocsPage() {
   const [modalInstruction, setModalInstruction] = useState("");
 
   const hasResult = useMemo(() => title || plan.length || blocks.length, [title, plan, blocks]);
+  const resultCopy = generatedContentCopy(form.language).essay;
 
   const showEssay = useCallback((data: EssayGenerateResponse) => {
+    const savedLanguage = tryNormalizeContentLanguage(data.language);
+    if (savedLanguage) {
+      setForm((current) => ({ ...current, language: savedLanguage }));
+    }
     setTitle(data.title);
     setPlan(data.essay_plan || []);
     setBlocks(data.content_blocks || []);
@@ -187,6 +198,7 @@ export default function AiDocsPage() {
         current_content_blocks: blocks,
         inline_comments: inline_comments.length > 0 ? inline_comments : undefined,
         general_instruction: generalInstruction || undefined,
+        language: form.language,
       };
       const data = await reviseEssay(payload);
       setTitle(data.title);
@@ -220,6 +232,7 @@ export default function AiDocsPage() {
         title: title || form.topic || "essay",
         essay_plan: plan,
         content_blocks: blocks,
+        language: form.language,
       });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -273,16 +286,15 @@ export default function AiDocsPage() {
 
   const getSectionTitle = (block: EssayContentBlock, index: number): string => {
     const type = block.section_type.toLowerCase();
-    const sectionTypes = t.essay.results.sectionTypes as Record<string, string>;
-    
+
     if (type === "introduction") {
-      return sectionTypes.introduction || "Introduction";
+      return resultCopy.introduction;
     } else if (type === "conclusion") {
-      return sectionTypes.conclusion || "Conclusion";
+      return resultCopy.conclusion;
     } else if (type === "body") {
       // Count how many body blocks come before this one
       const bodyIndex = blocks.slice(0, index).filter(b => b.section_type.toLowerCase() === "body").length;
-      return `${sectionTypes.body || "Body"} ${bodyIndex + 1}`;
+      return `${resultCopy.body} ${bodyIndex + 1}`;
     }
     return block.section_type;
   };
@@ -310,11 +322,8 @@ export default function AiDocsPage() {
           <Select
             label={t.essay.form.language}
             value={form.language}
-            onChange={(v) => setForm((f) => ({ ...f, language: v as "kaz" | "rus" }))}
-            options={[
-              { value: "kaz", label: "Қазақша" },
-              { value: "rus", label: "Русский" },
-            ]}
+            onChange={(v) => setForm((f) => ({ ...f, language: v as ContentLanguage }))}
+            options={CONTENT_LANGUAGE_OPTIONS.map(({ value, label }) => ({ value, label }))}
           />
           <Input
             label={t.essay.form.grade}

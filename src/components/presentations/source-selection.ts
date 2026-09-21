@@ -3,6 +3,7 @@ import type {
   PresentationMode,
   SavedKmzhSource,
 } from "@/types/presentations";
+import type { ContentLanguage } from "@/lib/content-languages";
 
 export type PresentationSourceChoice = "topic" | "saved_kmzh" | "pasted";
 
@@ -15,7 +16,7 @@ export type PresentationSourceDraft = {
   pastedTitle: string;
   pastedText: string;
   selectedKmzh?: SavedKmzhSource;
-  language: "ru" | "kk";
+  language: ContentLanguage;
   slideCount: number;
 };
 

@@ -16,6 +16,8 @@ import {
   isActiveGenerationJob,
 } from "../../../../lib/generation-history";
 import { visualGenerationErrorMessage } from "../../../../lib/visuals-ai-errors";
+import { CONTENT_LANGUAGE_OPTIONS } from "../../../../lib/content-languages";
+import { readIntegrationPrefill } from "../../../../lib/integration-prefill";
 import {
   KornekilikResult,
   Language,
@@ -120,6 +122,7 @@ function KornekilikContent() {
   const [sessionJobId, setSessionJobId] = useState<string | null>(null);
   const currentJobId = requestedJobId ?? sessionJobId;
   const settledJobId = useRef<string | null>(null);
+  const prefillAppliedRef = useRef(false);
 
   const cost = costs["kornekilik_generate"] ?? 50;
 
@@ -132,6 +135,14 @@ function KornekilikContent() {
   const [result, setResult] = useState<KornekilikResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (prefillAppliedRef.current || requestedJobId) return;
+    prefillAppliedRef.current = true;
+    const prefill = readIntegrationPrefill(searchParams);
+    if (prefill.prompt) setTopic(prefill.prompt);
+    if (prefill.language) setLang(prefill.language);
+  }, [requestedJobId, searchParams]);
 
   const job = useQuery({
     queryKey: ["generation-job", currentJobId],
@@ -185,10 +196,9 @@ function KornekilikContent() {
     { value: "square", label: t.orientations.square },
   ];
 
-  const langOptions: Option<Language>[] = [
-    { value: "kk", label: "Қазақша" },
-    { value: "ru", label: "Русский" },
-  ];
+  const langOptions: Option<Language>[] = CONTENT_LANGUAGE_OPTIONS.map(
+    ({ value, label }) => ({ value, label }),
+  );
 
   const enoughTokens = balance === null || balance >= cost;
 

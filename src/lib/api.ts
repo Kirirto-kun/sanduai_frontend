@@ -21,6 +21,7 @@ import {
   type ApiFailure,
 } from "./http-client";
 import { withIdempotencyKey } from "./idempotency";
+import type { ContentLanguage } from "./content-languages";
 import { clearCachedBalance, invalidateCachedBalance } from "./tokenCache";
 import {
   TeacherFacingError,
@@ -64,7 +65,7 @@ export type PasswordResetRequestResponse = {
 
 export type EssayGeneratePayload = {
   topic: string;
-  language: "kaz" | "rus";
+  language: ContentLanguage;
   grade_level: string;
   word_count: number;
   essay_type: "argumentative" | "descriptive" | "narrative";
@@ -79,12 +80,14 @@ export type EssayGenerateResponse = {
   title: string;
   essay_plan: string[];
   content_blocks: EssayContentBlock[];
+  language?: ContentLanguage;
 };
 
 export type EssayRevisePayload = {
   current_content_blocks: EssayContentBlock[];
   inline_comments?: { target_text: string; instruction: string }[];
   general_instruction?: string;
+  language?: ContentLanguage;
 };
 
 // Article types
@@ -104,7 +107,7 @@ export type ArticleSection = {
 
 export type ArticleGeneratePayload = {
   topic: string;
-  language: "kaz" | "rus";
+  language: ContentLanguage;
   author_name: string;
   author_role: string;
   genre: ArticleGenreType;
@@ -117,6 +120,7 @@ export type ArticleResponse = {
   sections: ArticleSection[];
   conclusion: string;
   references: string[];
+  language?: ContentLanguage;
 };
 
 export type ArticleRevisePayload = {
@@ -126,9 +130,13 @@ export type ArticleRevisePayload = {
   current_references: string[];
   inline_comments?: { target_text: string; instruction: string }[];
   general_instruction?: string;
+  language?: ContentLanguage;
 };
 
 // Lesson Plan (Short-term КМЖ) types
+export type LessonPlanLanguage = "kazakh" | "russian" | "english" | "kyrgyz" | "uzbek";
+export type LessonPlanType = "new_lesson" | "consolidation" | "review";
+
 export type LessonPlanRequest = {
   subject: string;
   grade: string;
@@ -137,9 +145,9 @@ export type LessonPlanRequest = {
   section_name: string;
   lesson_number: string;
   learning_objectives: string[];
-  lesson_type: string; // Обязательное: "Жаңа сабақ", "Бекіту", "Қайталау" и т.д.
+  lesson_type: LessonPlanType | string; // Canonical ids; legacy localized values remain accepted.
   date?: string | null; // Формат DD.MM.YYYY
-  language?: "kazakh" | "russian"; // Опциональное, по умолчанию "kazakh"
+  language?: LessonPlanLanguage; // Опциональное, по умолчанию "kazakh"
   textbook_images?: string[]; // Опциональное, массив Base64 строк с префиксом data:image/...
   textbook_text?: string | null; // Опциональное, текст упражнений из учебника
   preferred_platform?: string | null; // Опциональное: "Kahoot", "BilimClass", "SanduAI.kz" и т.д.
@@ -159,7 +167,7 @@ export type LessonMeta = {
 };
 
 export type LessonTask = {
-  work_type: "ЖЖ" | "ТЖ";
+  work_type: string;
   method_name: string;
   teacher_activity: string;
   student_activity: string;
@@ -171,6 +179,7 @@ export type LessonTask = {
 export type NeuroExercise = string | { name: string; description?: string } | null;
 
 export type LessonStage = {
+  stage_id?: "start" | "middle" | "end";
   stage_name: string;
   time: string;
   neuro_exercise: NeuroExercise;
@@ -178,6 +187,7 @@ export type LessonStage = {
 };
 
 export type LessonPlanResponse = {
+  language?: LessonPlanLanguage;
   meta: LessonMeta;
   flow: LessonStage[];
 };
@@ -218,7 +228,7 @@ export type ExamMeta = {
   learning_objectives: string[];
   total_score: number;
   exam_type: "bjb" | "tjb";
-  lang: "kaz" | "rus";
+  lang: ContentLanguage;
   // New fields
   quarter?: number;
   ktp_topic?: string;
@@ -243,7 +253,7 @@ export type ExamExportPayload = {
 
 // Class Hour (Классный час / Сынып сағаты) types
 export type ClassHourGeneratePayload = {
-  language: "kz" | "ru";
+  language: ContentLanguage;
   topic: string;
   grade: string;
   value: string;
@@ -261,6 +271,7 @@ export type ClassHourResponse = {
   lesson_id: string;
   topic: string;
   blocks: ClassHourBlock[];
+  language?: ContentLanguage;
 };
 
 export type ClassHourRegeneratePayload = {
@@ -268,16 +279,18 @@ export type ClassHourRegeneratePayload = {
   block_id: number;
   current_content: string;
   instruction?: string;
+  language?: ContentLanguage;
 };
 
 export type ClassHourExportPayload = {
   topic: string;
   blocks: ClassHourBlock[];
+  language?: ContentLanguage;
 };
 
 // Quiz (Тест генератор) types
 export type QuizSourceType = "topic" | "text";
-export type QuizLanguage = "kz" | "ru" | "en";
+export type QuizLanguage = ContentLanguage;
 export type QuizDifficulty = "easy" | "medium" | "hard";
 export type QuestionType = "single_choice" | "multiple_choice" | "true_false" | "open";
 
@@ -314,11 +327,13 @@ export type QuizTask = {
 
 export type QuizGenerateResponse = {
   tasks: QuizTask[];
+  language?: ContentLanguage;
 };
 
 export type QuizExportPayload = {
   title: string;
   tasks: QuizTask[];
+  language?: ContentLanguage;
 };
 
 // At Zharys (Ат Жарыс) game types
@@ -327,7 +342,7 @@ export type GenerateRacePayload = {
   grade: string;
   additional_info?: string;
   questions_count: number;
-  language?: "kz" | "ru";
+  language?: ContentLanguage;
   teams_count: 2 | 3 | 4;
   victory_condition: number;
 };
@@ -349,9 +364,9 @@ export type CreatePlanPayload = {
   topic: string;
   direction: string;
   grade: string;
-  research_type: "тәжірибелік" | "теориялық";
+  research_type: "experimental" | "theoretical";
   subject: string;
-  language: "ru" | "kz" | "en";
+  language: ContentLanguage;
   school_name?: string;
   supervisor?: string;
   city?: string;
@@ -470,11 +485,16 @@ export type ScientificProjectExportPayload = {
 // Worksheet types
 export type WorksheetTaskType = "multiple_choice" | "fill_in_blank" | "matching" | "open_question";
 
-export type WorksheetGeneratePayload = {
+export type WorksheetPreschoolGroup = "younger" | "middle" | "senior" | "pre_primary";
+
+type WorksheetAudiencePayload =
+  | { grade: string; preschool_group?: never }
+  | { grade?: never; preschool_group: WorksheetPreschoolGroup };
+
+export type WorksheetGeneratePayload = WorksheetAudiencePayload & {
   subject: string;
   topic: string;
-  grade: string;
-  language: "ru" | "kz" | "kk" | "en";
+  language: ContentLanguage;
   task_types: WorksheetTaskType[];
   user_comment?: string;
 };
@@ -519,19 +539,28 @@ export type WorksheetContent = {
 
 export type WorksheetResponse = {
   content: WorksheetContent;
+  language?: ContentLanguage;
+  grade?: string | null;
+  preschool_group?: WorksheetPreschoolGroup | null;
 };
 
 export type WorksheetExportPayload = {
   content: WorksheetContent;
+  language?: ContentLanguage;
+  grade?: string | null;
+  preschool_group?: WorksheetPreschoolGroup | null;
 };
 
-export type WorksheetImageLanguage = "kk" | "ru" | "en";
+export type WorksheetImageLanguage = ContentLanguage;
 
 export type WorksheetStylePreset = "bright" | "calm" | "print";
 
-export type WorksheetImageGeneratePayload = {
+type WorksheetImageAudiencePayload =
+  | { grade: number; preschool_group?: never }
+  | { grade?: never; preschool_group: WorksheetPreschoolGroup };
+
+export type WorksheetImageGeneratePayload = WorksheetImageAudiencePayload & {
   subject: string;
-  grade: number;
   language: WorksheetImageLanguage;
   topic?: string;
   content?: string;
@@ -545,6 +574,9 @@ export type WorksheetImageResult = {
   image_url: string;
   answer_key: string[];
   cost_tokens: number;
+  language?: ContentLanguage;
+  grade?: number | null;
+  preschool_group?: WorksheetPreschoolGroup | null;
 };
 
 // Voiceover (Озвучка ИИ) — ElevenLabs
@@ -572,7 +604,7 @@ export type VoiceoverVoicesResponse = {
 };
 
 // Ybyrai Digital Avatar types
-export type YbyraiLanguage = "kk" | "ru" | "auto";
+export type YbyraiLanguage = ContentLanguage | "auto";
 
 export type YbyraiChatResponse = {
   text: string;
@@ -704,6 +736,8 @@ export type GenerationJobStatus =
 export type GenerationJobSummary = {
   id: string;
   kind: string;
+  /** Optional durable resource owned by this job (for example a Builder project). */
+  resource_id?: string | null;
   title: string;
   source_path: string;
   status: GenerationJobStatus;
@@ -720,6 +754,8 @@ export type GenerationJobSummary = {
   started_at: string | null;
   completed_at: string | null;
   expires_at: string | null;
+  /** Sanitized language from the durable request/result, including legacy jobs. */
+  content_language?: ContentLanguage | null;
 };
 
 export type GenerationJob = GenerationJobSummary & {
@@ -1333,6 +1369,7 @@ export async function exportEssayDocx(payload: {
   title: string;
   essay_plan: string[];
   content_blocks: EssayContentBlock[];
+  language?: ContentLanguage;
 }): Promise<Blob> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -1374,7 +1411,9 @@ export async function reviseArticle(
   });
 }
 
-export async function exportArticleDocx(payload: ArticleResponse): Promise<Blob> {
+export async function exportArticleDocx(
+  payload: ArticleResponse & { language?: ContentLanguage },
+): Promise<Blob> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -1694,7 +1733,7 @@ export function chatWithYbyraiStream(
     onDone: (fullText: string) => void;
     onError: (error: TeacherFacingError) => void;
   },
-  uiLanguage: TeacherFacingLanguage = language === "ru" ? "ru" : "kk",
+  uiLanguage: TeacherFacingLanguage = "ru",
 ): () => void {
   const formData = new FormData();
   formData.append("audio", audioFile);
@@ -1709,14 +1748,15 @@ export function chatWithYbyraiStream(
   // Use EventSource-like approach with fetch + ReadableStream
   let aborted = false;
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-  const unavailableCopy = uiLanguage === "kk"
+  const safeUiLanguage: TeacherFacingLanguage = uiLanguage === "kk" ? "kk" : "ru";
+  const unavailableCopy = safeUiLanguage === "kk"
     ? "Дыбыстық көмекші уақытша қолжетімсіз. Қайталап көріңіз."
     : "Голосовой помощник временно недоступен. Попробуйте ещё раз.";
-  const insufficientCopy = uiLanguage === "kk"
+  const insufficientCopy = safeUiLanguage === "kk"
     ? "Монета жеткіліксіз. Балансты толтырып, қайталап көріңіз."
     : "Недостаточно монет. Пополните баланс и попробуйте снова.";
   const safeStreamError = (error: unknown, fallback = unavailableCopy) =>
-    teacherFacingErrorMessage(error, uiLanguage, {
+    teacherFacingErrorMessage(error, safeUiLanguage, {
       fallback,
       insufficientCoins: insufficientCopy,
     });

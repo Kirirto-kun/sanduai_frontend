@@ -31,10 +31,14 @@ import { BookPageDropzone } from "@/features/worksheets/BookPageDropzone";
 import {
   WORKSHEET_HISTORY_KINDS,
   WORKSHEET_IMAGE_KIND,
+  WORKSHEET_PRESCHOOL_GROUP_AGES,
+  WORKSHEET_PRESCHOOL_GROUPS,
   buildWorksheetStyleDescription,
   isWorksheetImageResult,
+  parseWorksheetAudience,
   safeWorksheetFileName,
   validateWorksheetImageForm,
+  worksheetAudienceFromResult,
 } from "@/features/worksheets/worksheet-image";
 import { useTokens } from "@/hooks/useTokens";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -47,10 +51,17 @@ import {
   type WorksheetImageGeneratePayload,
   type WorksheetImageLanguage,
   type WorksheetImageResult,
+  type WorksheetPreschoolGroup,
   type WorksheetStylePreset,
   type WorksheetTaskType,
 } from "@/lib/api";
 import { downloadGenerationMaterial, saveBlob } from "@/lib/generation-download";
+import {
+  CONTENT_LANGUAGE_OPTIONS,
+  tryNormalizeContentLanguage,
+  type ContentLanguage,
+} from "@/lib/content-languages";
+import { generatedContentCopy } from "@/lib/generated-content-copy";
 import {
   generationJobIdFromSearchParam,
   isActiveGenerationJob,
@@ -79,7 +90,17 @@ const COPY = {
     customSubject: "Название предмета",
     customSubjectPlaceholder: "Например: Робототехника",
     subjectsUnavailable: "Список предметов сейчас недоступен. Введите предмет вручную.",
-    grade: "Класс",
+    audience: "Возрастная группа / класс",
+    audienceHint: "Для детского сада ИИ автоматически упростит текст и сделает задания наглядными и подходящими возрасту.",
+    kindergarten: "Детский сад",
+    school: "Школа",
+    preschoolGroupLabels: {
+      younger: "Младшая группа",
+      middle: "Средняя группа",
+      senior: "Старшая группа",
+      pre_primary: "Группа предшкольной подготовки",
+    },
+    ageLabel: (age: number) => `${age} ${age === 5 ? "лет" : "года"}`,
     gradeSuffix: "класс",
     language: "Язык рабочего листа",
     topic: "Тема (необязательно)",
@@ -87,6 +108,7 @@ const COPY = {
     content: "Что должно быть в заданиях",
     contentHint: "Можно написать своими словами или добавить страницы учебника ниже.",
     contentPlaceholder: "Например: 6 коротких заданий от простого к сложному",
+    preschoolContentPlaceholder: "Например: 4 коротких задания с крупными картинками: найти, соединить и раскрасить",
     sourcePages: "Страницы учебника (необязательно)",
     sourcePrompt: "Добавить фото страниц",
     sourceHint: "До 3 JPG, PNG или WebP · не более 12 МБ каждое",
@@ -153,7 +175,17 @@ const COPY = {
     customSubject: "Пән атауы",
     customSubjectPlaceholder: "Мысалы: Робототехника",
     subjectsUnavailable: "Пәндер тізімі қазір ашылмады. Пәнді қолмен жазыңыз.",
-    grade: "Сынып",
+    audience: "Жас тобы / сынып",
+    audienceHint: "Балабақша үшін ЖИ мәтінді автоматты түрде жеңілдетіп, жасына сай көрнекі тапсырмалар жасайды.",
+    kindergarten: "Балабақша",
+    school: "Мектеп",
+    preschoolGroupLabels: {
+      younger: "Кіші топ",
+      middle: "Орта топ",
+      senior: "Ересек топ",
+      pre_primary: "МАД тобы",
+    },
+    ageLabel: (age: number) => `${age} жас`,
     gradeSuffix: "сынып",
     language: "Жұмыс парағының тілі",
     topic: "Тақырып (міндетті емес)",
@@ -161,6 +193,7 @@ const COPY = {
     content: "Тапсырмаларда не болсын?",
     contentHint: "Өз сөзіңізбен жазыңыз немесе төменде оқулық беттерін қосыңыз.",
     contentPlaceholder: "Мысалы: жеңілден күрделіге қарай 6 қысқа тапсырма",
+    preschoolContentPlaceholder: "Мысалы: үлкен суреттері бар 4 қысқа тапсырма: тап, қос және боя",
     sourcePages: "Оқулық беттері (міндетті емес)",
     sourcePrompt: "Беттердің фотосын қосу",
     sourceHint: "3 JPG, PNG немесе WebP дейін · әрқайсысы 12 МБ-тан аспасын",
@@ -267,12 +300,15 @@ async function convertToJpeg(blob: Blob): Promise<Blob> {
 
 function WorksheetResultCard({
   result,
-  language,
+  interfaceLanguage,
+  contentLanguage,
 }: {
   result: WorksheetImageResult;
-  language: "ru" | "kk";
+  interfaceLanguage: "ru" | "kk";
+  contentLanguage: ContentLanguage;
 }) {
-  const t = COPY[language];
+  const t = COPY[interfaceLanguage];
+  const resultCopy = generatedContentCopy(contentLanguage).worksheet;
   const [imageLoaded, setImageLoaded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -294,8 +330,8 @@ function WorksheetResultCard({
   const downloadAnswers = () => {
     const lines = result.answer_key.map((answer, index) => `${index + 1}. ${answer}`);
     saveBlob(
-      new Blob(["\ufeff", result.title, "\n\n", lines.join("\n")], { type: "text/plain;charset=utf-8" }),
-      `${safeWorksheetFileName(result.title)}-answers.txt`,
+      new Blob(["\ufeff", result.title, "\n\n", resultCopy.answers, "\n", lines.join("\n")], { type: "text/plain;charset=utf-8" }),
+      `${safeWorksheetFileName(result.title)}-${resultCopy.answerFileSuffix}.txt`,
     );
   };
 
@@ -347,8 +383,8 @@ function WorksheetResultCard({
       ) : null}
 
       <details className="border-t border-slate-100 p-4">
-        <summary className="cursor-pointer text-sm font-bold text-slate-800">{t.answers}</summary>
-        <p className="mt-2 text-xs text-slate-500">{t.answersHint}</p>
+        <summary className="cursor-pointer text-sm font-bold text-slate-800">{resultCopy.answers}</summary>
+        <p className="mt-2 text-xs text-slate-500">{resultCopy.answersHint}</p>
         {result.answer_key.length > 0 ? (
           <>
             <ol className="mt-3 space-y-2 rounded-2xl bg-amber-50 p-4 text-sm text-slate-800">
@@ -383,7 +419,7 @@ function LegacyWorksheetCard({ job, language }: { job: GenerationJob; language: 
     setDownloading(true);
     setError(null);
     try {
-      await downloadGenerationMaterial(job, language);
+      await downloadGenerationMaterial(job);
     } catch {
       setError(t.downloadFailed);
     } finally {
@@ -426,7 +462,7 @@ function WorksheetsContent() {
 
   const [subjectId, setSubjectId] = useState("");
   const [customSubject, setCustomSubject] = useState("");
-  const [grade, setGrade] = useState(5);
+  const [audience, setAudience] = useState("school:5");
   const [worksheetLanguage, setWorksheetLanguage] = useState<WorksheetImageLanguage>(interfaceLanguage);
   const [topic, setTopic] = useState("");
   const [content, setContent] = useState("");
@@ -468,6 +504,10 @@ function WorksheetsContent() {
   const subject = useCustomSubject
     ? customSubject.trim()
     : selectedSubject ? localizedSubjectName(selectedSubject, interfaceLanguage) : "";
+  const audienceTarget = useMemo(() => parseWorksheetAudience(audience), [audience]);
+  const isPreschool = Boolean(
+    audienceTarget && "preschool_group" in audienceTarget,
+  );
 
   const cost = costs.worksheet_generate ?? 10;
   const enoughTokens = balance === null || balance >= cost;
@@ -495,6 +535,10 @@ function WorksheetsContent() {
       if (value.kind === WORKSHEET_IMAGE_KIND) {
         if (isWorksheetImageResult(value.result)) {
           setResult(value.result);
+          const savedLanguage = tryNormalizeContentLanguage(value.result.language);
+          if (savedLanguage) setWorksheetLanguage(savedLanguage);
+          const savedAudience = worksheetAudienceFromResult(value.result);
+          if (savedAudience) setAudience(savedAudience);
           setLegacyJob(null);
           setJobError(null);
         } else {
@@ -516,11 +560,9 @@ function WorksheetsContent() {
     if (job.error) setJobError(visualGenerationErrorMessage(job.error, interfaceLanguage));
   }, [interfaceLanguage, job.error]);
 
-  const languageOptions: Option<WorksheetImageLanguage>[] = [
-    { value: "kk", label: "Қазақша" },
-    { value: "ru", label: "Русский" },
-    { value: "en", label: "English" },
-  ];
+  const languageOptions: Option<WorksheetImageLanguage>[] = CONTENT_LANGUAGE_OPTIONS.map(
+    ({ value, label }) => ({ value, label }),
+  );
   const styleOptions: Option<WorksheetStylePreset>[] = [
     { value: "bright", label: t.styles.bright, icon: "🌈" },
     { value: "calm", label: t.styles.calm, icon: "🌿" },
@@ -543,6 +585,8 @@ function WorksheetsContent() {
       setFormError(t.formErrors.auth);
       return;
     }
+    const selectedAudience = parseWorksheetAudience(audience);
+    if (!selectedAudience) return;
     const issue = validateWorksheetImageForm({ subject, topic, content, sourcePageCount: sourcePages.length, taskTypes });
     if (issue) {
       setFormError(t.formErrors[issue]);
@@ -560,7 +604,7 @@ function WorksheetsContent() {
       const sourcePagesBase64 = await Promise.all(sourcePages.map(fileToDataUrl));
       const payload: WorksheetImageGeneratePayload = {
         subject,
-        grade,
+        ...selectedAudience,
         language: worksheetLanguage,
         topic: topic.trim(),
         content: content.trim(),
@@ -568,7 +612,10 @@ function WorksheetsContent() {
         style_description: buildWorksheetStyleDescription(stylePreset, styleNotes),
         source_pages_base64: sourcePagesBase64,
       };
-      const title = topic.trim() || `${subject}, ${grade} ${t.gradeSuffix}`;
+      const audienceLabel = "preschool_group" in selectedAudience
+        ? t.preschoolGroupLabels[selectedAudience.preschool_group]
+        : `${selectedAudience.grade} ${t.gradeSuffix}`;
+      const title = topic.trim() || `${subject}, ${audienceLabel}`;
       const created = await enqueueGenerationJob(
         WORKSHEET_IMAGE_KIND,
         payload as unknown as Record<string, unknown>,
@@ -632,22 +679,34 @@ function WorksheetsContent() {
               </Field>
             ) : null}
 
-            <div className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] gap-3">
-              <Field label={t.grade}>
-                <select
-                  value={grade}
-                  onChange={(event) => setGrade(Number(event.target.value))}
-                  disabled={loading}
-                  aria-label={t.grade}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)]/20 disabled:bg-slate-50"
-                >
-                  {GRADES.map((value) => <option key={value} value={value}>{value}</option>)}
-                </select>
-              </Field>
-              <Field label={t.language}>
-                <OptionGrid options={languageOptions} value={worksheetLanguage} onChange={setWorksheetLanguage} disabled={loading} columns={3} />
-              </Field>
-            </div>
+            <Field label={t.audience} hint={t.audienceHint}>
+              <select
+                value={audience}
+                onChange={(event) => setAudience(event.target.value)}
+                disabled={loading}
+                aria-label={t.audience}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)]/20 disabled:bg-slate-50"
+              >
+                <optgroup label={t.kindergarten}>
+                  {WORKSHEET_PRESCHOOL_GROUPS.map((group: WorksheetPreschoolGroup) => (
+                    <option key={group} value={`preschool:${group}`}>
+                      {t.preschoolGroupLabels[group]} · {t.ageLabel(WORKSHEET_PRESCHOOL_GROUP_AGES[group])}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label={t.school}>
+                  {GRADES.map((value) => (
+                    <option key={value} value={`school:${value}`}>
+                      {value} {t.gradeSuffix}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </Field>
+
+            <Field label={t.language}>
+              <OptionGrid options={languageOptions} value={worksheetLanguage} onChange={setWorksheetLanguage} disabled={loading} columns={3} />
+            </Field>
 
             <Field label={t.topic}>
               <TextInput
@@ -670,7 +729,7 @@ function WorksheetsContent() {
                   setContent(event.target.value);
                   setFormError(null);
                 }}
-                placeholder={t.contentPlaceholder}
+                placeholder={isPreschool ? t.preschoolContentPlaceholder : t.contentPlaceholder}
                 rows={3}
                 maxLength={4000}
                 disabled={loading}
@@ -763,7 +822,13 @@ function WorksheetsContent() {
             {!loading && !result && !legacyJob && !jobError ? (
               <EmptyState icon="📝" title={t.emptyTitle} hint={t.emptyHint} />
             ) : null}
-            {result && !loading ? <WorksheetResultCard result={result} language={interfaceLanguage} /> : null}
+            {result && !loading ? (
+              <WorksheetResultCard
+                result={result}
+                interfaceLanguage={interfaceLanguage}
+                contentLanguage={tryNormalizeContentLanguage(result.language) ?? worksheetLanguage}
+              />
+            ) : null}
             {legacyJob && !loading ? <LegacyWorksheetCard job={legacyJob} language={interfaceLanguage} /> : null}
           </div>
         }

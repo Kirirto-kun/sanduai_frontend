@@ -734,6 +734,9 @@ type Translations = {
       languageOptions: {
         kazakh: string;
         russian: string;
+        english: string;
+        kyrgyz: string;
+        uzbek: string;
       };
     };
     meta: {
@@ -1203,27 +1206,27 @@ export const translations: Record<Language, Translations> = {
     hero: {
       title: "Sandu AI — ИИ-платформа для учителей Казахстана",
       subtitle:
-        "Генерация КМЖ, БЖБ, ТЖБ, эссе, рабочих листов и других документов в пару кликов. Экономьте часы подготовки и сосредоточьтесь на учениках.",
+        "Генерация КСП, СОР, СОЧ, эссе, рабочих листов и других документов в пару кликов. Экономьте часы подготовки и сосредоточьтесь на учениках.",
       ctaLabel: "Записаться в список ожидания",
       emailPlaceholder: "Введите ваш email",
     },
     featuresSection: {
       title: "ИИ-функции для учебной документации",
       subtitle:
-        "Все основные документы педагога в одном месте. На основе ТЗ: КМЖ, ЭССЕ, МАКАЛА, БЖБ, ТЖБ, научные проекты, презентации и многое другое.",
+        "Все основные документы педагога в одном месте: КСП, эссе, статьи, СОР, СОЧ, научные проекты, презентации и многое другое.",
       features: [
         {
-          title: "КМЖ (Құндылыққа негізделген адал азамат)",
+          title: "КСП (на основе ценности «Адал азамат»)",
           description:
             "Генерация календарно-тематического плана с учётом ценностного подхода и требований программы.",
         },
         {
           title: "Эссе и статьи",
           description:
-            "Структурированные ЭССЕ и МАКАЛА по заданной теме с учётом уровня класса и предмета.",
+            "Структурированные эссе и статьи по заданной теме с учётом уровня класса и предмета.",
         },
         {
-          title: "БЖБ и ТЖБ",
+          title: "СОР и СОЧ",
           description:
             "Создание заданий для СОР и СОЧ с разными уровнями сложности и типами заданий.",
         },
@@ -1369,7 +1372,7 @@ export const translations: Record<Language, Translations> = {
       title: "Для кого Sandu AI",
       subtitle: "Платформа создаётся в первую очередь для практикующих учителей.",
       items: [
-        "Учителя экономят часы на подготовке КМЖ, БЖБ, ТЖБ и рабочих листов.",
+        "Учителя экономят часы на подготовке КСП, СОР, СОЧ и рабочих листов.",
         "Администрация получает структурированную базу материалов и курсов.",
         "Удобный поиск по предметам, классам и темам.",
         "Возможность монетизации авторских курсов и материалов.",
@@ -1755,7 +1758,7 @@ export const translations: Record<Language, Translations> = {
     },
     atZharys: {
       setup: {
-        title: "Ат Жарыс",
+        title: "Скачки",
         subtitle: "Интерактивная игра-викторина",
         topic: "Тема урока",
         topicPlaceholder: "Биография Абая Кунанбаева",
@@ -1793,7 +1796,7 @@ export const translations: Record<Language, Translations> = {
       },
     },
     kmzh: {
-      title: "Генерация КМЖ",
+      title: "Генерация КСП",
       subtitle:
         "Получите план уроков от AI, при необходимости поправьте строки и скачайте DOCX.",
       form: {
@@ -1811,7 +1814,7 @@ export const translations: Record<Language, Translations> = {
       noLessons: "Пока нет уроков. Сначала сгенерируйте план.",
       errors: {
         required: "Заполните обязательные поля и попробуйте снова.",
-        auth: "Авторизуйтесь, чтобы сгенерировать КМЖ.",
+        auth: "Авторизуйтесь, чтобы сгенерировать КСП.",
         generic: "Произошла ошибка. Попробуйте ещё раз.",
       },
       loading: "Идёт генерация (10–30 секунд)...",
@@ -1824,10 +1827,10 @@ export const translations: Record<Language, Translations> = {
         home: "Главная",
         aiGeneration: "ИИ-генерация",
         aiGenerationItems: {
-          kmzh: "КМЖ",
+          kmzh: "КСП",
           essay: "Эссе",
-          article: "Макала (Статьи)",
-          bjbTjb: "БЖБ/ТЖБ (СОР/СОЧ)",
+          article: "Статья",
+          bjbTjb: "СОР/СОЧ",
           scientificProjects: "Научные проекты",
           classHours: "Классные часы",
           worksheets: "Рабочие листы",
@@ -1872,8 +1875,8 @@ export const translations: Record<Language, Translations> = {
         title: "Обзор",
         quickLinks: "Быстрые ссылки",
         cards: {
-          kmzh: "Сгенерировать КМЖ и скачать DOCX",
-          aiDocs: "Эссе, БЖБ, ТЖБ, презентации и др.",
+          kmzh: "Сгенерировать КСП и скачать DOCX",
+          aiDocs: "Эссе, СОР, СОЧ, презентации и др.",
           library: "Материалы: курсы, наглядные пособия, игры",
           media: "Фото/видео/аватар, Kaspi QR и карты",
           profile: "Профиль и настройки учётной записи",
@@ -1932,7 +1935,7 @@ export const translations: Record<Language, Translations> = {
     },
     article: {
       form: {
-        title: "Статья (Мақала)",
+        title: "Статья",
         topic: "Тема статьи",
         language: "Язык",
         authorName: "Имя автора",
@@ -1978,7 +1981,7 @@ export const translations: Record<Language, Translations> = {
     },
     exam: {
       form: {
-        title: "БЖБ/ТЖБ (СОР/СОЧ)",
+        title: "СОР/СОЧ",
         examType: "Тип работы",
         subject: "Предмет",
         grade: "Класс",
@@ -1991,8 +1994,8 @@ export const translations: Record<Language, Translations> = {
         taskTypesLabel: "Типы заданий (оставьте пустым — будет выбрано автоматически)",
       },
       types: {
-        bjb: "БЖБ (СОР)",
-        tjb: "ТЖБ (СОЧ)",
+        bjb: "СОР",
+        tjb: "СОЧ",
       },
       results: {
         scoreIndicator: "Баллы",
@@ -2031,7 +2034,7 @@ export const translations: Record<Language, Translations> = {
     },
     lessonPlan: {
       form: {
-        title: "КМЖ - Краткосрочное планирование урока",
+        title: "КСП — краткосрочный план урока",
         subject: "Предмет",
         grade: "Класс",
         topic: "Тема урока",
@@ -2044,9 +2047,9 @@ export const translations: Record<Language, Translations> = {
         generate: "Сгенерировать план урока",
         lessonType: "Тип урока",
         lessonTypeOptions: {
-          new: "Жаңа сабақ",
-          consolidation: "Бекіту",
-          review: "Қайталау",
+          new: "Изучение нового материала",
+          consolidation: "Закрепление материала",
+          review: "Повторение материала",
         },
         textbookImages: "Изображения учебника",
         textbookText: "Текст из учебника",
@@ -2064,6 +2067,9 @@ export const translations: Record<Language, Translations> = {
         languageOptions: {
           kazakh: "Қазақша",
           russian: "Русский",
+          english: "Английский",
+          kyrgyz: "Кыргызский",
+          uzbek: "Узбекский",
         },
       },
       meta: {
@@ -2424,7 +2430,7 @@ export const translations: Record<Language, Translations> = {
     },
     sandubot: {
       title: "Sandu Bot",
-      placeholder: "Напишите вопрос или попросите помочь с навигацией. Например: «Нужен КМЖ»",
+      placeholder: "Напишите вопрос или попросите помочь с навигацией. Например: «Нужен КСП»",
       inputPlaceholder: "Введите сообщение...",
       send: "Отправить",
       insufficientTokens: "Недостаточно токенов",
@@ -3393,6 +3399,9 @@ export const translations: Record<Language, Translations> = {
         languageOptions: {
           kazakh: "Қазақша",
           russian: "Орысша",
+          english: "Ағылшынша",
+          kyrgyz: "Қырғызша",
+          uzbek: "Өзбекше",
         },
       },
       meta: {

@@ -22,6 +22,14 @@ import {
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { LatexRenderer } from "../../../../components/LatexRenderer";
 import { useTokens } from "../../../../hooks/useTokens";
+import {
+  CONTENT_LANGUAGE_OPTIONS,
+  type ContentLanguage,
+} from "../../../../lib/content-languages";
+import {
+  generatedContentCopy,
+  type GeneratedContentCopy,
+} from "../../../../lib/generated-content-copy";
 
 const TASK_TYPE_IDS = [
   "multiple_choice",
@@ -34,6 +42,37 @@ const TASK_TYPE_IDS = [
 const KIND = "bjb.generate";
 const MODULE_KINDS = [KIND] as const;
 const SOURCE_PATH = "/dashboard/ai/bjb-tjb";
+
+const EXAM_ADVANCED_COPY = {
+  ru: {
+    quarter: "Четверть",
+    quarterSuffix: "четверть",
+    ktpTopic: "Тема КТП (необязательно)",
+    ktpPlaceholder: "Например: Квадратные уравнения",
+    taskParameters: "Параметры заданий",
+    taskCount: "Количество заданий",
+    complexity: "Сложность",
+    low: "Легко",
+    medium: "Средне",
+    high: "Сложно",
+    specialInstructions: "Особые инструкции (необязательно)",
+    specialInstructionsPlaceholder: "Например: добавьте задание на построение графика...",
+  },
+  kk: {
+    quarter: "Тоқсан",
+    quarterSuffix: "тоқсан",
+    ktpTopic: "КТЖ тақырыбы (міндетті емес)",
+    ktpPlaceholder: "Мысалы: Квадрат теңдеулер",
+    taskParameters: "Тапсырма параметрлері",
+    taskCount: "Тапсырмалар саны",
+    complexity: "Күрделілік",
+    low: "Оңай",
+    medium: "Орташа",
+    high: "Қиын",
+    specialInstructions: "Арнайы нұсқаулар (міндетті емес)",
+    specialInstructionsPlaceholder: "Мысалы: график салатын тапсырманы қосыңыз...",
+  },
+} as const;
 
 function ExamContent() {
   const t = useTranslations();
@@ -58,7 +97,7 @@ function ExamContent() {
     topic: "",
     learning_objectives: [""],
     total_score: 20,
-    lang: "rus",
+    lang: "ru",
     // New fields
     quarter: 1,
     ktp_topic: "",
@@ -73,6 +112,8 @@ function ExamContent() {
   const [tasks, setTasks] = useState<ExamTask[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const advancedCopy = EXAM_ADVANCED_COPY[language];
+  const resultCopy = generatedContentCopy(examProject?.meta.lang ?? form.lang).exam;
 
   const job = useQuery({
     queryKey: ["generation-job", currentJobId],
@@ -337,7 +378,7 @@ function ExamContent() {
                  </div>
                  <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Тоқсан
+                      {advancedCopy.quarter}
                     </label>
                     <select
                       value={form.quarter || 1}
@@ -346,7 +387,7 @@ function ExamContent() {
                     >
                       {[1, 2, 3, 4].map((q) => (
                         <option key={q} value={q}>
-                          {q} тоқсан
+                          {q} {advancedCopy.quarterSuffix}
                         </option>
                       ))}
                     </select>
@@ -368,14 +409,14 @@ function ExamContent() {
               
                <div className="sm:col-span-2">
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  КТЖ тақырыбы (міндетті емес)
+                  {advancedCopy.ktpTopic}
                 </label>
                 <input
                   type="text"
                   value={form.ktp_topic || ""}
                   onChange={(e) => setForm((prev) => ({ ...prev, ktp_topic: e.target.value }))}
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
-                  placeholder="Мысалы: Квадрат теңдеулер"
+                  placeholder={advancedCopy.ktpPlaceholder}
                 />
               </div>
 
@@ -383,11 +424,11 @@ function ExamContent() {
 
             {/* Task Parameters */}
             <div className="rounded-2xl bg-slate-50 p-5 border border-slate-200">
-                <h3 className="mb-4 text-base font-bold text-slate-800">Параметры заданий</h3>
+                <h3 className="mb-4 text-base font-bold text-slate-800">{advancedCopy.taskParameters}</h3>
                 <div className="grid gap-6 sm:grid-cols-3">
                    <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Тапсырмалар саны
+                      {advancedCopy.taskCount}
                     </label>
                     <input
                       type="number"
@@ -401,7 +442,7 @@ function ExamContent() {
                   
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Күрделілік
+                      {advancedCopy.complexity}
                     </label>
                     <select
                       value={form.complexity || "medium"}
@@ -411,9 +452,9 @@ function ExamContent() {
                       }))}
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none"
                     >
-                      <option value="low">⭐ Оңай</option>
-                      <option value="medium">⭐⭐ Орташа</option>
-                      <option value="high">⭐⭐⭐ Қиын</option>
+                      <option value="low">⭐ {advancedCopy.low}</option>
+                      <option value="medium">⭐⭐ {advancedCopy.medium}</option>
+                      <option value="high">⭐⭐⭐ {advancedCopy.high}</option>
                     </select>
                   </div>
 
@@ -496,13 +537,13 @@ function ExamContent() {
             {/* Special Instructions */}
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Арнайы нұсқаулар (міндетті емес)
+                {advancedCopy.specialInstructions}
               </label>
               <textarea
                 value={form.special_instructions || ""}
                 onChange={(e) => setForm((prev) => ({ ...prev, special_instructions: e.target.value }))}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
-                placeholder="Мысалы: График салатын тапсырманы қос..."
+                placeholder={advancedCopy.specialInstructionsPlaceholder}
                 rows={3}
               />
             </div>
@@ -512,45 +553,29 @@ function ExamContent() {
               <label className="mb-2 block text-sm font-semibold text-slate-700">
                 {t.exam.form.language}
               </label>
-              <div className="flex gap-4">
-                <label
-                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
-                    form.lang === "rus"
-                      ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="lang"
-                    value="rus"
-                    checked={form.lang === "rus"}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, lang: e.target.value as "rus" | "kaz" }))
-                    }
-                    className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
-                  />
-                  <span className="text-sm font-medium text-slate-900">Русский</span>
-                </label>
-                <label
-                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
-                    form.lang === "kaz"
-                      ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="lang"
-                    value="kaz"
-                    checked={form.lang === "kaz"}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, lang: e.target.value as "rus" | "kaz" }))
-                    }
-                    className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
-                  />
-                  <span className="text-sm font-medium text-slate-900">Қазақша</span>
-                </label>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {CONTENT_LANGUAGE_OPTIONS.map((option) => (
+                  <label
+                    key={option.value}
+                    className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
+                      form.lang === option.value
+                        ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                        : "border-slate-200 bg-white hover:border-slate-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="lang"
+                      value={option.value}
+                      checked={form.lang === option.value}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, lang: e.target.value as ContentLanguage }))
+                      }
+                      className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
+                    />
+                    <span className="text-sm font-medium text-slate-900">{option.label}</span>
+                  </label>
+                ))}
               </div>
             </div>
 
@@ -634,7 +659,7 @@ function ExamContent() {
             >
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-slate-800">
-                  {t.exam.results.scoreIndicator}:
+                  {resultCopy.scoreIndicator}:
                 </span>
                 <span
                   className={`text-2xl font-bold ${
@@ -642,11 +667,11 @@ function ExamContent() {
                   }`}
                 >
                   {currentTotal} / {examProject.meta.total_score}{" "}
-                  {isValid ? t.exam.results.valid : t.exam.results.invalid}
+                  {isValid ? resultCopy.valid : resultCopy.invalid}
                 </span>
               </div>
               {!isValid && (
-                <p className="mt-2 text-sm text-red-700">{t.exam.results.warning}</p>
+                <p className="mt-2 text-sm text-red-700">{resultCopy.scoreMismatch}</p>
               )}
             </div>
 
@@ -656,7 +681,7 @@ function ExamContent() {
                 key={task.id}
                 task={task}
                 index={index}
-                t={t}
+                copy={resultCopy}
                 onScoreChange={handleScoreChange}
                 onDescriptorChange={handleDescriptorChange}
               />
@@ -700,18 +725,18 @@ export default function ExamPage() {
 type TaskCardProps = {
   task: ExamTask;
   index: number;
-  t: ReturnType<typeof useTranslations>;
+  copy: GeneratedContentCopy["exam"];
   onScoreChange: (taskId: string, newScore: number) => void;
   onDescriptorChange: (taskId: string, newDescriptor: string) => void;
 };
 
-function TaskCard({ task, index, t, onScoreChange, onDescriptorChange }: TaskCardProps) {
+function TaskCard({ task, index, copy, onScoreChange, onDescriptorChange }: TaskCardProps) {
   const widgetTypeLabel = {
-    multiple_choice: t.exam.widgets.multipleChoice,
-    matching: t.exam.widgets.matching,
-    true_false: t.exam.widgets.trueFalse,
-    text_open: t.exam.widgets.textOpen,
-    fill_in_blank: t.exam.widgets.fillInBlank,
+    multiple_choice: copy.multipleChoice,
+    matching: copy.matching,
+    true_false: copy.trueFalse,
+    text_open: copy.textOpen,
+    fill_in_blank: copy.fillInBlank,
   }[task.widget_type] || task.widget_type;
 
   return (
@@ -719,7 +744,7 @@ function TaskCard({ task, index, t, onScoreChange, onDescriptorChange }: TaskCar
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-lg font-bold text-slate-900">
-          {t.exam.results.taskNumber} {index + 1}
+          {copy.taskNumber} {index + 1}
         </h3>
         <span className="rounded-full bg-[color:var(--primary)]/10 px-3 py-1 text-xs font-semibold text-[color:var(--primary)]">
           {widgetTypeLabel}
@@ -728,14 +753,14 @@ function TaskCard({ task, index, t, onScoreChange, onDescriptorChange }: TaskCar
 
       {/* Task Content */}
       <div className="mb-6 space-y-3 rounded-2xl bg-white/50 p-4">
-        <TaskContent task={task} t={t} />
+        <TaskContent task={task} copy={copy} />
       </div>
 
       {/* Score and Descriptor */}
       <div className="grid gap-6 border-t border-slate-200 pt-6 sm:grid-cols-2">
         <div>
           <label className="mb-2 block text-sm font-semibold text-slate-700">
-            {t.exam.results.score}
+            {copy.score}
           </label>
           <input
             type="number"
@@ -747,7 +772,7 @@ function TaskCard({ task, index, t, onScoreChange, onDescriptorChange }: TaskCar
         </div>
         <div className="sm:col-span-2">
           <label className="mb-2 block text-sm font-semibold text-slate-700">
-            {t.exam.results.descriptor}
+            {copy.descriptor}
           </label>
           <textarea
             value={task.grading.descriptor}
@@ -764,10 +789,10 @@ function TaskCard({ task, index, t, onScoreChange, onDescriptorChange }: TaskCar
 // TaskContent Component (No changes needed to structure, just rendering)
 type TaskContentProps = {
   task: ExamTask;
-  t: ReturnType<typeof useTranslations>;
+  copy: GeneratedContentCopy["exam"];
 };
 
-function TaskContent({ task, t }: TaskContentProps) {
+function TaskContent({ task, copy }: TaskContentProps) {
   const { widget_type, content } = task;
 
   if (widget_type === "multiple_choice") {
@@ -775,7 +800,7 @@ function TaskContent({ task, t }: TaskContentProps) {
       <>
         {content.question && (
           <div>
-            <div className="font-semibold text-slate-700">Вопрос:</div>
+            <div className="font-semibold text-slate-700">{copy.question}:</div>
             <div className="mt-1">
               <LatexRenderer text={content.question} />
             </div>
@@ -783,7 +808,7 @@ function TaskContent({ task, t }: TaskContentProps) {
         )}
         {content.options && content.options.length > 0 && (
           <div className="mt-2">
-            <div className="font-semibold text-slate-700">Варианты:</div>
+            <div className="font-semibold text-slate-700">{copy.options}:</div>
             <ul className="mt-1 list-inside list-disc space-y-1 pl-2">
               {content.options.map((option, idx) => (
                 <li key={idx}>
@@ -802,7 +827,7 @@ function TaskContent({ task, t }: TaskContentProps) {
       <>
         {content.instruction && (
           <div>
-            <div className="font-semibold text-slate-700">Инструкция:</div>
+            <div className="font-semibold text-slate-700">{copy.instruction}:</div>
             <div className="mt-1">
               <LatexRenderer text={content.instruction} />
             </div>
@@ -810,13 +835,13 @@ function TaskContent({ task, t }: TaskContentProps) {
         )}
         {content.pairs && content.pairs.length > 0 && (
           <div className="mt-2">
-            <div className="font-semibold text-slate-700">Пары:</div>
+            <div className="font-semibold text-slate-700">{copy.pairs}:</div>
             <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-slate-50">
-                    <th className="border-b border-r border-slate-200 px-4 py-2 text-left text-xs font-semibold text-slate-600">Левая колонка</th>
-                    <th className="border-b border-slate-200 px-4 py-2 text-left text-xs font-semibold text-slate-600">Правая колонка</th>
+                    <th className="border-b border-r border-slate-200 px-4 py-2 text-left text-xs font-semibold text-slate-600">{copy.leftColumn}</th>
+                    <th className="border-b border-slate-200 px-4 py-2 text-left text-xs font-semibold text-slate-600">{copy.rightColumn}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -844,13 +869,13 @@ function TaskContent({ task, t }: TaskContentProps) {
       <>
         {content.statement && (
           <div>
-            <div className="font-semibold text-slate-700">Утверждение:</div>
+            <div className="font-semibold text-slate-700">{copy.statement}:</div>
             <div className="mt-1">
               <LatexRenderer text={content.statement} />
             </div>
           </div>
         )}
-        <div className="mt-2 text-sm italic text-slate-600">Верно / Неверно</div>
+        <div className="mt-2 text-sm italic text-slate-600">{copy.trueFalseChoice}</div>
       </>
     );
   }
@@ -859,7 +884,7 @@ function TaskContent({ task, t }: TaskContentProps) {
     const parts = content.text_with_gaps?.split("[gap]") || [];
     return (
       <>
-        <div className="font-semibold text-slate-700">Заполните пропуски:</div>
+        <div className="font-semibold text-slate-700">{copy.fillBlanks}:</div>
         <div className="mt-2 leading-loose">
            {parts.map((part, i) => (
               <span key={i}>
@@ -874,7 +899,7 @@ function TaskContent({ task, t }: TaskContentProps) {
         </div>
         {content.correct_answers && (
            <div className="mt-4 text-sm text-green-700">
-              <span className="font-bold">Ответы: </span>
+              <span className="font-bold">{copy.answers}: </span>
               {content.correct_answers.join(", ")}
            </div>
         )}
@@ -887,7 +912,7 @@ function TaskContent({ task, t }: TaskContentProps) {
       <>
         {content.question && (
           <div>
-            <div className="font-semibold text-slate-700">Вопрос:</div>
+            <div className="font-semibold text-slate-700">{copy.question}:</div>
             <div className="mt-1">
               <LatexRenderer text={content.question} />
             </div>
@@ -895,7 +920,7 @@ function TaskContent({ task, t }: TaskContentProps) {
         )}
         {content.image_placeholder_prompt && (
           <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm">
-            <div className="font-semibold text-slate-600">{t.exam.results.imagePlaceholder}</div>
+            <div className="font-semibold text-slate-600">{copy.imagePlaceholder}</div>
             <div className="mt-1 text-slate-500">{content.image_placeholder_prompt}</div>
           </div>
         )}

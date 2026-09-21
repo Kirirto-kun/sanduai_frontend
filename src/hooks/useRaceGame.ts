@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import type { GameSettings, TeamState, GameState, RaceQuestion } from "../types/games";
+import { generatedContentCopy } from "../lib/generated-content-copy";
 
 // Shuffle array using Fisher-Yates algorithm
 function shuffleArray<T>(array: T[]): T[] {
@@ -31,7 +32,8 @@ export function useRaceGame(
 
   // Initialize teams with shuffled questions
   const initializeTeams = useCallback((): TeamState[] => {
-    const teamNames = ["Команда 1", "Команда 2", "Команда 3", "Команда 4"];
+    const teamLabel = generatedContentCopy(settings.language).race.team;
+    const teamNames = Array.from({ length: 4 }, (_, index) => `${teamLabel} ${index + 1}`);
     
     if (!questions || questions.length === 0) {
       // Return empty teams array if no questions (will be re-initialized when questions load)
@@ -59,7 +61,7 @@ export function useRaceGame(
         blockedUntil: null,
       };
     });
-  }, [settings.teams_count, questions]);
+  }, [settings.language, settings.teams_count, questions]);
 
   const [gameState, setGameState] = useState<GameState>(() => {
     const teams = initializeTeams();

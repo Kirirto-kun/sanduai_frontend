@@ -25,6 +25,10 @@ import {
 } from "../../../../../lib/race-generation";
 import type { GameSettings } from "../../../../../types/games";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import {
+  CONTENT_LANGUAGE_OPTIONS,
+  type ContentLanguage,
+} from "../../../../../lib/content-languages";
 
 const TEAM_COUNTS: GameSettings["teams_count"][] = [2, 3, 4];
 const MODULE_KINDS = [RACE_GENERATION_KIND] as const;
@@ -49,7 +53,7 @@ function AtZharysSetupContent() {
     teams_count: 2,
     victory_condition: 10,
     questions_count: 40,
-    language: "kz",
+    language: "kk",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -193,7 +197,7 @@ function AtZharysSetupContent() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">
-          {t.atZharys?.setup?.title || "Ат Жарыс"}
+          {t.atZharys?.setup?.title || (language === "kk" ? "Ат жарыс" : "Скачки")}
         </h1>
         <p className="text-sm text-slate-600 mt-1">
           {t.atZharys?.setup?.subtitle || "Интерактивная игра-викторина"}
@@ -342,11 +346,12 @@ function AtZharysSetupContent() {
             </label>
             <select
               value={formData.language}
-              onChange={(e) => handleInputChange("language", e.target.value as "kz" | "ru")}
+              onChange={(e) => handleInputChange("language", e.target.value as ContentLanguage)}
               className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-[color:var(--primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--primary)]"
             >
-              <option value="kz">Қазақша</option>
-              <option value="ru">Русский</option>
+              {CONTENT_LANGUAGE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
           </div>
 
@@ -402,7 +407,7 @@ function AtZharysSetupContent() {
 
       <ModuleGenerationHistory
         kinds={MODULE_KINDS}
-        title={{ ru: "Мои игры «Ат жарыс»", kk: "«Ат жарыс» ойындарым" }}
+        title={{ ru: "Мои игры «Скачки»", kk: "«Ат жарыс» ойындарым" }}
       />
     </div>
   );

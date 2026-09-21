@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated, pinned vendor bundle used inside the isolated Builder preview.
+    "public/builder-runtime/**",
   ]),
 ]);
 

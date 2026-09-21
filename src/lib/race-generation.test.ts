@@ -53,7 +53,7 @@ describe("durable At Zharys result", () => {
       teams_count: 3,
       victory_condition: 12,
       questions_count: 20,
-      language: "kz",
+      language: "kk",
     });
   });
 
@@ -79,12 +79,62 @@ describe("durable At Zharys result", () => {
 
     expect(restored?.gameId).toBe("game-1");
     expect(restored?.settings.teams_count).toBe(3);
+    expect(restored?.settings.language).toBe("kk");
     expect(restored?.questions[0].correct_answer).toBe("Жедел жад");
     const document = raceGameDocumentHtml(restored!, "kk");
     expect(document).toContain("«Ат жарыс» ойыны");
     expect(document).toContain("RAM деген не?");
     expect(document).toContain("Дұрыс жауап");
     expect(document).not.toContain("game_id");
+  });
+
+  it("does not leak the Kazakh game name into Russian or English exports", () => {
+    const restored = restoreRaceGame(completedRaceJob({
+      game_id: "game-1",
+      settings: {
+        topic: "Memory",
+        grade: "5",
+        additional_info: "",
+        teams_count: 2,
+        victory_condition: 5,
+        questions_count: 1,
+        language: "ru",
+      },
+      questions: [{
+        id: "q1",
+        text: "Что такое RAM?",
+        options: ["Память", "Диск", "Процессор", "Монитор"],
+        correct_answer: "Память",
+      }],
+    }));
+
+    expect(raceGameDocumentHtml(restored!, "ru")).toContain("Игра «Скачки»");
+    expect(raceGameDocumentHtml(restored!, "ru")).not.toContain("Ат жарыс");
+    expect(raceGameDocumentHtml(restored!, "en")).toContain("Horse Race Quiz");
+    expect(raceGameDocumentHtml(restored!, "en")).not.toContain("At Zharys");
+  });
+
+  it("recovers the language of a legacy game from durable job metadata", () => {
+    const job = completedRaceJob({
+      game_id: "legacy-game",
+      settings: {
+        topic: "Fractions",
+        grade: "5",
+        additional_info: "",
+        teams_count: 2,
+        victory_condition: 5,
+        questions_count: 1,
+      },
+      questions: [{
+        id: "q1",
+        text: "What is one half?",
+        options: ["1/2", "1/3", "2/3", "2"],
+        correct_answer: "1/2",
+      }],
+    });
+    job.content_language = "en";
+
+    expect(restoreRaceGame(job)?.settings.language).toBe("en");
   });
 
   it("rejects a malformed or unrelated result", () => {

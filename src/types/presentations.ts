@@ -1,3 +1,5 @@
+import type { ContentLanguage } from "@/lib/content-languages";
+
 export type PresentationMode = "classic" | "creative";
 
 export type PresentationStatus =
@@ -243,7 +245,7 @@ export interface CreatePresentationInput {
   mode: PresentationMode;
   title: string;
   topic: string;
-  language: "ru" | "kk" | string;
+  language: ContentLanguage;
   subject?: string;
   grade?: string;
   audience?: string;

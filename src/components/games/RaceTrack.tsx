@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import type { ContentLanguage } from "../../lib/content-languages";
+import { generatedContentCopy } from "../../lib/generated-content-copy";
 
 interface RaceTrackProps {
   teams: Array<{
@@ -8,12 +10,17 @@ interface RaceTrackProps {
     name: string;
     progress: number; // 0-100
   }>;
+  language: ContentLanguage;
   className?: string;
 }
 
-export function RaceTrack({ teams, className = "" }: RaceTrackProps) {
+export function RaceTrack({ teams, language, className = "" }: RaceTrackProps) {
+  const copy = generatedContentCopy(language).race;
+
   return (
     <div
+      role="img"
+      aria-label={copy.trackAlt}
       className={`relative w-full overflow-hidden rounded-2xl ${className}`}
       style={{ height: "100%" }}
     >
@@ -21,7 +28,7 @@ export function RaceTrack({ teams, className = "" }: RaceTrackProps) {
       <div className="absolute inset-0">
         <Image
           src="/games/at-zharys/background.JPG"
-          alt="Ипподром фон"
+          alt=""
           fill
           className="object-cover"
           priority
@@ -71,7 +78,7 @@ export function RaceTrack({ teams, className = "" }: RaceTrackProps) {
                 <div className="relative">
                   <Image
                     src="/games/at-zharys/horse.gif"
-                    alt={`Лошадь ${team.name}`}
+                    alt={`${copy.horseAlt}: ${team.name}`}
                     width={120}
                     height={90}
                     className="object-contain drop-shadow-lg"
@@ -94,11 +101,10 @@ export function RaceTrack({ teams, className = "" }: RaceTrackProps) {
       {teams.some((t) => t.progress >= 100) && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20">
           <div className="rounded-2xl bg-yellow-400/95 px-6 py-3 text-lg font-bold text-slate-900 shadow-xl">
-            🏆 Финиш! 🏆
+            🏆 {copy.finish} 🏆
           </div>
         </div>
       )}
     </div>
   );
 }
-

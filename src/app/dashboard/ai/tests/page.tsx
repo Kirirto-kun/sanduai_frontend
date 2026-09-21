@@ -25,6 +25,11 @@ import {
 import { LatexRenderer } from "../../../../components/LatexRenderer";
 import { errorMessageIncludes } from "../../../../lib/error-utils";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import {
+  CONTENT_LANGUAGE_OPTIONS,
+  tryNormalizeContentLanguage,
+} from "../../../../lib/content-languages";
+import { generatedContentCopy } from "../../../../lib/generated-content-copy";
 
 const KIND = "quiz.generate";
 const MODULE_KINDS = [KIND] as const;
@@ -62,7 +67,7 @@ function TestsContent() {
     difficulty: QuizDifficulty;
     question_types: QuestionType[];
   }>({
-    language: "kz",
+    language: "kk",
     question_count: 10,
     difficulty: "medium",
     question_types: [],
@@ -91,6 +96,7 @@ function TestsContent() {
     refetchInterval: (query) =>
       query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
   });
+  const resultCopy = generatedContentCopy(commonForm.language).quiz;
   const isLoading = isSubmitting || Boolean(
     currentJobId && (job.isPending || (job.data && isActiveGenerationJob(job.data))),
   );
@@ -112,6 +118,10 @@ function TestsContent() {
     }
     if ((value.status === "completed" || value.status === "billing_error") && value.result) {
       const restored = value.result as unknown as QuizGenerateResponse;
+      const savedLanguage = tryNormalizeContentLanguage(restored.language);
+      if (savedLanguage) {
+        setCommonForm((current) => ({ ...current, language: savedLanguage }));
+      }
       setTasks(restored.tasks);
       setQuizTitle(value.title);
       setError("");
@@ -299,6 +309,7 @@ function TestsContent() {
       const blob = await exportQuizDocx({
         title: quizTitle,
         tasks,
+        language: commonForm.language,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -320,7 +331,7 @@ function TestsContent() {
     setTopicForm({ subject: "", grade: "", topic: "" });
     setTextForm({ context_text: "" });
     setCommonForm({
-      language: "kz",
+      language: "kk",
       question_count: 10,
       difficulty: "medium",
       question_types: [],
@@ -351,10 +362,16 @@ function TestsContent() {
       true_false: "bg-green-100 text-green-700",
       open: "bg-orange-100 text-orange-700",
     };
+    const labels: Record<QuestionType, string> = {
+      single_choice: resultCopy.singleChoice,
+      multiple_choice: resultCopy.multipleChoice,
+      true_false: resultCopy.trueFalse,
+      open: resultCopy.openQuestion,
+    };
 
     return (
       <span className={`rounded-full px-3 py-1 text-xs font-medium ${colors[type]}`}>
-        {t.quiz.questionTypeLabels[type]}
+        {labels[type]}
       </span>
     );
   };
@@ -466,14 +483,14 @@ function TestsContent() {
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   {t.quiz.form.language} *
                 </label>
-                <div className="flex gap-4">
-                  {(["kz", "ru", "en"] as QuizLanguage[]).map((lang) => (
-                    <label key={lang} className="flex cursor-pointer items-center gap-2">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {CONTENT_LANGUAGE_OPTIONS.map((option) => (
+                    <label key={option.value} className="flex cursor-pointer items-center gap-2">
                       <input
                         type="radio"
                         name="language"
-                        value={lang}
-                        checked={commonForm.language === lang}
+                        value={option.value}
+                        checked={commonForm.language === option.value}
                         onChange={(e) =>
                           setCommonForm((prev) => ({
                             ...prev,
@@ -482,9 +499,7 @@ function TestsContent() {
                         }
                         className="h-4 w-4 border-slate-300 text-orange-500 focus:ring-orange-400"
                       />
-                      <span className="text-sm text-slate-700">
-                        {lang === "kz" ? "Қазақша" : lang === "ru" ? "Русский" : "English"}
-                      </span>
+                      <span className="text-sm text-slate-700">{option.label}</span>
                     </label>
                   ))}
                 </div>
@@ -577,14 +592,14 @@ function TestsContent() {
             {/* Quiz Title */}
             <div className="glass-card rounded-3xl border border-white/60 px-6 py-4 shadow-md sm:px-8">
               <label className="mb-2 block text-sm font-medium text-slate-700">
-                {t.quiz.results.quizTitle}
+                {resultCopy.quizTitle}
               </label>
               <input
                 type="text"
                 value={quizTitle}
                 onChange={(e) => setQuizTitle(e.target.value)}
                 className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                placeholder={t.quiz.results.quizTitlePlaceholder}
+                placeholder={resultCopy.quizTitlePlaceholder}
               />
             </div>
 
@@ -598,7 +613,7 @@ function TestsContent() {
                 <div className="mb-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <h3 className="text-lg font-bold text-slate-900">
-                      {t.quiz.results.questionNumber} {index + 1}
+                      {resultCopy.questionNumber} {index + 1}
                     </h3>
                     {renderTypeBadge(task.type)}
                   </div>
@@ -614,7 +629,7 @@ function TestsContent() {
                 {/* Question */}
                 <div className="mb-4">
                   <label className="mb-2 block text-sm font-medium text-slate-700">
-                    {t.quiz.results.question}
+                    {resultCopy.question}
                   </label>
                   {editingId === task.id && editingField === "question" ? (
                     <textarea
@@ -631,7 +646,7 @@ function TestsContent() {
                       onClick={() => startEditing(task.id, "question", task.question)}
                       className="cursor-pointer rounded-xl bg-white/50 px-4 py-3 transition hover:bg-white/80"
                     >
-                      <LatexRenderer text={task.question || "Нажмите для редактирования"} />
+                      <LatexRenderer text={task.question || resultCopy.editHint} />
                     </div>
                   )}
                 </div>
@@ -640,7 +655,7 @@ function TestsContent() {
                 {task.type !== "open" && (
                   <div className="mb-4">
                     <label className="mb-2 block text-sm font-medium text-slate-700">
-                      {t.quiz.results.options}
+                      {resultCopy.options}
                     </label>
                     <div className="space-y-2">
                       {task.options.map((option, optIndex) => (
@@ -671,7 +686,7 @@ function TestsContent() {
                               }
                               className="flex-1 cursor-pointer"
                             >
-                              <LatexRenderer text={option || "Нажмите для редактирования"} />
+                              <LatexRenderer text={option || resultCopy.editHint} />
                             </div>
                           )}
                         </div>
@@ -684,7 +699,7 @@ function TestsContent() {
                 {task.type === "open" && (
                   <div className="mb-4">
                     <label className="mb-2 block text-sm font-medium text-slate-700">
-                      {t.quiz.results.correctAnswer}
+                      {resultCopy.correctAnswer}
                     </label>
                     {editingId === task.id && editingField === "correct_answer" ? (
                       <textarea
@@ -724,7 +739,7 @@ function TestsContent() {
                 {/* Explanation */}
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">
-                    {t.quiz.results.explanation}
+                    {resultCopy.explanation}
                   </label>
                   {editingId === task.id && editingField === "explanation" ? (
                     <textarea
@@ -741,7 +756,7 @@ function TestsContent() {
                       onClick={() => startEditing(task.id, "explanation", task.explanation)}
                       className="cursor-pointer rounded-xl bg-white/50 px-4 py-3 transition hover:bg-white/80"
                     >
-                      <LatexRenderer text={task.explanation || "Нажмите для редактирования"} />
+                      <LatexRenderer text={task.explanation || resultCopy.editHint} />
                     </div>
                   )}
                 </div>

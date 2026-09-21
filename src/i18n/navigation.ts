@@ -53,13 +53,13 @@ const catalog = (segment: SegmentKey, type: string, grade?: number) => {
 const AI_KMZH: NavItem = {
   key: "kmzh",
   href: "/dashboard/ai/kmzh",
-  label: { ru: "ҚМЖ (краткосрочный план)", kk: "ҚМЖ жазу" },
+  label: { ru: "КСП (краткосрочный план)", kk: "ҚМЖ жазу" },
 };
 
 const AI_BJB: NavItem = {
   key: "bjb",
   href: "/dashboard/ai/bjb-tjb",
-  label: { ru: "БЖБ / ТЖБ (СОР/СОЧ)", kk: "БЖБ, ТЖБ" },
+  label: { ru: "СОР / СОЧ", kk: "БЖБ, ТЖБ" },
 };
 
 const AI_SCIPROJECT: NavItem = {
@@ -159,7 +159,7 @@ const SCHOOL: NavSegment = {
         {
           key: "article",
           href: "/dashboard/ai/article",
-          label: { ru: "Статья (Мақала)", kk: "Мақала" },
+          label: { ru: "Статья", kk: "Мақала" },
         },
         {
           key: "class-hours",
@@ -256,7 +256,7 @@ const SCHOOL: NavSegment = {
           key: "games",
           access: "authenticated",
           href: "/dashboard/library/games",
-          label: { ru: "Игра «Ат жарыс»", kk: "«Ат жарыс» ойыны" },
+          label: { ru: "Игра «Скачки»", kk: "«Ат жарыс» ойыны" },
         },
       ],
     },
@@ -276,6 +276,18 @@ const KINDERGARTEN: NavSegment = {
       access: "authenticated",
       label: { ru: "ИИ-функции", kk: "ЖИ функциялар" },
       items: [
+        {
+          key: "preschool-open-activity",
+          href: "/dashboard/ai/preschool-activities",
+          label: { ru: "Открытое занятие", kk: "Ашық іс-әрекет" },
+          isNew: true,
+        },
+        {
+          key: "cyclogram",
+          href: "/dashboard/ai/kindergarten",
+          label: { ru: "Циклограмма", kk: "Циклограмма жасау" },
+          isNew: true,
+        },
         AI_SCENARIO,
         AI_SCIPROJECT,
         AI_WORKSHEET,

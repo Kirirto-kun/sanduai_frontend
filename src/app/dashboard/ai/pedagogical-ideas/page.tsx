@@ -25,11 +25,18 @@ import {
 } from "@/lib/generation-history";
 import {
   downloadPedagogicalIdeas,
+  pedagogicalIdeasContentCopy,
   pedagogicalIdeasResultFromJob,
   type PedagogicalIdea,
+  type PedagogicalIdeasContentCopy,
   type PedagogicalIdeasResult,
 } from "@/lib/pedagogical-ideas";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
+import {
+  CONTENT_LANGUAGE_OPTIONS,
+  tryNormalizeContentLanguage,
+  type ContentLanguage,
+} from "@/lib/content-languages";
 
 const KIND = "pedagogical_idea.generate";
 const SOURCE_PATH = "/dashboard/ai/pedagogical-ideas";
@@ -159,6 +166,7 @@ function PedagogicalIdeasContent() {
   const [subject, setSubject] = useState("");
   const [grade, setGrade] = useState("");
   const [topic, setTopic] = useState("");
+  const [contentLanguage, setContentLanguage] = useState<ContentLanguage>(language);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -224,7 +232,7 @@ function PedagogicalIdeasContent() {
     try {
       const job = await enqueueGenerationJob(
         KIND,
-        { subject: subject.trim(), grade, topic: topic.trim(), language },
+        { subject: subject.trim(), grade, topic: topic.trim(), language: contentLanguage },
         { title: topic.trim() },
       );
       queryClient.setQueryData(["generation-job", job.id], job);
@@ -244,7 +252,10 @@ function PedagogicalIdeasContent() {
       const fullJob = "result" in job ? job : await getGenerationJob(job.id);
       const result = pedagogicalIdeasResultFromJob(fullJob);
       if (!result) throw new Error("invalid_result");
-      downloadPedagogicalIdeas(result, language);
+      downloadPedagogicalIdeas(
+        result,
+        tryNormalizeContentLanguage(result.language) ?? contentLanguage,
+      );
     } catch (error) {
       setFormError(error instanceof Error && error.message === "invalid_result"
         ? copy.brokenResult
@@ -309,6 +320,33 @@ function PedagogicalIdeasContent() {
                 className="w-full resize-none rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-950 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
               />
             </label>
+            <fieldset>
+              <legend className="mb-2 block text-sm font-bold text-slate-800">
+                {language === "kk" ? "Материал тілі" : "Язык материала"}
+              </legend>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {CONTENT_LANGUAGE_OPTIONS.map((option) => (
+                  <label
+                    key={option.value}
+                    className={`flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-3 text-center text-sm font-semibold transition ${
+                      contentLanguage === option.value
+                        ? "border-violet-600 bg-violet-50 text-violet-800 ring-1 ring-violet-500"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                    }`}
+                  >
+                    <input
+                      className="sr-only"
+                      type="radio"
+                      name="pedagogical-idea-language"
+                      value={option.value}
+                      checked={contentLanguage === option.value}
+                      onChange={() => setContentLanguage(option.value)}
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
           </div>
 
           {formError && (
@@ -359,7 +397,12 @@ function PedagogicalIdeasContent() {
           ) : selectedJob.status === "failed" || selectedJob.status === "cancelled" ? (
             <ErrorResult message={copy.failed} retry={() => router.replace(SOURCE_PATH)} label={copy.retry} />
           ) : selectedResult ? (
-            <IdeasResult result={selectedResult} language={language} onDownload={() => void handleDownload(selectedJob)} />
+            <IdeasResult
+              result={selectedResult}
+              interfaceLanguage={language}
+              contentLanguage={tryNormalizeContentLanguage(selectedResult.language) ?? contentLanguage}
+              onDownload={() => void handleDownload(selectedJob)}
+            />
           ) : (
             <ErrorResult message={copy.brokenResult} retry={() => router.replace(SOURCE_PATH)} label={copy.retry} />
           )}
@@ -479,15 +522,26 @@ function ErrorResult({ message, retry, label }: { message: string; retry: () => 
   );
 }
 
-function IdeasResult({ result, language, onDownload }: { result: PedagogicalIdeasResult; language: "kk" | "ru"; onDownload: () => void }) {
-  const copy = COPY[language];
+function IdeasResult({
+  result,
+  interfaceLanguage,
+  contentLanguage,
+  onDownload,
+}: {
+  result: PedagogicalIdeasResult;
+  interfaceLanguage: "kk" | "ru";
+  contentLanguage: ContentLanguage;
+  onDownload: () => void;
+}) {
+  const uiCopy = COPY[interfaceLanguage];
+  const copy = pedagogicalIdeasContentCopy(contentLanguage);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const selected = result.ideas[Math.min(selectedIndex, result.ideas.length - 1)];
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-violet-700">{copy.completed}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-violet-700">{uiCopy.completed}</p>
           <h2 className="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">{result.title}</h2>
           <div className="mt-4 rounded-2xl bg-violet-50 p-4">
             <p className="text-xs font-bold uppercase tracking-wide text-violet-700">{copy.goal}</p>
@@ -495,7 +549,7 @@ function IdeasResult({ result, language, onDownload }: { result: PedagogicalIdea
           </div>
         </div>
         <button type="button" onClick={onDownload} className="rounded-2xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-bold text-violet-800 shadow-sm">
-          ↓ {copy.download}
+          ↓ {uiCopy.download}
         </button>
       </div>
 
@@ -534,7 +588,7 @@ function IdeasResult({ result, language, onDownload }: { result: PedagogicalIdea
   );
 }
 
-function IdeaDetails({ idea, copy }: { idea: PedagogicalIdea; copy: typeof COPY.kk | typeof COPY.ru }) {
+function IdeaDetails({ idea, copy }: { idea: PedagogicalIdea; copy: PedagogicalIdeasContentCopy }) {
   return (
     <article className="space-y-5 rounded-3xl border border-violet-100 bg-gradient-to-b from-violet-50/70 to-white p-5 sm:p-6">
       <div>

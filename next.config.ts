@@ -24,7 +24,9 @@ const nextConfig: NextConfig = {
           { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
           {
             key: "Permissions-Policy",
-            value: "camera=(), geolocation=(), microphone=(self)",
+            // Builder camera access is requested only by the trusted parent
+            // and frames are forwarded into an opaque-origin sandbox.
+            value: "camera=(self), geolocation=(), microphone=()",
           },
           { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
           ...(process.env.NODE_ENV === "production"

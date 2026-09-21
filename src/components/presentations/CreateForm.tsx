@@ -5,6 +5,10 @@ import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useSavedKmzhSources } from "@/hooks/usePresentations";
 import type { CreatePresentationInput } from "@/types/presentations";
+import {
+  CONTENT_LANGUAGE_OPTIONS,
+  type ContentLanguage,
+} from "@/lib/content-languages";
 import { getPresentationCopy } from "./copy";
 import {
   buildPresentationCreateInput,
@@ -33,7 +37,7 @@ export default function CreateForm({
   const [selectedKmzhId, setSelectedKmzhId] = useState("");
   const [pastedTitle, setPastedTitle] = useState("");
   const [pastedText, setPastedText] = useState("");
-  const [language, setLanguage] = useState<"ru" | "kk">(uiLanguage);
+  const [language, setLanguage] = useState<ContentLanguage>(uiLanguage);
   const [slideCount, setSlideCount] = useState(10);
   const [submitted, setSubmitted] = useState(false);
   const kmzhQuery = useSavedKmzhSources(source === "saved_kmzh");
@@ -259,16 +263,16 @@ export default function CreateForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <fieldset>
           <legend className="text-sm font-bold text-slate-800">{copy.language}</legend>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {(["kk", "ru"] as const).map((value) => (
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {CONTENT_LANGUAGE_OPTIONS.map((option) => (
               <label
-                key={value}
+                key={option.value}
                 className={`flex min-h-12 cursor-pointer items-center justify-center rounded-xl border px-3 text-sm font-semibold transition focus-within:ring-2 focus-within:ring-slate-400 ${
-                  language === value ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  language === option.value ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                 }`}
               >
-                <input className="sr-only" type="radio" name="presentation-language" value={value} checked={language === value} onChange={() => setLanguage(value)} />
-                {value === "kk" ? "Қазақша" : "Русский"}
+                <input className="sr-only" type="radio" name="presentation-language" value={option.value} checked={language === option.value} onChange={() => setLanguage(option.value)} />
+                {option.label}
               </label>
             ))}
           </div>

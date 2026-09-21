@@ -17,6 +17,8 @@ import {
   isActiveGenerationJob,
 } from "../../../../../../lib/generation-history";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import { tryNormalizeContentLanguage } from "@/lib/content-languages";
+import { generatedContentCopy } from "@/lib/generated-content-copy";
 
 const SECTIONS = ["introduction", "chapter_1", "chapter_2", "conclusion"] as const;
 
@@ -210,11 +212,14 @@ function GenerateProgressContent() {
     );
   }, [currentJobId, job.error, language, projectId, router]);
 
+  const resultCopy = generatedContentCopy(
+    tryNormalizeContentLanguage(projectState.data?.language) ?? language,
+  ).scientificProject;
   const sectionLabels: Record<(typeof SECTIONS)[number], string> = {
-    introduction: t.scientificProject.wizard.progress.introduction,
-    chapter_1: t.scientificProject.wizard.progress.chapter1,
-    chapter_2: t.scientificProject.wizard.progress.chapter2,
-    conclusion: t.scientificProject.wizard.progress.conclusion,
+    introduction: resultCopy.introduction,
+    chapter_1: resultCopy.chapterTheory,
+    chapter_2: resultCopy.chapterResearch,
+    conclusion: resultCopy.conclusion,
   };
   const progressCurrent = Math.max(
     normalizedCurrentStep,

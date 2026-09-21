@@ -21,6 +21,10 @@ import {
 } from "../../../../lib/generation-history";
 import { useTokens } from "../../../../hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import {
+  CONTENT_LANGUAGE_OPTIONS,
+  type ContentLanguage,
+} from "../../../../lib/content-languages";
 
 function ScientificProjectContent() {
   const t = useTranslations();
@@ -41,9 +45,11 @@ function ScientificProjectContent() {
   const [topic, setTopic] = useState("");
   const [direction, setDirection] = useState("");
   const [grade, setGrade] = useState("");
-  const [researchType, setResearchType] = useState<"тәжірибелік" | "теориялық">("тәжірибелік");
+  const [researchType, setResearchType] = useState<CreatePlanPayload["research_type"]>(
+    "experimental",
+  );
   const [subject, setSubject] = useState("");
-  const [language, setLanguage] = useState<"ru" | "kz" | "en">("ru");
+  const [language, setLanguage] = useState<ContentLanguage>("ru");
   const [schoolName, setSchoolName] = useState("");
   const [supervisor, setSupervisor] = useState("");
   const [city, setCity] = useState("");
@@ -270,8 +276,8 @@ function ScientificProjectContent() {
                 </label>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {[
-                    { val: "тәжірибелік" as const, label: t.scientificProject.form.experimental },
-                    { val: "теориялық" as const, label: t.scientificProject.form.theoretical },
+                    { val: "experimental" as const, label: t.scientificProject.form.experimental },
+                    { val: "theoretical" as const, label: t.scientificProject.form.theoretical },
                   ].map((opt) => (
                     <label
                       key={opt.val}
@@ -287,7 +293,9 @@ function ScientificProjectContent() {
                           name="researchType"
                           value={opt.val}
                           checked={researchType === opt.val}
-                          onChange={(e) => setResearchType(e.target.value as "тәжірибелік" | "теориялық")}
+                          onChange={(e) => {
+                            setResearchType(e.target.value as CreatePlanPayload["research_type"]);
+                          }}
                           className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
                         />
                         <span className="text-sm font-medium text-slate-900">{opt.label}</span>
@@ -362,16 +370,12 @@ function ScientificProjectContent() {
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.scientificProject.form.language}
                 </label>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {[
-                    { val: "ru", label: "Русский" },
-                    { val: "kz", label: "Қазақша" },
-                    { val: "en", label: "English" },
-                  ].map((opt) => (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {CONTENT_LANGUAGE_OPTIONS.map((opt) => (
                     <label
-                      key={opt.val}
+                      key={opt.value}
                       className={`flex cursor-pointer items-center justify-between rounded-xl border px-4 py-3 transition-all ${
-                        language === opt.val
+                        language === opt.value
                           ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
                           : "border-slate-200 bg-white hover:border-slate-300"
                       }`}
@@ -380,9 +384,9 @@ function ScientificProjectContent() {
                         <input
                           type="radio"
                           name="language"
-                          value={opt.val}
-                          checked={language === opt.val}
-                          onChange={(e) => setLanguage(e.target.value as typeof language)}
+                          value={opt.value}
+                          checked={language === opt.value}
+                          onChange={(e) => setLanguage(e.target.value as ContentLanguage)}
                           className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
                         />
                         <span className="text-sm font-medium text-slate-900">{opt.label}</span>

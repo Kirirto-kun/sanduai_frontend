@@ -18,6 +18,12 @@ import { useTokens } from "../../../../hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
 import { generationServerStatusCopy } from "../../../../lib/generation-history";
+import {
+  CONTENT_LANGUAGE_OPTIONS,
+  tryNormalizeContentLanguage,
+  type ContentLanguage,
+} from "../../../../lib/content-languages";
+import { generatedContentCopy } from "../../../../lib/generated-content-copy";
 
 type PendingRevision = {
   id: string;
@@ -27,7 +33,7 @@ type PendingRevision = {
 
 const initialPayload: ArticleGeneratePayload = {
   topic: "",
-  language: "rus",
+  language: "ru",
   author_name: "",
   author_role: "",
   genre: "scientific",
@@ -63,8 +69,13 @@ export default function ArticlePage() {
     () => meta !== null || sections.length > 0,
     [meta, sections],
   );
+  const resultCopy = generatedContentCopy(form.language).article;
 
   const showArticle = useCallback((data: ArticleResponse) => {
+    const savedLanguage = tryNormalizeContentLanguage(data.language);
+    if (savedLanguage) {
+      setForm((current) => ({ ...current, language: savedLanguage }));
+    }
     setMeta(data.meta);
     setSections(data.sections || []);
     setConclusion(data.conclusion || "");
@@ -195,6 +206,7 @@ export default function ArticlePage() {
         current_references: references,
         inline_comments: inline_comments.length > 0 ? inline_comments : undefined,
         general_instruction: generalInstruction || undefined,
+        language: form.language,
       };
       const data = await reviseArticle(payload);
       setMeta(data.meta);
@@ -225,11 +237,12 @@ export default function ArticlePage() {
     setError(null);
     setLoading(true);
     try {
-      const articleData: ArticleResponse = {
+      const articleData: ArticleResponse & { language: ContentLanguage } = {
         meta,
         sections,
         conclusion,
         references,
+        language: form.language,
       };
       const blob = await exportArticleDocx(articleData);
       const url = window.URL.createObjectURL(blob);
@@ -309,45 +322,29 @@ export default function ArticlePage() {
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.article.form.language}
                 </label>
-                <div className="flex gap-4">
-                  <label
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
-                      form.language === "rus"
-                        ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
-                        : "border-slate-200 bg-white hover:border-slate-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="language"
-                      value="rus"
-                      checked={form.language === "rus"}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, language: e.target.value as "kaz" | "rus" }))
-                      }
-                      className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
-                    />
-                    <span className="text-sm font-medium text-slate-900">Русский</span>
-                  </label>
-                  <label
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
-                      form.language === "kaz"
-                        ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
-                        : "border-slate-200 bg-white hover:border-slate-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="language"
-                      value="kaz"
-                      checked={form.language === "kaz"}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, language: e.target.value as "kaz" | "rus" }))
-                      }
-                      className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
-                    />
-                    <span className="text-sm font-medium text-slate-900">Қазақша</span>
-                  </label>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {CONTENT_LANGUAGE_OPTIONS.map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
+                        form.language === option.value
+                          ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                          : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="language"
+                        value={option.value}
+                        checked={form.language === option.value}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, language: e.target.value as ContentLanguage }))
+                        }
+                        className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
+                      />
+                      <span className="text-sm font-medium text-slate-900">{option.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
@@ -491,13 +488,13 @@ export default function ArticlePage() {
                 <div className="mt-4 space-y-2">
                   <div>
                     <span className="select-none text-xs font-semibold text-slate-500">
-                      {t.article.results.abstract}:
+                      {resultCopy.abstract}:
                     </span>
                     <p className="mt-1 text-sm text-slate-700">{meta.abstract}</p>
                   </div>
                   <div>
                     <span className="select-none text-xs font-semibold text-slate-500">
-                      {t.article.results.keywords}:
+                      {resultCopy.keywords}:
                     </span>
                     <p className="mt-1 text-sm italic text-slate-600">
                       {meta.keywords?.join(", ") || ""}
@@ -575,7 +572,7 @@ export default function ArticlePage() {
                       className="mb-2 select-none text-sm font-bold uppercase tracking-wider text-slate-700"
                       style={{ userSelect: "none" }}
                     >
-                      {t.article.results.conclusion}
+                      {resultCopy.conclusion}
                     </h4>
                     <div className="mb-2 flex justify-end gap-2">
                       <button
@@ -620,7 +617,7 @@ export default function ArticlePage() {
                       className="mb-3 select-none text-sm font-bold uppercase tracking-wider text-slate-700"
                       style={{ userSelect: "none" }}
                     >
-                      {t.article.results.references}
+                      {resultCopy.references}
                     </h4>
                     <ol className="space-y-1 pl-5 text-sm text-slate-700">
                       {references.map((ref, idx) => (

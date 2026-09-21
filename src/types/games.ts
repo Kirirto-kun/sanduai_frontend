@@ -1,5 +1,6 @@
 // Types for At Zharys game
 import type { RaceQuestion } from "../lib/api";
+import type { ContentLanguage } from "../lib/content-languages";
 
 export type GameSettings = {
   topic: string;
@@ -8,7 +9,7 @@ export type GameSettings = {
   teams_count: 2 | 3 | 4;
   victory_condition: number; // How many correct answers needed to win (5-30)
   questions_count: number; // Total questions to generate (1-100)
-  language: "kz" | "ru";
+  language: ContentLanguage;
 };
 
 export type TeamState = {
@@ -31,4 +32,3 @@ export type GameState = {
 
 // Re-export RaceQuestion from api for convenience
 export type { RaceQuestion };
-

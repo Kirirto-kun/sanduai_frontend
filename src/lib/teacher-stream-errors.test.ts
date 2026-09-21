@@ -89,4 +89,36 @@ describe("teacher-facing stream failures", () => {
     expect(onError.mock.calls[0]?.[0]?.message).not.toContain("provider");
     stop();
   });
+
+  it.each(["en", "ky", "uz"] as const)(
+    "defaults %s avatar stream failures to the Russian interface copy",
+    async (contentLanguage) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({ detail: "voice provider key leaked" }),
+            { status: 503, headers: { "Content-Type": "application/json" } },
+          ),
+        ),
+      );
+      const onError = vi.fn();
+      const audio = new Blob(["audio"], { type: "audio/webm" }) as File;
+
+      const stop = chatWithYbyraiStream(audio, contentLanguage, {
+        onTranscription: vi.fn(),
+        onTextChunk: vi.fn(),
+        onAudioChunk: vi.fn(),
+        onDone: vi.fn(),
+        onError,
+      });
+
+      await vi.waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+      expect(onError.mock.calls[0]?.[0]).toMatchObject({
+        name: "TeacherFacingError",
+        message: "Сервис временно недоступен. Попробуйте ещё раз чуть позже.",
+      });
+      stop();
+    },
+  );
 });

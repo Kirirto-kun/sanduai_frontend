@@ -10,6 +10,7 @@ import {
   enqueueGenerationJob,
   exportLessonPlanDocx,
   getGenerationJob,
+  type LessonPlanLanguage,
   type LessonPlanRequest,
   type LessonPlanResponse,
   type LessonMeta,
@@ -27,6 +28,8 @@ import {
 import { useTokens } from "../../../../hooks/useTokens";
 import { errorMessageIncludes } from "../../../../lib/error-utils";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import { tryNormalizeContentLanguage } from "@/lib/content-languages";
+import { generatedContentCopy } from "@/lib/generated-content-copy";
 
 function LessonPlanContent() {
   const t = useTranslations();
@@ -88,6 +91,9 @@ function LessonPlanContent() {
   const [lessonPlan, setLessonPlan] = useState<LessonPlanResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const resultCopy = generatedContentCopy(
+    tryNormalizeContentLanguage(lessonPlan?.language ?? formData.language) ?? "kk",
+  ).lessonPlan;
   const job = useQuery({
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
@@ -642,9 +648,9 @@ function LessonPlanContent() {
                     required
                   >
                     <option value="">-- {t.lessonPlan.form.lessonType} --</option>
-                    <option value="Жаңа сабақ">{t.lessonPlan.form.lessonTypeOptions.new}</option>
-                    <option value="Бекіту">{t.lessonPlan.form.lessonTypeOptions.consolidation}</option>
-                    <option value="Қайталау">{t.lessonPlan.form.lessonTypeOptions.review}</option>
+                    <option value="new_lesson">{t.lessonPlan.form.lessonTypeOptions.new}</option>
+                    <option value="consolidation">{t.lessonPlan.form.lessonTypeOptions.consolidation}</option>
+                    <option value="review">{t.lessonPlan.form.lessonTypeOptions.review}</option>
                   </select>
                 </div>
 
@@ -668,45 +674,35 @@ function LessonPlanContent() {
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
                     {t.lessonPlan.form.language}
                   </label>
-                  <div className="flex gap-4">
-                    <label
-                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
-                        formData.language === "kazakh"
-                          ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
-                          : "border-slate-200 bg-white hover:border-slate-300"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="language"
-                        value="kazakh"
-                        checked={formData.language === "kazakh"}
-                        onChange={() => handleInputChange("language", "kazakh")}
-                        className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
-                      />
-                      <span className="text-sm font-medium text-slate-900">
-                        {t.lessonPlan.form.languageOptions.kazakh}
-                      </span>
-                    </label>
-                    <label
-                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
-                        formData.language === "russian"
-                          ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
-                          : "border-slate-200 bg-white hover:border-slate-300"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="language"
-                        value="russian"
-                        checked={formData.language === "russian"}
-                        onChange={() => handleInputChange("language", "russian")}
-                        className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
-                      />
-                      <span className="text-sm font-medium text-slate-900">
-                        {t.lessonPlan.form.languageOptions.russian}
-                      </span>
-                    </label>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {(
+                      [
+                        ["kazakh", t.lessonPlan.form.languageOptions.kazakh],
+                        ["russian", t.lessonPlan.form.languageOptions.russian],
+                        ["english", t.lessonPlan.form.languageOptions.english],
+                        ["kyrgyz", t.lessonPlan.form.languageOptions.kyrgyz],
+                        ["uzbek", t.lessonPlan.form.languageOptions.uzbek],
+                      ] as Array<[LessonPlanLanguage, string]>
+                    ).map(([value, label]) => (
+                      <label
+                        key={value}
+                        className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
+                          formData.language === value
+                            ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                            : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="language"
+                          value={value}
+                          checked={formData.language === value}
+                          onChange={() => handleInputChange("language", value)}
+                          className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
+                        />
+                        <span className="text-sm font-medium text-slate-900">{label}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -886,13 +882,13 @@ function LessonPlanContent() {
             {/* Meta Section */}
             <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
               <h2 className="mb-4 text-2xl font-bold text-slate-900">
-                {t.lessonPlan.meta.title}
+                {resultCopy.title}
               </h2>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 {/* Section Name */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    {t.lessonPlan.meta.sectionName}
+                    {resultCopy.sectionName}
                   </label>
                   <input
                     type="text"
@@ -905,7 +901,7 @@ function LessonPlanContent() {
                 {/* Subject */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    {t.lessonPlan.meta.subject}
+                    {resultCopy.subject}
                   </label>
                   <input
                     type="text"
@@ -918,7 +914,7 @@ function LessonPlanContent() {
                 {/* Teacher Name */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    {t.lessonPlan.meta.teacherName}
+                    {resultCopy.teacherName}
                   </label>
                   <input
                     type="text"
@@ -931,7 +927,7 @@ function LessonPlanContent() {
                 {/* Date */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    {t.lessonPlan.meta.date}
+                    {resultCopy.date}
                   </label>
                   <input
                     type="text"
@@ -944,7 +940,7 @@ function LessonPlanContent() {
                 {/* Grade */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    {t.lessonPlan.meta.grade}
+                    {resultCopy.grade}
                   </label>
                   <input
                     type="text"
@@ -957,7 +953,7 @@ function LessonPlanContent() {
                 {/* Students Present */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    {t.lessonPlan.meta.studentsPresent}
+                    {resultCopy.studentsPresent}
                   </label>
                   <input
                     type="text"
@@ -970,7 +966,7 @@ function LessonPlanContent() {
                 {/* Students Absent */}
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    {t.lessonPlan.meta.studentsAbsent}
+                    {resultCopy.studentsAbsent}
                   </label>
                   <input
                     type="text"
@@ -983,7 +979,7 @@ function LessonPlanContent() {
                 {/* Topic */}
                 <div className="sm:col-span-2">
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    {t.lessonPlan.meta.topic}
+                    {resultCopy.topic}
                   </label>
                   <input
                     type="text"
@@ -997,7 +993,7 @@ function LessonPlanContent() {
               {/* Learning Objectives */}
               <div className="mt-6">
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  {t.lessonPlan.meta.learningObjectives}
+                  {resultCopy.learningObjectives}
                 </label>
                 <ul className="list-disc space-y-1 pl-5">
                   {lessonPlan.meta.learning_objectives.map((obj, index) => (
@@ -1011,7 +1007,7 @@ function LessonPlanContent() {
               {/* Lesson Objectives */}
               <div className="mt-6">
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  {t.lessonPlan.meta.lessonObjectives}
+                  {resultCopy.lessonObjectives}
                 </label>
                 <div className="space-y-3">
                   {lessonPlan.meta.lesson_objectives.map((obj, index) => (
@@ -1047,7 +1043,7 @@ function LessonPlanContent() {
             {/* Lesson Flow Table */}
             <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
               <h2 className="mb-4 text-2xl font-bold text-slate-900">
-                {t.lessonPlan.table.stage}
+                {resultCopy.stage}
               </h2>
 
               {lessonPlan.flow.map((stage, stageIndex) => (
@@ -1059,7 +1055,7 @@ function LessonPlanContent() {
                     </h3>
                     {stage.neuro_exercise && (
                       <p className="mt-1 text-sm text-slate-600">
-                        {t.lessonPlan.stages.neuroExercise}: {renderNeuroExercise(stage.neuro_exercise)}
+                        {resultCopy.neuroExercise}: {renderNeuroExercise(stage.neuro_exercise)}
                       </p>
                     )}
                   </div>
@@ -1070,16 +1066,16 @@ function LessonPlanContent() {
                       <thead>
                         <tr className="bg-slate-50">
                           <th className="border-b border-r border-slate-200 px-4 py-3 text-left text-sm font-semibold text-slate-700 w-1/4">
-                            {t.lessonPlan.table.teacherActivity}
+                            {resultCopy.teacherActivity}
                           </th>
                           <th className="border-b border-r border-slate-200 px-4 py-3 text-left text-sm font-semibold text-slate-700 w-1/4">
-                            {t.lessonPlan.table.studentActivity}
+                            {resultCopy.studentActivity}
                           </th>
                           <th className="border-b border-r border-slate-200 px-4 py-3 text-left text-sm font-semibold text-slate-700 w-1/4">
-                            {t.lessonPlan.table.assessment}
+                            {resultCopy.assessment}
                           </th>
                           <th className="border-b border-slate-200 px-4 py-3 text-left text-sm font-semibold text-slate-700 w-1/4">
-                            {t.lessonPlan.table.resources}
+                            {resultCopy.resources}
                           </th>
                         </tr>
                       </thead>

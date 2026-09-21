@@ -26,6 +26,11 @@ import {
 } from "../../../../../../lib/generation-history";
 import { completeScienceProjectFromState } from "../../../../../../lib/science-project-history";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import {
+  tryNormalizeContentLanguage,
+  type ContentLanguage,
+} from "@/lib/content-languages";
+import { generatedContentCopy } from "@/lib/generated-content-copy";
 
 function EditProjectContent() {
   const t = useTranslations();
@@ -47,6 +52,7 @@ function EditProjectContent() {
   const [error, setError] = useState<string | null>(null);
   const [sections, setSections] = useState<Record<string, string>>({});
   const [finalized, setFinalized] = useState<CompleteProjectResponse | null>(null);
+  const [contentLanguage, setContentLanguage] = useState<ContentLanguage>(language);
   const [regenerating, setRegenerating] = useState<string | null>(null);
   const [regenerateInstructions, setRegenerateInstructions] = useState<Record<string, string>>({});
 
@@ -73,6 +79,7 @@ function EditProjectContent() {
         if (active) {
           setSections(state.sections || {});
           setFinalized(completeScienceProjectFromState(state));
+          setContentLanguage(tryNormalizeContentLanguage(state.language) ?? language);
         }
       } catch (err: unknown) {
         if (active) setError(toTeacherErrorMessage(err));
@@ -85,7 +92,7 @@ function EditProjectContent() {
     return () => {
       active = false;
     };
-  }, [projectId, toTeacherErrorMessage]);
+  }, [language, projectId, toTeacherErrorMessage]);
 
   useEffect(() => {
     const value = job.data;
@@ -108,6 +115,7 @@ function EditProjectContent() {
           if (!active) return;
           setSections(state.sections || {});
           setFinalized(completeScienceProjectFromState(state));
+          setContentLanguage(tryNormalizeContentLanguage(state.language) ?? language);
           setRegenerating(null);
           setFinalizing(false);
           refreshBalance();
@@ -243,11 +251,14 @@ function EditProjectContent() {
     }
   };
 
+  const resultCopy = generatedContentCopy(
+    tryNormalizeContentLanguage(finalized?.language) ?? contentLanguage,
+  ).scientificProject;
   const sectionLabels: Record<string, string> = {
-    introduction: t.scientificProject.results.introduction,
-    chapter_1: t.scientificProject.results.chapterTheory,
-    chapter_2: t.scientificProject.results.chapterResearch,
-    conclusion: t.scientificProject.results.conclusion,
+    introduction: resultCopy.introduction,
+    chapter_1: resultCopy.chapterTheory,
+    chapter_2: resultCopy.chapterResearch,
+    conclusion: resultCopy.conclusion,
   };
   const operationAcknowledged = isAcknowledgedGenerationJob(
     job.data,
@@ -358,7 +369,7 @@ function EditProjectContent() {
             <div className="space-y-6">
               <div className="glass-card rounded-3xl border border-white/60 p-6 shadow-sm">
                 <h3 className="mb-4 text-lg font-bold text-slate-900">
-                  {t.scientificProject.results.titlePage}
+                  {resultCopy.titlePage}
                 </h3>
                 <div className="prose prose-sm max-w-none text-slate-800">
                   <Markdown>{finalized.title_page}</Markdown>
@@ -367,7 +378,7 @@ function EditProjectContent() {
 
               <div className="glass-card rounded-3xl border border-white/60 p-6 shadow-sm">
                 <h3 className="mb-4 text-lg font-bold text-slate-900">
-                  {t.scientificProject.results.annotation}
+                  {resultCopy.annotation}
                 </h3>
                 <div className="prose prose-sm max-w-none text-slate-800">
                   <Markdown>{finalized.annotation}</Markdown>
@@ -392,7 +403,7 @@ function EditProjectContent() {
 
               <div className="glass-card rounded-3xl border border-white/60 p-6 shadow-sm">
                 <h3 className="mb-4 text-lg font-bold text-slate-900">
-                  {t.scientificProject.results.references}
+                  {resultCopy.references}
                 </h3>
                 <div className="prose prose-sm max-w-none text-slate-800">
                   <Markdown>{finalized.references}</Markdown>
@@ -401,7 +412,7 @@ function EditProjectContent() {
 
               <div className="glass-card rounded-3xl border border-white/60 p-6 shadow-sm">
                 <h3 className="mb-4 text-lg font-bold text-slate-900">
-                  {t.scientificProject.results.appendix}
+                  {resultCopy.appendix}
                 </h3>
                 <div className="prose prose-sm max-w-none text-slate-800">
                   <Markdown>{finalized.appendix}</Markdown>

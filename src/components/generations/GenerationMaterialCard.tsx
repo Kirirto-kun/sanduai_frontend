@@ -52,7 +52,7 @@ export function GenerationMaterialCard({
     setDownloading(true);
     try {
       if (onDownload) await onDownload(job);
-      else await downloadGenerationMaterial(job, language);
+      else await downloadGenerationMaterial(job);
     } catch (error) {
       onActionError?.(error);
     } finally {

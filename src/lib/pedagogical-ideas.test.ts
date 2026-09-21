@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { GenerationJob } from "./api";
 import {
   isPedagogicalIdeasResult,
+  pedagogicalIdeasContentCopy,
   pedagogicalIdeasHtml,
   pedagogicalIdeasResultFromJob,
   type PedagogicalIdeasResult,
@@ -108,5 +109,22 @@ describe("pedagogical ideas result", () => {
     expect(html).toContain("Бағалау критерийлері");
     expect(html).toContain("&lt;Сабақ &amp; идея&gt;");
     expect(html).not.toContain("<Сабақ & идея>");
+  });
+
+  it.each([
+    ["en", "Lesson objective", "Recommended lesson flow"],
+    ["ky", "Сабактын максаты", "Сунушталган сабактын жүрүшү"],
+    ["uz", "Dars maqsadi", "Tavsiya etilgan dars jarayoni"],
+  ] as const)("uses %s labels in the exported document", (language, goal, flow) => {
+    const html = pedagogicalIdeasHtml(RESULT, language);
+    expect(html).toContain(goal);
+    expect(html).toContain(flow);
+  });
+
+  it("shares the five-language content labels with the on-screen result", () => {
+    expect(pedagogicalIdeasContentCopy("ru").goal).toBe("Цель урока");
+    expect(pedagogicalIdeasContentCopy("en").tasks).toBe("Ready-to-use tasks");
+    expect(pedagogicalIdeasContentCopy("ky").minutes).toBe("мүн");
+    expect(pedagogicalIdeasContentCopy("uz").flow).toBe("Tavsiya etilgan dars jarayoni");
   });
 });

@@ -5,8 +5,32 @@ import { AudioRecorder } from "./components/AudioRecorder";
 import { SpeechBubble } from "./components/SpeechBubble";
 import { YbyraiScene } from "./components/YbyraiScene";
 import type { YbyraiLanguage } from "../../../../lib/api";
+import { useLanguage } from "@/i18n/LanguageContext";
+import { avatarLanguageOptions } from "./avatar-language";
+
+const AVATAR_COPY = {
+  ru: {
+    title: "Цифровой аватар Ыбырай",
+    subtitle: "Интерактивный видео-ассистент для школьников",
+    responseLanguage: "Язык ответа",
+    said: "Вы сказали:",
+    enterFullscreen: "На весь экран",
+    exitFullscreen: "Выйти из полноэкранного режима",
+  },
+  kk: {
+    title: "Ыбырай цифрлық аватары",
+    subtitle: "Оқушыларға арналған интерактивті бейне-көмекші",
+    responseLanguage: "Жауап тілі",
+    said: "Сіз айттыңыз:",
+    enterFullscreen: "Толық экранға ашу",
+    exitFullscreen: "Толық экраннан шығу",
+  },
+} as const;
 
 export default function AvatarPage() {
+  const { language: interfaceLanguage } = useLanguage();
+  const copy = AVATAR_COPY[interfaceLanguage];
+  const languageOptions = avatarLanguageOptions(interfaceLanguage);
   const [responseText, setResponseText] = useState<string | null>(null);
   const [transcribedText, setTranscribedText] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -73,56 +97,34 @@ export default function AvatarPage() {
     >
       {/* Верхняя строка: компактная */}
       <div className="flex flex-wrap items-center justify-between gap-2 py-2 px-2 sm:px-3 bg-white/70 backdrop-blur-sm border-b border-white/60 shrink-0">
-        <div>
+        <div className="min-w-0 flex-1">
           <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
-            Цифровой аватар Ыбырай
+            {copy.title}
           </h2>
           <p className="text-xs text-slate-600 hidden sm:block">
-            Интерактивный видео-ассистент для школьников
+            {copy.subtitle}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg overflow-hidden border border-slate-200 bg-white p-0.5">
-            <button
-              type="button"
-              onClick={() => setLanguage("kk")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
-                language === "kk"
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-700 hover:bg-slate-100"
-              }`}
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <label className="min-w-0 flex-1 sm:flex-initial">
+            <span className="sr-only">{copy.responseLanguage}</span>
+            <select
+              value={language}
+              onChange={(event) => setLanguage(event.target.value as YbyraiLanguage)}
+              aria-label={copy.responseLanguage}
+              className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 sm:w-auto"
             >
-              Қазақша
-            </button>
-            <button
-              type="button"
-              onClick={() => setLanguage("ru")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
-                language === "ru"
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              Русский
-            </button>
-            <button
-              type="button"
-              onClick={() => setLanguage("auto")}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
-                language === "auto"
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              Авто
-            </button>
-          </div>
+              {languageOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
           <button
             type="button"
             onClick={toggleFullscreen}
             className="flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 transition shrink-0"
-            title={isFullscreen ? "Выйти из полноэкранного режима" : "На весь экран"}
-            aria-label={isFullscreen ? "Выйти из полноэкранного режима" : "На весь экран"}
+            title={isFullscreen ? copy.exitFullscreen : copy.enterFullscreen}
+            aria-label={isFullscreen ? copy.exitFullscreen : copy.enterFullscreen}
           >
             {isFullscreen ? (
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,7 +151,7 @@ export default function AvatarPage() {
         <div className="absolute bottom-0 left-0 right-0 max-h-[40%] overflow-y-auto px-3 py-2 space-y-2 bg-gradient-to-t from-black/70 to-transparent pointer-events-none">
           {transcribedText && (
             <div className="text-center pointer-events-auto">
-              <span className="text-xs text-white/80">Вы сказали:</span>
+              <span className="text-xs text-white/80">{copy.said}</span>
               <p className="text-sm text-white italic">&quot;{transcribedText}&quot;</p>
             </div>
           )}

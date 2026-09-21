@@ -1,14 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useLanguage } from "../../../../i18n/LanguageContext";
 
 export default function LibraryGamesPage() {
+  const { language } = useLanguage();
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Интерактивные игры</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">
+          {language === "kk" ? "Интерактивті ойындар" : "Интерактивные игры"}
+        </h1>
         <p className="text-sm text-slate-600 mt-1">
-          Выберите игру для использования на уроке
+          {language === "kk"
+            ? "Сабақта қолдану үшін ойынды таңдаңыз"
+            : "Выберите игру для использования на уроке"}
         </p>
       </div>
 
@@ -18,9 +25,13 @@ export default function LibraryGamesPage() {
           className="glass-card rounded-3xl border border-white/60 p-6 shadow-md transition hover:shadow-lg hover:scale-105"
         >
           <div className="mb-4 text-4xl">🐴</div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">Ат Жарыс</h3>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            {language === "kk" ? "Ат жарыс" : "Скачки"}
+          </h3>
           <p className="text-sm text-slate-600">
-            Интерактивная игра-викторина с гонкой лошадей. Команды соревнуются, отвечая на вопросы.
+            {language === "kk"
+              ? "Ат жарысы бар интерактивті викторина. Командалар сұрақтарға жауап беріп жарысады."
+              : "Интерактивная игра-викторина со скачками. Команды соревнуются, отвечая на вопросы."}
           </p>
         </Link>
       </div>

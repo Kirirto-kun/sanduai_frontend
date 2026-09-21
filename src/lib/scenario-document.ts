@@ -1,12 +1,69 @@
 import type { ScenarioResult } from "./visuals-ai-api";
+import type { ContentLanguage } from "./content-languages";
 
 export type ScenarioDocumentLabels = {
+  total: string;
+  program: string;
   goal: string;
   equipment: string;
   participants: string;
   props: string;
   minutes: string;
 };
+
+const SCENARIO_DOCUMENT_LABELS: Record<ContentLanguage, ScenarioDocumentLabels> = {
+  kk: {
+    total: "Барлығы",
+    program: "Бағдарлама",
+    goal: "Мақсаты",
+    equipment: "Қажетті жабдық",
+    participants: "Қатысушылар",
+    props: "Реквизит",
+    minutes: "минут",
+  },
+  ru: {
+    total: "Всего",
+    program: "Программа",
+    goal: "Цель",
+    equipment: "Необходимое оборудование",
+    participants: "Участники",
+    props: "Реквизит",
+    minutes: "минут",
+  },
+  en: {
+    total: "Total",
+    program: "Programme",
+    goal: "Objective",
+    equipment: "Equipment",
+    participants: "Participants",
+    props: "Props",
+    minutes: "minutes",
+  },
+  ky: {
+    total: "Жалпы",
+    program: "Программа",
+    goal: "Максаты",
+    equipment: "Керектүү жабдуулар",
+    participants: "Катышуучулар",
+    props: "Реквизит",
+    minutes: "мүнөт",
+  },
+  uz: {
+    total: "Jami",
+    program: "Dastur",
+    goal: "Maqsad",
+    equipment: "Kerakli jihozlar",
+    participants: "Ishtirokchilar",
+    props: "Rekvizit",
+    minutes: "daqiqa",
+  },
+};
+
+export function scenarioDocumentLabels(
+  language: ContentLanguage,
+): ScenarioDocumentLabels {
+  return SCENARIO_DOCUMENT_LABELS[language];
+}
 
 function escapeDocumentText(value: string): string {
   return value

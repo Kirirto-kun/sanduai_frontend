@@ -23,12 +23,18 @@ import {
   type RestoredRaceGame,
 } from "../../../../../../lib/race-generation";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
+import {
+  contentLanguageFromResult,
+  tryNormalizeContentLanguage,
+  type ContentLanguage,
+} from "../../../../../../lib/content-languages";
+import { generatedContentCopy } from "../../../../../../lib/generated-content-copy";
 
 type GameMessageProps = {
   title: string;
   description?: string;
   loading?: boolean;
-  backLabel?: string;
+  backLabel: string;
 };
 
 
@@ -36,7 +42,7 @@ function GameMessage({
   title,
   description,
   loading = false,
-  backLabel = "Вернуться к играм",
+  backLabel,
 }: GameMessageProps) {
   const router = useRouter();
 
@@ -76,6 +82,8 @@ function RaceArena({ gameData }: { gameData: RestoredRaceGame }) {
     gameData.settings,
     gameData.questions,
   );
+  const contentLanguage = gameData.settings.language;
+  const copy = generatedContentCopy(contentLanguage).race;
 
   // Handle fullscreen API
   useEffect(() => {
@@ -126,7 +134,8 @@ function RaceArena({ gameData }: { gameData: RestoredRaceGame }) {
           type="button"
           onClick={toggleFullscreen}
           className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 z-50"
-          title={isFullscreen ? "Выйти из полноэкранного режима" : "На весь экран"}
+          title={isFullscreen ? copy.exitFullscreen : copy.enterFullscreen}
+          aria-label={isFullscreen ? copy.exitFullscreen : copy.enterFullscreen}
         >
           {isFullscreen ? (
             <>
@@ -144,7 +153,7 @@ function RaceArena({ gameData }: { gameData: RestoredRaceGame }) {
                   d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"
                 />
               </svg>
-              Выйти
+              {copy.exitFullscreen}
             </>
           ) : (
             <>
@@ -162,7 +171,7 @@ function RaceArena({ gameData }: { gameData: RestoredRaceGame }) {
                   d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
                 />
               </svg>
-              На весь экран
+              {copy.enterFullscreen}
             </>
           )}
         </button>
@@ -171,6 +180,7 @@ function RaceArena({ gameData }: { gameData: RestoredRaceGame }) {
       {/* Race Track - 45% of height (increased) */}
       <div className="flex-shrink-0" style={{ height: "45%" }}>
         <RaceTrack
+          language={contentLanguage}
           teams={gameState.teams.map((team) => ({
             id: team.id,
             name: team.name,
@@ -191,6 +201,7 @@ function RaceArena({ gameData }: { gameData: RestoredRaceGame }) {
             <TeamColumn
               key={team.id}
               team={team}
+              language={contentLanguage}
               onAnswer={(isCorrect) => handleAnswer(team.id, isCorrect)}
               isGameFinished={gameState.isFinished}
             />
@@ -202,6 +213,7 @@ function RaceArena({ gameData }: { gameData: RestoredRaceGame }) {
       {winnerTeam && (
         <VictoryModal
           winnerName={winnerTeam.name}
+          language={contentLanguage}
           onPlayAgain={handlePlayAgain}
           onGoToLibrary={handleGoToLibrary}
         />
@@ -227,7 +239,12 @@ function AtZharysGameContent() {
     refetchInterval: (query) =>
       query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
   });
-  const backLabel = language === "kk" ? "Ойындарға оралу" : "Вернуться к играм";
+  const interfaceLanguage: ContentLanguage = language;
+  const contentLanguage = tryNormalizeContentLanguage(job.data?.content_language)
+    ?? contentLanguageFromResult(job.data?.result)
+    ?? interfaceLanguage;
+  const copy = generatedContentCopy(contentLanguage).race;
+  const backLabel = copy.backToGames;
   const jobAcknowledged = isAcknowledgedGenerationJob(
     job.data,
     requestedJobId,
@@ -237,12 +254,8 @@ function AtZharysGameContent() {
   if (!requestedJobId) {
     return (
       <GameMessage
-        title={language === "kk" ? "Ойынды ашу мүмкін болмады" : "Не удалось открыть игру"}
-        description={
-          language === "kk"
-            ? "Ойынды бөлім тарихынан қайта ашыңыз немесе жаңасын жасаңыз."
-            : "Откройте игру заново из истории раздела или создайте новую."
-        }
+        title={copy.openFailed}
+        description={copy.reopenFromHistory}
         backLabel={backLabel}
       />
     );
@@ -252,8 +265,10 @@ function AtZharysGameContent() {
     return (
       <GameMessage
         loading
-        title={language === "kk" ? "Ойын жасалып жатыр" : "Создаём игру"}
-        description={generationServerStatusCopy(language, jobAcknowledged)}
+        title={copy.generating}
+        description={contentLanguage === "kk" || contentLanguage === "ru"
+          ? generationServerStatusCopy(contentLanguage, jobAcknowledged)
+          : copy.serverStatus}
         backLabel={backLabel}
       />
     );
@@ -263,12 +278,12 @@ function AtZharysGameContent() {
     const unavailable = isUnavailableGenerationJobError(job.error) && !jobAcknowledged;
     return (
       <GameMessage
-        title={language === "kk" ? "Ойынды жүктеу мүмкін болмады" : "Не удалось загрузить игру"}
+        title={copy.loadFailed}
         description={unavailable
-          ? language === "kk"
-            ? "Бұл ойын енді қолжетімді емес. «Ат жарыс» бөлімінен басқа ойынды ашыңыз немесе жаңасын жасаңыз."
-            : "Эта игра больше недоступна. Откройте другую игру в разделе «Ат жарыс» или создайте новую."
-          : toTeacherErrorMessage(job.error)}
+          ? copy.unavailable
+          : contentLanguage === "kk" || contentLanguage === "ru"
+            ? toTeacherErrorMessage(job.error)
+            : copy.genericError}
         backLabel={backLabel}
       />
     );
@@ -278,12 +293,8 @@ function AtZharysGameContent() {
   if (!value || value.kind !== RACE_GENERATION_KIND) {
     return (
       <GameMessage
-        title={language === "kk" ? "Бұл басқа материал" : "Это другой материал"}
-        description={
-          language === "kk"
-            ? "«Ат жарыс» бөлімінен ойынды таңдаңыз."
-            : "Выберите игру в разделе «Ат жарыс»."
-        }
+        title={copy.wrongMaterial}
+        description={copy.selectGame}
         backLabel={backLabel}
       />
     );
@@ -292,12 +303,8 @@ function AtZharysGameContent() {
   if (value.status !== "completed" && value.status !== "billing_error") {
     return (
       <GameMessage
-        title={language === "kk" ? "Ойынды жасау мүмкін болмады" : "Не удалось создать игру"}
-        description={
-          language === "kk"
-            ? "Монеталар қайтарылды. Параметрлерді тексеріп, қайта жасап көріңіз."
-            : "Монеты возвращены. Проверьте параметры и попробуйте ещё раз."
-        }
+        title={copy.createFailed}
+        description={copy.refundedRetry}
         backLabel={backLabel}
       />
     );
@@ -307,12 +314,8 @@ function AtZharysGameContent() {
   if (!gameData) {
     return (
       <GameMessage
-        title={language === "kk" ? "Ойын толық сақталмаған" : "Игра сохранилась не полностью"}
-        description={
-          language === "kk"
-            ? "Жаңа ойын жасап көріңіз. Монеталарға қатысты мәселе болса, қолдау қызметіне жазыңыз."
-            : "Создайте новую игру. Если возник вопрос по монетам, напишите в поддержку."
-        }
+        title={copy.incomplete}
+        description={copy.createNew}
         backLabel={backLabel}
       />
     );

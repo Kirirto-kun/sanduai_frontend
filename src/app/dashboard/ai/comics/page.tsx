@@ -17,6 +17,11 @@ import {
 } from "../../../../lib/generation-history";
 import { visualGenerationErrorMessage } from "../../../../lib/visuals-ai-errors";
 import {
+  CONTENT_LANGUAGE_OPTIONS,
+  tryNormalizeContentLanguage,
+} from "../../../../lib/content-languages";
+import { generatedContentCopy } from "../../../../lib/generated-content-copy";
+import {
   ComicResult,
   ComicStyle,
   Language,
@@ -188,7 +193,10 @@ function ComicsContent() {
       return;
     }
     if ((value.status === "completed" || value.status === "billing_error") && value.result) {
-      setResult(value.result as unknown as ComicResult);
+      const restored = value.result as unknown as ComicResult;
+      setResult(restored);
+      const savedLanguage = tryNormalizeContentLanguage(restored.language);
+      if (savedLanguage) setLang(savedLanguage);
       setError(null);
       refreshBalance();
       return;
@@ -214,10 +222,12 @@ function ComicsContent() {
     { value: "retro", label: t.styles.retro, icon: "📰" },
   ];
 
-  const langOptions: Option<Language>[] = [
-    { value: "kk", label: "Қазақша" },
-    { value: "ru", label: "Русский" },
-  ];
+  const langOptions: Option<Language>[] = CONTENT_LANGUAGE_OPTIONS.map(
+    ({ value, label }) => ({ value, label }),
+  );
+  const resultCopy = generatedContentCopy(
+    tryNormalizeContentLanguage(result?.language) ?? lang,
+  ).comic;
 
   const panelOptions: Option<string>[] = PANEL_OPTIONS.map((n) => ({
     value: String(n),
@@ -357,13 +367,13 @@ function ComicsContent() {
                 result.panels.length > 0 && (
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      {t.script}
+                      {resultCopy.script}
                     </p>
                     <ul className="mt-1.5 space-y-1">
                       {result.panels.map((panel) => (
                         <li key={panel.index} className="text-sm text-slate-600">
                           <span className="font-semibold text-slate-800">
-                            {t.panel} {panel.index}.
+                            {resultCopy.panel} {panel.index}.
                           </span>{" "}
                           {panel.dialogue
                             .map((d) => `${d.speaker}: ${d.text}`)

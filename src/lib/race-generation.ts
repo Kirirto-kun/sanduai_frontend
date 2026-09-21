@@ -1,5 +1,10 @@
 import type { GenerationJob, RaceQuestion } from "./api";
 import type { GameSettings } from "../types/games";
+import {
+  normalizeContentLanguage,
+  tryNormalizeContentLanguage,
+  type ContentLanguage,
+} from "./content-languages";
 
 
 export const RACE_GENERATION_KIND = "race.generate";
@@ -47,14 +52,14 @@ function isQuestion(value: unknown): value is RaceQuestion {
 
 
 export function racePayloadFromSettings(
-  settings: GameSettings,
+  settings: Omit<GameSettings, "language"> & { language: string },
 ): Record<string, unknown> {
   return {
     topic: settings.topic.trim(),
     grade: settings.grade.trim(),
     additional_info: settings.additional_info?.trim() ?? "",
     questions_count: settings.questions_count,
-    language: settings.language,
+    language: normalizeContentLanguage(settings.language),
     teams_count: settings.teams_count,
     victory_condition: settings.victory_condition,
   };
@@ -66,6 +71,8 @@ export function restoreRaceGame(job: GenerationJob): RestoredRaceGame | null {
   const result = job.result;
   const settings = result.settings;
   const questions = result.questions;
+  const contentLanguage = tryNormalizeContentLanguage(job.content_language)
+    ?? (isRecord(settings) ? tryNormalizeContentLanguage(settings.language) : null);
   if (
     typeof result.game_id !== "string" ||
     !result.game_id.trim() ||
@@ -79,7 +86,7 @@ export function restoreRaceGame(job: GenerationJob): RestoredRaceGame | null {
     typeof settings.questions_count !== "number" ||
     settings.questions_count < 1 ||
     settings.questions_count > 100 ||
-    (settings.language !== "kz" && settings.language !== "ru") ||
+    !contentLanguage ||
     !Array.isArray(questions) ||
     questions.length === 0 ||
     !questions.every(isQuestion)
@@ -97,7 +104,7 @@ export function restoreRaceGame(job: GenerationJob): RestoredRaceGame | null {
       teams_count: settings.teams_count,
       victory_condition: settings.victory_condition,
       questions_count: settings.questions_count,
-      language: settings.language,
+      language: contentLanguage,
     },
     questions,
   };
@@ -106,10 +113,10 @@ export function restoreRaceGame(job: GenerationJob): RestoredRaceGame | null {
 
 export function raceGameDocumentHtml(
   game: RestoredRaceGame,
-  language: "ru" | "kk",
+  language: ContentLanguage = game.settings.language,
 ): string {
-  const labels = language === "kk"
-    ? {
+  const labels = {
+    kk: {
         title: "«Ат жарыс» ойыны",
         topic: "Тақырып",
         grade: "Сынып",
@@ -117,16 +124,44 @@ export function raceGameDocumentHtml(
         finish: "Жеңіс шарты",
         answers: "дұрыс жауап",
         correct: "Дұрыс жауап",
-      }
-    : {
-        title: "Игра «Ат жарыс»",
+    },
+    ru: {
+        title: "Игра «Скачки»",
         topic: "Тема",
         grade: "Класс",
         teams: "Количество команд",
         finish: "Условие победы",
         answers: "правильных ответов",
         correct: "Правильный ответ",
-      };
+    },
+    en: {
+        title: "Horse Race Quiz",
+        topic: "Topic",
+        grade: "Grade",
+        teams: "Number of teams",
+        finish: "Victory condition",
+        answers: "correct answers",
+        correct: "Correct answer",
+    },
+    ky: {
+        title: "«Ат жарыш» оюну",
+        topic: "Тема",
+        grade: "Класс",
+        teams: "Командалардын саны",
+        finish: "Жеңиш шарты",
+        answers: "туура жооп",
+        correct: "Туура жооп",
+    },
+    uz: {
+        title: "«Ot poygasi» o‘yini",
+        topic: "Mavzu",
+        grade: "Sinf",
+        teams: "Jamoalar soni",
+        finish: "G‘alaba sharti",
+        answers: "to‘g‘ri javob",
+        correct: "To‘g‘ri javob",
+    },
+  }[language];
   const questions = game.questions.map((question, questionIndex) => {
     const options = question.options.map((option, optionIndex) => (
       `<li><strong>${String.fromCharCode(65 + optionIndex)}.</strong> ${escapeHtml(option)}</li>`

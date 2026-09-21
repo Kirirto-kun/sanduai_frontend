@@ -339,6 +339,24 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
       </Link>
 
       <Link
+        href="/dashboard/ai/builder"
+        onClick={onNavigate}
+        className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
+          pathname === "/dashboard/ai/builder"
+            ? "bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-500 text-white shadow"
+            : "text-slate-700 hover:bg-white/80 hover:text-slate-900"
+        }`}
+      >
+        <span>✦</span>
+        <span>Vibe Coding</span>
+        <span className={`ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+          pathname === "/dashboard/ai/builder" ? "bg-white/20 text-white" : "bg-violet-100 text-violet-700"
+        }`}>
+          {language === "kk" ? "жаңа" : "ново"}
+        </span>
+      </Link>
+
+      <Link
         href="/dashboard/generations"
         onClick={onNavigate}
         className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
@@ -349,6 +367,28 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
       >
         <span>📂</span>
         <span>{language === "kk" ? "Менің материалдарым" : "Мои материалы"}</span>
+      </Link>
+      <Link
+        href="/dashboard/ai/preschool-activities?view=history"
+        onClick={onNavigate}
+        className={`ml-5 flex min-h-9 items-center rounded-lg px-3 py-2 text-xs font-semibold transition ${
+          pathname === "/dashboard/ai/preschool-activities" && searchParams.get("view") === "history"
+            ? "bg-[color:var(--primary)] text-white shadow-sm"
+            : "text-slate-600 hover:bg-white/80 hover:text-slate-900"
+        }`}
+      >
+        {language === "kk" ? "Ашық іс-әрекеттер" : "Открытые занятия"}
+      </Link>
+      <Link
+        href="/dashboard/ai/kindergarten?view=history"
+        onClick={onNavigate}
+        className={`ml-5 flex min-h-9 items-center rounded-lg px-3 py-2 text-xs font-semibold transition ${
+          pathname === "/dashboard/ai/kindergarten" && searchParams.get("view") === "history"
+            ? "bg-[color:var(--primary)] text-white shadow-sm"
+            : "text-slate-600 hover:bg-white/80 hover:text-slate-900"
+        }`}
+      >
+        {language === "kk" ? "Циклограммалар" : "Циклограммы"}
       </Link>
 
       <div className="my-3 border-t border-slate-200" />
@@ -411,18 +451,42 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
         <span>{t.dashboard.menu.settings}</span>
       </Link>
       {user?.role === "admin" && (
-        <Link
-          href="/dashboard/admin"
-          onClick={onNavigate}
-          className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
-            pathname === "/dashboard/admin"
-              ? "bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] text-white shadow"
-              : "text-slate-700 hover:bg-white/80 hover:text-slate-900"
-          }`}
-        >
-          <span>🛠</span>
-          <span>{t.dashboard.menu.admin || "Админ панель"}</span>
-        </Link>
+        <>
+          <Link
+            href="/dashboard/admin"
+            onClick={onNavigate}
+            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
+              pathname === "/dashboard/admin"
+                ? "bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] text-white shadow"
+                : "text-slate-700 hover:bg-white/80 hover:text-slate-900"
+            }`}
+          >
+            <span>🛠</span>
+            <span>{t.dashboard.menu.admin || "Админ панель"}</span>
+          </Link>
+          <Link
+            href="/dashboard/admin/cyclograms"
+            onClick={onNavigate}
+            className={`ml-5 flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition ${
+              pathname === "/dashboard/admin/cyclograms"
+                ? "bg-[color:var(--primary)] text-white shadow-sm"
+                : "text-slate-600 hover:bg-white/80 hover:text-slate-900"
+            }`}
+          >
+            {language === "kk" ? "Циклограмма баптаулары" : "Настройки циклограммы"}
+          </Link>
+          <Link
+            href="/dashboard/admin/preschool-activities"
+            onClick={onNavigate}
+            className={`ml-5 flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition ${
+              pathname === "/dashboard/admin/preschool-activities"
+                ? "bg-[color:var(--primary)] text-white shadow-sm"
+                : "text-slate-600 hover:bg-white/80 hover:text-slate-900"
+            }`}
+          >
+            {language === "kk" ? "Ашық іс-әрекет баптаулары" : "Настройки открытых занятий"}
+          </Link>
+        </>
       )}
     </nav>
   );

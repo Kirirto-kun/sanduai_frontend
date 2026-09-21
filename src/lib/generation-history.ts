@@ -17,6 +17,8 @@ const SUPPORT_JOB_KINDS = new Set([
   "science.generate_all",
   "science.regenerate",
   "science.finalize",
+  "cyclogram.topics",
+  "cyclogram.cell",
 ]);
 
 

@@ -32,9 +32,13 @@ import {
 import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
 import { saveBlob } from "../../../../lib/generation-download";
 import {
+  CONTENT_LANGUAGE_OPTIONS,
+  tryNormalizeContentLanguage,
+} from "../../../../lib/content-languages";
+import {
   buildScenarioDocumentHtml,
   scenarioDocumentFileName,
-  type ScenarioDocumentLabels,
+  scenarioDocumentLabels,
 } from "../../../../lib/scenario-document";
 
 const BLOCK_ICON: Record<ScenarioBlockType, string> = {
@@ -132,9 +136,9 @@ const TEXT = {
 
 function saveScenarioDocument(
   result: ScenarioResult,
-  labels: ScenarioDocumentLabels,
+  language: Language,
 ): void {
-  const html = buildScenarioDocumentHtml(result, labels);
+  const html = buildScenarioDocumentHtml(result, scenarioDocumentLabels(language));
   saveBlob(
     new Blob(["\ufeff", html], { type: "application/msword;charset=utf-8" }),
     scenarioDocumentFileName(result.title),
@@ -173,15 +177,16 @@ export default function ScenarioPage() {
     { value: "school", label: t.segments.school, icon: "🏫" },
   ];
 
-  const langOptions: Option<Language>[] = [
-    { value: "kk", label: "Қазақша" },
-    { value: "ru", label: "Русский" },
-  ];
+  const langOptions: Option<Language>[] = CONTENT_LANGUAGE_OPTIONS.map(
+    ({ value, label }) => ({ value, label }),
+  );
 
   const durationOptions: Option<string>[] = DURATIONS.map((d) => ({
     value: String(d),
     label: String(d),
   }));
+  const resultLanguage = tryNormalizeContentLanguage(result?.language) ?? lang;
+  const resultCopy = scenarioDocumentLabels(resultLanguage);
 
   const showScenario = useCallback((data: ScenarioResult) => {
     setResult(data);
@@ -254,8 +259,10 @@ export default function ScenarioPage() {
     if (fullJob.kind !== "scenario.generate" || !fullJob.result) {
       throw new Error("MATERIAL_NOT_READY");
     }
-    saveScenarioDocument(fullJob.result as unknown as ScenarioResult, t);
-  }, [t]);
+    const savedResult = fullJob.result as unknown as ScenarioResult;
+    const savedLanguage = tryNormalizeContentLanguage(savedResult.language) ?? lang;
+    saveScenarioDocument(savedResult, savedLanguage);
+  }, [lang]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -299,16 +306,19 @@ export default function ScenarioPage() {
 
   const copyScenario = async () => {
     if (!result) return;
+    const labels = scenarioDocumentLabels(
+      tryNormalizeContentLanguage(result.language) ?? lang,
+    );
     const text = [
       result.title,
       "",
-      `${t.goal}: ${result.goal}`,
-      `${t.equipment}: ${result.equipment}`,
+      `${labels.goal}: ${result.goal}`,
+      `${labels.equipment}: ${result.equipment}`,
       "",
       ...result.blocks.map(
         (b) =>
-          `${b.index}. ${b.title} (${b.minutes} ${t.minutes})\n${b.content}` +
-          (b.props ? `\n${t.props}: ${b.props}` : "")
+          `${b.index}. ${b.title} (${b.minutes} ${labels.minutes})\n${b.content}` +
+          (b.props ? `\n${labels.props}: ${b.props}` : "")
       ),
     ].join("\n\n");
     await navigator.clipboard.writeText(text);
@@ -422,20 +432,20 @@ export default function ScenarioPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <h2 className="text-xl font-bold text-slate-900">{result.title}</h2>
                   <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                    {t.total}: {result.total_minutes} {t.minutes}
+                    {resultCopy.total}: {result.total_minutes} {resultCopy.minutes}
                   </span>
                 </div>
 
                 <dl className="mt-4 space-y-2.5 text-sm">
                   <div>
                     <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      {t.goal}
+                      {resultCopy.goal}
                     </dt>
                     <dd className="text-slate-700">{result.goal}</dd>
                   </div>
                   <div>
                     <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      {t.equipment}
+                      {resultCopy.equipment}
                     </dt>
                     <dd className="text-slate-700">{result.equipment}</dd>
                   </div>
@@ -450,7 +460,10 @@ export default function ScenarioPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => saveScenarioDocument(result, t)}
+                  onClick={() => saveScenarioDocument(
+                    result,
+                    tryNormalizeContentLanguage(result.language) ?? lang,
+                  )}
                   className="mt-2 w-full rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   {t.download}
@@ -458,7 +471,7 @@ export default function ScenarioPage() {
               </div>
 
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                {t.program}
+                {resultCopy.program}
               </p>
 
               <ol className="space-y-3">
@@ -477,7 +490,7 @@ export default function ScenarioPage() {
                             {block.index}. {block.title}
                           </h3>
                           <span className="shrink-0 text-xs text-slate-400">
-                            {block.minutes} {t.minutes}
+                            {block.minutes} {resultCopy.minutes}
                           </span>
                         </div>
 
@@ -489,13 +502,13 @@ export default function ScenarioPage() {
                           <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                             {block.participants && (
                               <span>
-                                <span className="font-semibold">{t.participants}:</span>{" "}
+                                <span className="font-semibold">{resultCopy.participants}:</span>{" "}
                                 {block.participants}
                               </span>
                             )}
                             {block.props && (
                               <span>
-                                <span className="font-semibold">{t.props}:</span>{" "}
+                                <span className="font-semibold">{resultCopy.props}:</span>{" "}
                                 {block.props}
                               </span>
                             )}

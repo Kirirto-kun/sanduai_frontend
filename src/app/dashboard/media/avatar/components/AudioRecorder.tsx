@@ -6,6 +6,25 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import type { TeacherFacingError } from "@/lib/teacher-facing-error";
 
+const AUDIO_RECORDER_COPY = {
+  ru: {
+    microphone: "Не удалось получить доступ к микрофону. Проверьте разрешения.",
+    start: "Начать запись",
+    stopRecording: "Остановить запись",
+    recording: "Запись...",
+    stop: "Стоп",
+    processing: "Обработка...",
+  },
+  kk: {
+    microphone: "Микрофонға қол жеткізу мүмкін болмады. Рұқсаттарды тексеріңіз.",
+    start: "Жазуды бастау",
+    stopRecording: "Жазуды тоқтату",
+    recording: "Жазылып жатыр...",
+    stop: "Тоқтату",
+    processing: "Өңделіп жатыр...",
+  },
+} as const;
+
 interface AudioRecorderProps {
   language: YbyraiLanguage;
   onResponse: (text: string, audioUrl?: string, transcribedText?: string) => void;
@@ -23,6 +42,7 @@ export function AudioRecorder({
   onSpeaking,
 }: AudioRecorderProps) {
   const { language: uiLanguage } = useLanguage();
+  const copy = AUDIO_RECORDER_COPY[uiLanguage];
   const toTeacherErrorMessage = useTeacherErrorMessage();
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -135,7 +155,7 @@ export function AudioRecorder({
       };
     } catch (err: unknown) {
       console.error("Error starting recording:", err);
-      onError("Не удалось получить доступ к микрофону. Проверьте разрешения.");
+      onError(copy.microphone);
     }
   };
 
@@ -260,7 +280,7 @@ export function AudioRecorder({
           type="button"
           onClick={startRecording}
           className="flex items-center justify-center w-20 h-20 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-all duration-200 hover:scale-105"
-          aria-label="Начать запись"
+          aria-label={copy.start}
         >
           <svg
             className="w-10 h-10"
@@ -282,11 +302,11 @@ export function AudioRecorder({
             type="button"
             onClick={stopRecording}
             className="flex items-center justify-center w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-lg transition-all duration-200 animate-pulse"
-            aria-label="Остановить запись"
+            aria-label={copy.stopRecording}
           >
             <div className="w-8 h-8 bg-white rounded"></div>
           </button>
-          <span className="text-sm text-slate-600">Запись...</span>
+          <span className="text-sm text-slate-600">{copy.recording}</span>
         </div>
       )}
 
@@ -300,9 +320,9 @@ export function AudioRecorder({
             onClick={handleStop}
             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition-colors"
           >
-            Стоп
+            {copy.stop}
           </button>
-          <span className="text-sm text-slate-600">Обработка...</span>
+          <span className="text-sm text-slate-600">{copy.processing}</span>
         </div>
       )}
     </div>

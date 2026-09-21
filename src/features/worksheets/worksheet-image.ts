@@ -1,8 +1,10 @@
 import type {
   WorksheetImageResult,
+  WorksheetPreschoolGroup,
   WorksheetStylePreset,
   WorksheetTaskType,
 } from "@/lib/api";
+import { tryNormalizeContentLanguage } from "../../lib/content-languages";
 
 
 export const WORKSHEET_IMAGE_KIND = "worksheet.image";
@@ -14,6 +16,24 @@ export const WORKSHEET_HISTORY_KINDS = [
 
 export const MAX_SOURCE_PAGES = 3;
 export const MAX_SOURCE_PAGE_BYTES = 12 * 1024 * 1024;
+
+export const WORKSHEET_PRESCHOOL_GROUPS = [
+  "younger",
+  "middle",
+  "senior",
+  "pre_primary",
+] as const satisfies readonly WorksheetPreschoolGroup[];
+
+export const WORKSHEET_PRESCHOOL_GROUP_AGES: Readonly<Record<WorksheetPreschoolGroup, number>> = {
+  younger: 2,
+  middle: 3,
+  senior: 4,
+  pre_primary: 5,
+};
+
+export type WorksheetAudienceTarget =
+  | { grade: number }
+  | { preschool_group: WorksheetPreschoolGroup };
 
 const SUPPORTED_SOURCE_PAGE_TYPES = new Set([
   "image/jpeg",
@@ -41,6 +61,40 @@ export type WorksheetFormValidationIssue =
   | "subject_required"
   | "learning_source_required"
   | "task_type_required";
+
+
+export function parseWorksheetAudience(value: string): WorksheetAudienceTarget | null {
+  if (value.startsWith("school:")) {
+    const grade = Number(value.slice("school:".length));
+    return Number.isInteger(grade) && grade >= 1 && grade <= 11 ? { grade } : null;
+  }
+  if (value.startsWith("preschool:")) {
+    const group = value.slice("preschool:".length) as WorksheetPreschoolGroup;
+    return WORKSHEET_PRESCHOOL_GROUPS.includes(group) ? { preschool_group: group } : null;
+  }
+  return null;
+}
+
+
+export function worksheetAudienceFromResult(
+  result: Pick<WorksheetImageResult, "grade" | "preschool_group">,
+): string | null {
+  if (
+    typeof result.preschool_group === "string"
+    && WORKSHEET_PRESCHOOL_GROUPS.includes(result.preschool_group)
+  ) {
+    return `preschool:${result.preschool_group}`;
+  }
+  if (
+    typeof result.grade === "number"
+    && Number.isInteger(result.grade)
+    && result.grade >= 1
+    && result.grade <= 11
+  ) {
+    return `school:${result.grade}`;
+  }
+  return null;
+}
 
 
 export function validateSourcePages(
@@ -90,7 +144,8 @@ export function isWorksheetImageResult(value: unknown): value is WorksheetImageR
     result.image_url.trim().length > 0 &&
     Array.isArray(result.answer_key) &&
     result.answer_key.every((entry) => typeof entry === "string") &&
-    typeof result.cost_tokens === "number"
+    typeof result.cost_tokens === "number" &&
+    (result.language === undefined || tryNormalizeContentLanguage(result.language) !== null)
   );
 }
 

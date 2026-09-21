@@ -19,6 +19,11 @@ import { errorMessageIncludes } from "../../../../lib/error-utils";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
 import { generationServerStatusCopy } from "../../../../lib/generation-history";
+import {
+  CONTENT_LANGUAGE_OPTIONS,
+  tryNormalizeContentLanguage,
+} from "../../../../lib/content-languages";
+import { generatedContentCopy } from "../../../../lib/generated-content-copy";
 
 export default function ClassHoursPage() {
   const t = useTranslations();
@@ -29,7 +34,7 @@ export default function ClassHoursPage() {
 
   // Form state
   const [formData, setFormData] = useState<ClassHourGeneratePayload>({
-    language: "kz",
+    language: "kk",
     topic: "",
     grade: "",
     value: "",
@@ -57,8 +62,13 @@ export default function ClassHoursPage() {
   const [error, setError] = useState("");
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [acknowledgedJobId, setAcknowledgedJobId] = useState<string | null>(null);
+  const resultCopy = generatedContentCopy(formData.language).classHour;
 
   const showClassHour = useCallback((data: ClassHourResponse) => {
+    const savedLanguage = tryNormalizeContentLanguage(data.language);
+    if (savedLanguage) {
+      setFormData((current) => ({ ...current, language: savedLanguage }));
+    }
     setLessonData(data);
     setEditingBlockId(null);
     setEditingContent("");
@@ -249,6 +259,7 @@ export default function ClassHoursPage() {
         block_id: regenerateModal.blockId,
         current_content: regenerateModal.currentContent,
         instruction: regenerateInstruction || undefined,
+        language: formData.language,
       });
 
       updateBlockContent(updatedBlock.id, updatedBlock.content);
@@ -275,6 +286,7 @@ export default function ClassHoursPage() {
       const blob = await exportClassHourDocx({
         topic: lessonData.topic,
         blocks: lessonData.blocks,
+        language: formData.language,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -295,7 +307,7 @@ export default function ClassHoursPage() {
     router.replace("/dashboard/ai/class-hours", { scroll: false });
     setLessonData(null);
     setFormData({
-      language: "kz",
+      language: "kk",
       topic: "",
       grade: "",
       value: "",
@@ -330,41 +342,27 @@ export default function ClassHoursPage() {
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {t.classHour.form.language} *
                 </label>
-                <div className="flex gap-4">
-                  <label
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
-                      formData.language === "kz"
-                        ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
-                        : "border-slate-200 bg-white hover:border-slate-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="language"
-                      value="kz"
-                      checked={formData.language === "kz"}
-                      onChange={(e) => handleInputChange("language", e.target.value)}
-                      className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
-                    />
-                    <span className="text-sm font-medium text-slate-700">Қазақша</span>
-                  </label>
-                  <label
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
-                      formData.language === "ru"
-                        ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
-                        : "border-slate-200 bg-white hover:border-slate-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="language"
-                      value="ru"
-                      checked={formData.language === "ru"}
-                      onChange={(e) => handleInputChange("language", e.target.value)}
-                      className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
-                    />
-                    <span className="text-sm font-medium text-slate-700">Русский</span>
-                  </label>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {CONTENT_LANGUAGE_OPTIONS.map((option) => (
+                    <label
+                      key={option.value}
+                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
+                        formData.language === option.value
+                          ? "border-[color:var(--primary)] bg-[color:var(--primary)]/5 ring-1 ring-[color:var(--primary)]"
+                          : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="language"
+                        value={option.value}
+                        checked={formData.language === option.value}
+                        onChange={(e) => handleInputChange("language", e.target.value)}
+                        className="h-4 w-4 text-[color:var(--primary)] focus:ring-[color:var(--primary)]"
+                      />
+                      <span className="text-sm font-medium text-slate-700">{option.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
@@ -506,7 +504,7 @@ export default function ClassHoursPage() {
             {/* Title */}
             <div className="glass-card rounded-3xl border border-white/60 px-6 py-6 shadow-md sm:px-8">
               <h2 className="text-2xl font-bold text-slate-900">
-                {t.classHour.results.title}: {lessonData.topic}
+                {resultCopy.title}: {lessonData.topic}
               </h2>
             </div>
 
