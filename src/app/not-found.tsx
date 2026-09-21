@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { useLanguage } from "@/i18n/LanguageContext";
+import { LanguageProvider, useLanguage } from "@/i18n/LanguageContext";
 
 const NOT_FOUND_COPY = {
   ru: {
@@ -17,7 +17,7 @@ const NOT_FOUND_COPY = {
   },
 } as const;
 
-export default function NotFound() {
+function NotFoundContent() {
   const { language } = useLanguage();
   const copy = NOT_FOUND_COPY[language];
 
@@ -35,5 +35,13 @@ export default function NotFound() {
         </Link>
       </section>
     </main>
+  );
+}
+
+export default function NotFound() {
+  return (
+    <LanguageProvider>
+      <NotFoundContent />
+    </LanguageProvider>
   );
 }
