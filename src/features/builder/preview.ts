@@ -225,9 +225,19 @@ export function compilePreview(files: Record<string, string>, channel: string, t
     ? `<script>${threeRuntimeSource.replace(/<\/script/gi, "<\\/script")}</script>`
     : "";
   const policy = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; font-src data:; connect-src data: blob:; worker-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'; navigate-to 'none';"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width, initial-scale=1">`;
+  // Generated styles often give modal overlays `display:flex`. Keep the
+  // platform-standard hidden state authoritative after all author CSS.
+  const runtimeInvariants = "<style data-sandu-preview-invariants>[hidden]{display:none!important}</style>";
+  const firstProjectScript = html.search(/<script\b/i);
+  const guardedHtml = firstProjectScript < 0
+    ? html
+    : html.slice(0, firstProjectScript) + runtimeInvariants + html.slice(firstProjectScript);
   // Always own the outer document. Regex-inserting into an untrusted <head>
   // can be bypassed with a fake tag inside a comment or script string.
-  return `<!doctype html><html><head>${policy}${runtime}${bridge}</head><body>${html}</body></html>`;
+  // Install once before any project script can observe initial layout, then
+  // repeat after author CSS so equal-specificity declarations cannot win by
+  // source order.
+  return `<!doctype html><html><head>${policy}${runtimeInvariants}${runtime}${bridge}</head><body>${guardedHtml}${runtimeInvariants}</body></html>`;
 }
 
 export function isPreviewMessage(event: MessageEvent, source: Window | null | undefined, channel: string): boolean {

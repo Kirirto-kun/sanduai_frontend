@@ -16,6 +16,23 @@ describe("builder preview sandbox", () => {
     expect(output).not.toContain('src="app.js"');
   });
 
+  it("keeps hidden elements hidden after generated overlay styles", () => {
+    const output = compilePreview({
+      "index.html": '<link href="styles.css" rel="stylesheet"><section class="overlay" hidden>Done</section><script>window.initialDisplay=getComputedStyle(document.querySelector(".overlay")).display</script>',
+      "styles.css": ".overlay{display:flex}",
+    }, "channel-hidden");
+
+    const authorRule = output.indexOf(".overlay{display:flex}");
+    const firstHiddenInvariant = output.indexOf("[hidden]{display:none!important}");
+    const lastHiddenInvariant = output.lastIndexOf("[hidden]{display:none!important}");
+    const projectScript = output.indexOf("window.initialDisplay=");
+    expect(authorRule).toBeGreaterThan(-1);
+    expect(firstHiddenInvariant).toBeLessThan(projectScript);
+    expect(lastHiddenInvariant).toBeGreaterThan(authorRule);
+    expect(firstHiddenInvariant).not.toBe(lastHiddenInvariant);
+    expect(output.match(/data-sandu-preview-invariants/g)).toHaveLength(3);
+  });
+
   it("injects a restrictive policy and the safe camera bridge", () => {
     const output = compilePreview({ "index.html": "<main>Hello</main>" }, "safe-channel");
 

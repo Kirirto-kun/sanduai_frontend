@@ -27,6 +27,11 @@ import {
   normalizeBuilderContentLanguage,
 } from "./language";
 import {
+  BuilderCompletionPendingError,
+  startBuilderCompletionReconciliation,
+  versionsIncludeProjectSnapshot,
+} from "./reconciliation";
+import {
   BUILDER_GENERATION_KIND,
   attachJobToPendingBuilderBuild,
   builderJobBelongsToProject,
@@ -115,6 +120,7 @@ export default function BuilderWorkspace() {
   const recoveryAttemptRef = useRef<string | null>(null);
   const pollTransportErrorRef = useRef(false);
   const pendingBuildMemoryRef = useRef<PendingBuilderBuild | null>(null);
+  const currentProjectRef = useRef<BuilderProject | null>(null);
   const duplicatedFromUrlRef = useRef<string | null>(null);
   const prefillAppliedRef = useRef(false);
   const [projects, setProjects] = useState<BuilderProjectSummary[]>([]);
@@ -201,6 +207,7 @@ export default function BuilderWorkspace() {
   }, [contentLanguages]);
 
   const replaceProject = useCallback((project: BuilderProject) => {
+    currentProjectRef.current = project;
     setCurrentProject(project);
     setProjects(items => {
       const next = projectSummary(project);
@@ -634,18 +641,35 @@ export default function BuilderWorkspace() {
         }
 
         if (job.status === "completed" || job.status === "billing_error") {
+          setRecoveringBuild(true);
           try {
-            const [latestProject, latestVersions] = await Promise.all([
-              builderApi.get(targetProjectId),
-              builderApi.versions(targetProjectId),
-            ]);
+            const reconciliation = startBuilderCompletionReconciliation(
+              targetProjectId,
+              job,
+              {
+                loadProject: builderApi.get,
+                loadVersions: builderApi.versions,
+              },
+            );
+            const latestProject = await reconciliation.project;
             if (stopped) return;
             replaceProject(latestProject);
-            setVersions(latestVersions);
+            void reconciliation.versions.then((latestVersions) => {
+              if (
+                !stopped
+                && latestVersions
+                && openedFromUrl.current === targetProjectId
+                && closingProjectRef.current !== targetProjectId
+                && currentProjectRef.current?.id === targetProjectId
+                && currentProjectRef.current.current_version === latestProject.current_version
+                && versionsIncludeProjectSnapshot(latestProject, latestVersions)
+              ) setVersions(latestVersions);
+            });
             clearPendingBuilderBuild(targetProjectId, job.id, persistenceScope);
             rememberPendingBuild(null);
             setRetryDraft(null);
             setGenerationJob(null);
+            setRecoveringBuild(false);
             setError(job.status === "billing_error"
               ? language === "kk"
                 ? "Жоба сақталды, бірақ монета есебін әкімші тексеруі керек."
@@ -655,7 +679,20 @@ export default function BuilderWorkspace() {
             router.replace(builderWorkspaceHref(targetProjectId), { scroll: false });
             announceGenerationUpdate();
           } catch (requestError) {
-            if (!stopped) setError(builderErrorMessage(requestError, language));
+            if (stopped) return;
+            if (requestError instanceof BuilderCompletionPendingError) {
+              timer = window.setTimeout(poll, 1_500);
+              return;
+            }
+            if (uncertainTransport(requestError)) {
+              setError(language === "kk"
+                ? "Өзгерістер сақталды. Жаңартылған жобаны серверден алып жатырмыз…"
+                : "Изменения сохранены. Получаем обновлённый проект с сервера…");
+              timer = window.setTimeout(poll, 3_000);
+              return;
+            }
+            setRecoveringBuild(false);
+            setError(builderErrorMessage(requestError, language));
           }
           return;
         }
@@ -838,6 +875,7 @@ export default function BuilderWorkspace() {
 
   const backToProjects = () => {
     if (currentProject) closingProjectRef.current = currentProject.id;
+    currentProjectRef.current = null;
     setCurrentProject(null);
     setVersions([]);
     setError("");
