@@ -21,6 +21,14 @@ const JOB_ID = "30bdc3b2-41e6-4399-877c-cbab8e93a5d9";
 
 
 describe("generation history deep links", () => {
+  it("restores masterclass jobs and topic suggestions in their own workspace", () => {
+    for (const kind of ["masterclass.generate", "masterclass.action"]) expect(generationSourceHref({ id: JOB_ID, kind, source_path: "/dashboard/ai/masterclasses" })).toBe(`/dashboard/ai/masterclasses?masterclassJob=${JOB_ID}`);
+    expect(generationSourceHref({ id: JOB_ID, kind: "masterclass.topics", source_path: "/dashboard/ai/masterclasses?mode=topics" })).toBe(`/dashboard/ai/masterclasses?mode=topics&topicsJob=${JOB_ID}`);
+    expect(isPrimaryGenerationMaterial({ kind: "masterclass.generate" })).toBe(true);
+    expect(isPrimaryGenerationMaterial({ kind: "masterclass.action" })).toBe(false);
+    expect(isPrimaryGenerationMaterial({ kind: "masterclass.topics" })).toBe(false);
+    expect(isPrimaryGenerationMaterial({ kind: "competition.generate" })).toBe(true);
+  });
   it("accepts canonical job UUIDs and rejects malformed values", () => {
     expect(generationJobIdFromSearchParam(JOB_ID)).toBe(JOB_ID);
     expect(generationJobIdFromSearchParam("job-1")).toBeNull();

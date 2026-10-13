@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { Suspense, useState, useRef, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslations } from "../../../../i18n/LanguageContext";
+import { useMasterclassHandoff, useMasterclassHandoffPrefill } from "@/features/masterclasses/useMasterclassHandoff";
+import { MasterclassHandoffNotice } from "@/features/masterclasses/MasterclassHandoffNotice";
 
 type QRErrorLevel = "L" | "M" | "Q" | "H";
 
-export default function QRGeneratorPage() {
+function QRGeneratorContent() {
   const t = useTranslations();
   const qr = t.qrGenerator;
   const [text, setText] = useState("");
@@ -15,6 +17,8 @@ export default function QRGeneratorPage() {
   const [bgColor, setBgColor] = useState("#ffffff");
   const [errorLevel, setErrorLevel] = useState<QRErrorLevel>("M");
   const svgRef = useRef<HTMLDivElement>(null);
+  const masterclass = useMasterclassHandoff("qr");
+  useMasterclassHandoffPrefill(masterclass, payload => setText(payload.share_url!), () => setText(""));
 
   const downloadPNG = useCallback(() => {
     const svgElement = svgRef.current?.querySelector("svg");
@@ -61,6 +65,7 @@ export default function QRGeneratorPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
+      <MasterclassHandoffNotice handoff={masterclass} onClear={() => setText("")} />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
           {qr?.title || "QR Code Generator"}
@@ -80,6 +85,7 @@ export default function QRGeneratorPage() {
                 {qr?.textLabel || "Content"}
               </label>
               <textarea
+                disabled={masterclass.loading || Boolean(masterclass.error)}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder={qr?.textPlaceholder || "Enter a URL, text, or any content..."}
@@ -221,4 +227,8 @@ export default function QRGeneratorPage() {
       </div>
     </div>
   );
+}
+
+export default function QRGeneratorPage() {
+  return <Suspense fallback={<div className="min-h-64 animate-pulse rounded-3xl bg-white/70" />}><QRGeneratorContent /></Suspense>;
 }

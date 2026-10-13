@@ -476,6 +476,28 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
             {language === "kk" ? "Циклограмма баптаулары" : "Настройки циклограммы"}
           </Link>
           <Link
+            href="/dashboard/admin/competitions"
+            onClick={onNavigate}
+            className={`ml-5 flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition ${
+              pathname === "/dashboard/admin/competitions"
+                ? "bg-[color:var(--primary)] text-white shadow-sm"
+                : "text-slate-600 hover:bg-white/80 hover:text-slate-900"
+            }`}
+          >
+            {language === "kk" ? "Байқаулар және ережелер" : "Конкурсы и правила"}
+          </Link>
+          <Link
+            href="/dashboard/admin/masterclasses"
+            onClick={onNavigate}
+            className={`ml-5 flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition ${
+              pathname === "/dashboard/admin/masterclasses"
+                ? "bg-[color:var(--primary)] text-white shadow-sm"
+                : "text-slate-600 hover:bg-white/80 hover:text-slate-900"
+            }`}
+          >
+            {language === "kk" ? "Шебер сынып баптаулары" : "Настройки мастер-классов"}
+          </Link>
+          <Link
             href="/dashboard/admin/preschool-activities"
             onClick={onNavigate}
             className={`ml-5 flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition ${

@@ -16,6 +16,8 @@ import {
 import { API_ERROR_CODES, ApiRequestError } from "@/lib/http-client";
 import { createIdempotencyKey } from "@/lib/idempotency";
 import { readIntegrationPrefill } from "@/lib/integration-prefill";
+import { useMasterclassHandoff, useMasterclassHandoffPrefill } from "@/features/masterclasses/useMasterclassHandoff";
+import { MasterclassHandoffNotice } from "@/features/masterclasses/MasterclassHandoffNotice";
 import { TOKEN_BALANCE_INVALIDATED_EVENT } from "@/lib/tokenCache";
 import { currentSessionUserId } from "@/hooks/useTokens";
 import BuilderHome from "./BuilderHome";
@@ -154,6 +156,15 @@ export default function BuilderWorkspace() {
   const billingStateUnresolved = generationJob?.status === "billing_error"
     && (generationJob.result === null || generationJob.result === undefined);
   const workspaceBusy = busy || recoveringBuild || generationActive || billingStateUnresolved;
+  const masterclass = useMasterclassHandoff("builder", !projectIdFromUrl && !duplicateIdFromUrl && !jobIdFromUrl && !currentProject);
+  const clearMasterclassDraft = () => { setPrompt(""); setPendingAssets([]); setSelectedType("custom"); setSelectedContentLanguage("auto"); };
+  useMasterclassHandoffPrefill(masterclass, payload => {
+    setPrompt(payload.prompt); setPendingAssets([]); setSelectedContentLanguage(payload.language);
+    const types: BuilderProjectType[] = ["website", "game", "3d", "hand_tracking", "camera", "education", "webapp", "platform", "dashboard", "custom"];
+    const projectType = payload.project_type === "2d" ? "game" : payload.project_type;
+    setSelectedType(types.includes(projectType as BuilderProjectType) ? projectType as BuilderProjectType : "education");
+    setHomeDraftHydrated(true);
+  }, clearMasterclassDraft);
 
   const rememberPendingBuild = useCallback((build: PendingBuilderBuild | null) => {
     pendingBuildMemoryRef.current = build;
@@ -161,7 +172,7 @@ export default function BuilderWorkspace() {
   }, []);
 
   useEffect(() => {
-    if (prefillAppliedRef.current || projectIdFromUrl || duplicateIdFromUrl) return;
+    if (prefillAppliedRef.current || projectIdFromUrl || duplicateIdFromUrl || searchParams.has("masterclassWork")) return;
     prefillAppliedRef.current = true;
     const prefill = readIntegrationPrefill(searchParams);
     const draft = readBuilderHomeDraft(persistenceScope);
@@ -182,7 +193,7 @@ export default function BuilderWorkspace() {
   }, [duplicateIdFromUrl, language, persistenceScope, projectIdFromUrl, searchParams]);
 
   useEffect(() => {
-    if (!homeDraftHydrated || projectIdFromUrl || currentProject) return;
+    if (!homeDraftHydrated || projectIdFromUrl || currentProject || searchParams.has("masterclassWork")) return;
     writeBuilderHomeDraft({
       version: 1,
       prompt,
@@ -200,6 +211,7 @@ export default function BuilderWorkspace() {
     prompt,
     selectedContentLanguage,
     selectedType,
+    searchParams,
   ]);
 
   useEffect(() => {
@@ -775,6 +787,8 @@ export default function BuilderWorkspace() {
 
   const createProject = async () => {
     const trimmed = prompt.trim();
+    if (masterclass.loading || masterclass.error) return;
+    if (trimmed.length > 12000) { setError(language === "kk" ? "Сұрау 12 000 таңбадан аспауы тиіс." : "Запрос должен содержать не более 12 000 символов."); return; }
     if (trimmed.length < 3 || estimatedCost === null || workspaceBusy || mutationLockRef.current) return;
     mutationLockRef.current = true;
     setBusy(true);
@@ -1190,6 +1204,8 @@ export default function BuilderWorkspace() {
   }
 
   return (
+    <>
+    <MasterclassHandoffNotice handoff={masterclass} onClear={clearMasterclassDraft} />
     <BuilderHome
       language={language}
       projects={projects}
@@ -1201,7 +1217,7 @@ export default function BuilderWorkspace() {
       selectedContentLanguage={selectedContentLanguage}
       contentLanguages={contentLanguages}
       pendingAssets={pendingAssets}
-      busy={workspaceBusy}
+      busy={workspaceBusy || masterclass.loading || Boolean(masterclass.error)}
       error={error}
       onPromptChange={setPrompt}
       onSelectType={setSelectedType}
@@ -1214,5 +1230,6 @@ export default function BuilderWorkspace() {
       onDelete={deleteProject}
       onRefresh={loadProjects}
     />
+    </>
   );
 }

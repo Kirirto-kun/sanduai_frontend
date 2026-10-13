@@ -22,6 +22,10 @@ const COPY = {
     server: "Сервис временно недоступен. Попробуйте ещё раз чуть позже.",
     cancelled: "Действие отменено.",
     generationFailed: "Материал не удалось создать. Монеты возвращены.",
+    sessionChanged: "Аккаунт изменился. Обновите страницу и продолжите работу в текущем аккаунте.",
+    invalidMaterial: "Не удалось подготовить материал нужного качества. Попробуйте создать его ещё раз.",
+    creationUnavailable: "Сервис создания материалов временно перегружен. Немного подождите и попробуйте ещё раз.",
+    creationInterrupted: "Создание прервалось. Проверьте «Мои работы» и, если материала нет, запустите его ещё раз.",
   },
   kk: {
     generic: "Әрекетті орындау мүмкін болмады. Қайталап көріңіз.",
@@ -37,6 +41,10 @@ const COPY = {
     server: "Қызмет уақытша қолжетімсіз. Сәл кейінірек қайталап көріңіз.",
     cancelled: "Әрекет тоқтатылды.",
     generationFailed: "Материал жасалмады. Монеталар қайтарылды.",
+    sessionChanged: "Аккаунт өзгерді. Бетті жаңартып, ағымдағы аккаунтпен жұмысты жалғастырыңыз.",
+    invalidMaterial: "Талапқа сай материал дайындау мүмкін болмады. Оны қайта жасап көріңіз.",
+    creationUnavailable: "Материал жасау қызметіне уақытша жүктеме көп. Сәл күтіп, қайталап көріңіз.",
+    creationInterrupted: "Материал жасау тоқтап қалды. «Менің жұмыстарым» бөлімін тексеріп, материал болмаса, оны қайта жасаңыз.",
   },
 } as const;
 
@@ -109,6 +117,11 @@ export function teacherFacingErrorMessage(
     upstreamCode.includes("INSUFFICIENT") ||
     upstreamCode.includes("BALANCE");
   if (insufficient) return options.insufficientCoins ?? copy.payment;
+
+  if (upstreamCode === "AUTH_SESSION_CHANGED") return copy.sessionChanged;
+  if (upstreamCode === "INVALID_PROVIDER_OUTPUT") return copy.invalidMaterial;
+  if (upstreamCode === "PROVIDER_RATE_LIMITED") return copy.creationUnavailable;
+  if (upstreamCode === "PROVIDER_OUTCOME_UNKNOWN") return copy.creationInterrupted;
 
   if (
     upstreamCode === "GENERATION_FAILED" ||

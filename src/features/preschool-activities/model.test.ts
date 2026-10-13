@@ -7,6 +7,8 @@ import {
   MAX_PRESCHOOL_INTEGRATED_AREAS,
   MAX_PRESCHOOL_STYLES,
   normalizePreschoolInput,
+  preschoolGroupNameForLanguage,
+  preschoolTopicRequest,
   taskBuilderPrompt,
   taskIntegrationHref,
   taskVisualPrompt,
@@ -72,6 +74,20 @@ describe("preschool activity model", () => {
     expect(validatePreschoolInput({ ...input, support_needs: ["other"], custom_support_need: "" })).toBe("support");
     expect(validatePreschoolInput({ ...input, duration_minutes: 5 })).toBe("duration");
     expect(validatePreschoolInput({ ...input, children_count: 2, group_count: 3 })).toBe("groups");
+  });
+
+  it("keeps a valid long scenario goal within the smaller topic-suggestion request bounds", () => {
+    const longInput = { ...input, goal: "a".repeat(1500) };
+    const request = preschoolTopicRequest(longInput, "s".repeat(100));
+    expect(request.goal).toHaveLength(1000);
+    expect(request.season).toHaveLength(80);
+    expect(longInput.goal).toHaveLength(1500);
+  });
+
+  it("translates generated group labels while preserving a teacher's custom group name", () => {
+    const group = { id: "middle", age: 3, label: { ru: "Средняя группа", kk: "Ортаңғы топ", en: "Middle group" } };
+    expect(preschoolGroupNameForLanguage({ ...input, language: "en", group_name: "Middle group" }, group, "kk", "ru")).toBe("Ортаңғы топ");
+    expect(preschoolGroupNameForLanguage({ ...input, group_name: "Балапан" }, group, "kk", "ru")).toBe("Балапан");
   });
 
   it("caps backend-limited selections and clears disabled inclusion atomically", () => {

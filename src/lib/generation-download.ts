@@ -177,6 +177,24 @@ async function exportedDocument(
         }),
         extension: "docx",
       };
+    case "competition.generate":
+    case "competition.action": {
+      const result = job.result as { id?: unknown } | null;
+      if (!result || typeof result.id !== "string") return null;
+      const response = await fetch(`${getApiBase()}/pedagogical-competitions/works/${encodeURIComponent(result.id)}/export?format=docx&allow_incomplete=true`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!response.ok) throw new Error("MATERIAL_DOWNLOAD_FAILED");
+      return { blob: await response.blob(), extension: "docx" };
+    }
+    case "masterclass.generate":
+    case "masterclass.action": {
+      const result = job.result as { id?: unknown };
+      if (typeof result.id !== "string") return null;
+      const response = await fetch(`${getApiBase()}/masterclasses/works/${encodeURIComponent(result.id)}/export?material=full&format=docx`, { headers: { Authorization: `Bearer ${getToken()}` } });
+      if (!response.ok) throw new Error("MATERIAL_DOWNLOAD_FAILED");
+      return { blob: await response.blob(), extension: "docx" };
+    }
     case "pedagogical_idea.generate":
       if (!isPedagogicalIdeasResult(job.result)) return null;
       return {

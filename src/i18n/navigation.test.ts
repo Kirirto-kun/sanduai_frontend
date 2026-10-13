@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { COMMON_GROUPS, SEGMENTS } from "./navigation";
+import { COMMON_GROUPS, resolveNavAccess, SEGMENTS } from "./navigation";
 import { translations } from "./translations";
 
 
@@ -30,5 +30,17 @@ describe("dashboard navigation language purity", () => {
     expect(translations.ru.dashboard.menu.aiGenerationItems.bjbTjb).toBe("СОР/СОЧ");
     expect(translations.ru.atZharys.setup.title).toBe("Скачки");
     expect(translations.ru.article.form.title).toBe("Статья");
+  });
+
+  it("makes masterclasses available in school, kindergarten and library navigation", () => {
+    for (const segment of SEGMENTS) {
+      const group = segment.groups.find(item => item.items.some(entry => entry.key === "masterclasses"));
+      expect(group, segment.key).toBeDefined();
+      const item = group!.items.find(entry => entry.key === "masterclasses")!;
+      expect(item.href).toBe("/dashboard/ai/masterclasses");
+      expect(item.soon).not.toBe(true);
+      expect(item.label).toEqual({ ru: "Мастер-классы", kk: "Шебер сынып ұйымдастыру" });
+      expect(resolveNavAccess(item, group!)).toBe("authenticated");
+    }
   });
 });

@@ -23,6 +23,7 @@ const HISTORY_PAGE_SIZE = 30;
 export default function GenerationsPage() {
   const { language } = useLanguage();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [materialFilter, setMaterialFilter] = useState<"all" | "masterclasses">("all");
   const jobs = useInfiniteQuery({
     queryKey: [...generationJobsQueryKey, "history"],
     queryFn: ({ pageParam }) => listGenerationJobs({
@@ -90,6 +91,7 @@ export default function GenerationsPage() {
     return (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
   }), [items, projectItems]);
   const hasMaterials = materialItems.length > 0;
+  const visibleMaterials = materialFilter === "masterclasses" ? materialItems.filter(item => item.job?.kind === "masterclass.generate") : materialItems;
   const initialLoading = jobs.isLoading || scienceProjects.isLoading;
   const queryError = jobs.error ?? scienceProjects.error;
 
@@ -120,6 +122,10 @@ export default function GenerationsPage() {
             : "Откройте или скачайте готовый материал. Оставаться на странице во время создания не нужно."}
         </p>
       </header>
+
+      <nav aria-label={language === "kk" ? "Материал түрі" : "Тип материалов"} className="flex flex-wrap gap-2">
+        {(["all", "masterclasses"] as const).map(value => <button key={value} type="button" aria-pressed={materialFilter === value} onClick={() => setMaterialFilter(value)} className={`rounded-xl border px-4 py-2.5 text-xs font-semibold ${materialFilter === value ? "border-teal-700 bg-teal-700 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{value === "all" ? language === "kk" ? "Барлық материал" : "Все материалы" : language === "kk" ? "Мастер-класстар" : "Мастер-классы"}</button>)}
+      </nav>
 
       {actionError ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
@@ -170,8 +176,9 @@ export default function GenerationsPage() {
               </button>
             </div>
           ) : null}
+          {materialFilter === "masterclasses" && !visibleMaterials.length && <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">{language === "kk" ? "Осы бетте мастер-класс табылмады. Жаңа мастер-класс жасаңыз немесе басқа материалдарды жүктеңіз." : "На этой странице пока нет мастер-классов. Создайте первый или загрузите следующие материалы."}</p>}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {materialItems.map(({ key, job, project }) => job ? (
+            {visibleMaterials.map(({ key, job, project }) => job ? (
               <GenerationMaterialCard
                 key={key}
                 job={job}

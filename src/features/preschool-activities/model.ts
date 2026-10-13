@@ -5,6 +5,7 @@ import type {
   PreschoolActivityDocument,
   PreschoolActivityInput,
   PreschoolConfig,
+  PreschoolAgeGroup,
   PreschoolTask,
 } from "./types";
 
@@ -38,6 +39,24 @@ export function localizedPreschoolLabel(
 
 export function areasForAge(areas: PreschoolActivityArea[], age: number): PreschoolActivityArea[] {
   return areas.filter((area) => age >= area.min_age && age <= area.max_age);
+}
+
+export function preschoolGroupNameForLanguage(
+  input: PreschoolActivityInput,
+  group: PreschoolAgeGroup | undefined,
+  language: ContentLanguage,
+  interfaceLanguage: "ru" | "kk",
+): string {
+  if (!group || input.group_name !== localizedPreschoolLabel(group.label, input.language, interfaceLanguage)) return input.group_name;
+  return localizedPreschoolLabel(group.label, language, interfaceLanguage);
+}
+
+export function preschoolTopicRequest(input: PreschoolActivityInput, season: string) {
+  return {
+    group_id: input.group_id.trim(), age: input.age, activity_type: input.activity_type.trim(), language: input.language,
+    // Topic hints have a smaller server bound than the full scenario goal.
+    goal: input.goal.trim().slice(0, 1000), season: season.trim().slice(0, 80) || undefined,
+  };
 }
 
 export function normalizePreschoolInput(input: PreschoolActivityInput): PreschoolActivityInput {

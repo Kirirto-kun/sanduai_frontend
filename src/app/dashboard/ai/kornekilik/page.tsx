@@ -18,6 +18,8 @@ import {
 import { visualGenerationErrorMessage } from "../../../../lib/visuals-ai-errors";
 import { CONTENT_LANGUAGE_OPTIONS } from "../../../../lib/content-languages";
 import { readIntegrationPrefill } from "../../../../lib/integration-prefill";
+import { useMasterclassCoverFile, useMasterclassHandoff, useMasterclassHandoffPrefill } from "@/features/masterclasses/useMasterclassHandoff";
+import { MasterclassHandoffNotice } from "@/features/masterclasses/MasterclassHandoffNotice";
 import {
   KornekilikResult,
   Language,
@@ -135,9 +137,21 @@ function KornekilikContent() {
   const [result, setResult] = useState<KornekilikResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const masterclass = useMasterclassHandoff("visual", !currentJobId);
+  const sourceCover = useMasterclassCoverFile(masterclass);
+  const coverApplied = useRef<string | null>(null);
+  const clearMasterclassDraft = () => { setTopic(""); setNotes(""); setPhotos([]); coverApplied.current = null; };
+  useMasterclassHandoffPrefill(masterclass, payload => {
+    setTopic(payload.topic); setNotes(payload.notes); setLang(payload.language); setPhotos([]); coverApplied.current = null;
+  }, clearMasterclassDraft);
+  useEffect(() => {
+    if (sourceCover.file && coverApplied.current !== masterclass.identity) {
+      setPhotos([sourceCover.file]); coverApplied.current = masterclass.identity;
+    }
+  }, [sourceCover.file, masterclass.identity]);
 
   useEffect(() => {
-    if (prefillAppliedRef.current || requestedJobId) return;
+    if (prefillAppliedRef.current || requestedJobId || searchParams.has("masterclassWork")) return;
     prefillAppliedRef.current = true;
     const prefill = readIntegrationPrefill(searchParams);
     if (prefill.prompt) setTopic(prefill.prompt);
@@ -204,7 +218,10 @@ function KornekilikContent() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!topic.trim()) return;
+    if (!topic.trim() || masterclass.loading || sourceCover.loading || masterclass.error) return;
+    if (topic.length > 1000 || notes.length > 2000) {
+      setError(language === "kk" ? "Тақырып — 1 000, қосымша мәтін — 2 000 таңбаға дейін." : "Тема — до 1 000, дополнительные данные — до 2 000 символов."); return;
+    }
 
     setError(null);
     setSubmitting(true);
@@ -239,6 +256,9 @@ function KornekilikContent() {
 
   return (
     <>
+      <MasterclassHandoffNotice handoff={masterclass} onClear={clearMasterclassDraft} />
+      {sourceCover.loading && <p role="status" className="mb-4 text-sm text-slate-600">{language === "kk" ? "Кітап мұқабасы жүктелуде…" : "Загружаем обложку книги…"}</p>}
+      {sourceCover.error && <p role="alert" className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{language === "kk" ? "Мұқаба ашылмады. Оны қайта тіркей аласыз." : "Обложка недоступна. Прикрепите её заново."}</p>}
       <GeneratorLayout
         icon="🖼"
         title={t.title}
@@ -254,7 +274,7 @@ function KornekilikContent() {
               placeholder={t.topicPlaceholder}
               rows={4}
               maxLength={1000}
-              disabled={loading}
+              disabled={loading || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
             />
           </Field>
 
@@ -263,7 +283,7 @@ function KornekilikContent() {
               options={langOptions}
               value={lang}
               onChange={setLang}
-              disabled={loading}
+              disabled={loading || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
             />
           </Field>
 
@@ -272,7 +292,7 @@ function KornekilikContent() {
               options={orientationOptions}
               value={orientation}
               onChange={setOrientation}
-              disabled={loading}
+              disabled={loading || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
               columns={3}
             />
           </Field>
@@ -283,8 +303,8 @@ function KornekilikContent() {
               onChange={(e) => setNotes(e.target.value)}
               placeholder={t.notesPlaceholder}
               rows={2}
-              maxLength={500}
-              disabled={loading}
+              maxLength={2000}
+              disabled={loading || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
             />
           </Field>
 
@@ -292,7 +312,7 @@ function KornekilikContent() {
             <PhotoDropzone
               files={photos}
               onChange={setPhotos}
-              disabled={loading}
+              disabled={loading || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
               labels={{
                 prompt: t.photoPrompt,
                 hint: t.photoHint,
@@ -303,7 +323,7 @@ function KornekilikContent() {
 
           <GenerateButton
             loading={loading}
-            disabled={!topic.trim() || !enoughTokens}
+            disabled={!topic.trim() || !enoughTokens || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
             label={t.generate}
             loadingLabel={t.generating}
           />

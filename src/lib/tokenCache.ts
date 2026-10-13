@@ -118,9 +118,13 @@ export function setCachedCosts(costs: Record<string, number>): void {
  * Очистить кэш стоимостей операций
  */
 export function clearCachedCosts(): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(TOKEN_COSTS_CACHE_KEY);
   costsFetchPromise = null;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(TOKEN_COSTS_CACHE_KEY);
+  } catch {
+    // Browser caching is optional, including in private or restricted sessions.
+  }
 }
 
 // ========== Функции для кэширования баланса ==========
@@ -197,7 +201,12 @@ export function setCachedBalance(userId: string, data: {
 export function clearCachedBalance(): void {
   balanceFetchPromises.clear();
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(TOKEN_BALANCE_CACHE_KEY);
+  try {
+    window.localStorage.removeItem(TOKEN_BALANCE_CACHE_KEY);
+  } catch {
+    // A cache failure must not discard an accepted paid generation or prevent
+    // mounted balance widgets from receiving the invalidation event.
+  }
 }
 
 /**
