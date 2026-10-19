@@ -12,8 +12,9 @@ import {
 } from "react";
 
 import { useTokens } from "@/hooks/useTokens";
+import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n/LanguageContext";
-import type { GenerationJob, GenerationJobStatus } from "@/lib/api";
+import type { GenerationJob } from "@/lib/api";
 import {
   CONTENT_LANGUAGE_OPTIONS,
   tryNormalizeContentLanguage,
@@ -25,6 +26,17 @@ import { preschoolActivityApi, PRESCHOOL_JOB_KINDS } from "./api";
 import { preschoolActivityCopy } from "./copy";
 import { preschoolDocumentCopy } from "./document-copy";
 import {
+  isPreschoolJobActive,
+  preschoolJobFailureMessage,
+  restorePreschoolDraft,
+  restorePreschoolPending,
+  retryablePreschoolRequest,
+  savePreschoolDraft,
+  savePreschoolPending,
+  type PendingKind,
+  type PendingOperation,
+} from "./recovery";
+import {
   areasForAge,
   defaultPreschoolInput,
   documentFromJobResult,
@@ -33,6 +45,8 @@ import {
   MAX_PRESCHOOL_INTEGRATED_AREAS,
   MAX_PRESCHOOL_STYLES,
   normalizePreschoolInput,
+  preschoolGroupNameForLanguage,
+  preschoolTopicRequest,
   safePreschoolFileName,
   taskBuilderPrompt,
   taskIntegrationHref,
@@ -53,16 +67,9 @@ import type {
 } from "./types";
 
 type View = "create" | "history" | "document";
-type PendingKind = "generate" | "topics" | "task" | "unknown";
-type PendingOperation = {
-  id: string;
-  kind: PendingKind;
-  taskId?: string;
-};
 type Copy = (typeof preschoolActivityCopy)[keyof typeof preschoolActivityCopy];
 
 const SOURCE_PATH = "/dashboard/ai/preschool-activities";
-const ACTIVE_STATUSES = new Set<GenerationJobStatus>(["queued", "running", "settling", "refunding"]);
 const TASK_ACTIONS: PreschoolTaskAction[] = [
   "regenerate",
   "more_interesting",
@@ -262,10 +269,10 @@ function FormView({
             </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <Field label={copy.organization} labelFor="preschool-organization" hint={copy.optional} wide>
-                <input id="preschool-organization" className={inputClass} value={input.organization} onChange={(event) => update("organization", event.target.value)} placeholder={copy.organizationPlaceholder} disabled={busy} />
+                <input id="preschool-organization" maxLength={300} className={inputClass} value={input.organization} onChange={(event) => update("organization", event.target.value)} placeholder={copy.organizationPlaceholder} disabled={busy} />
               </Field>
               <Field label={copy.teacher} labelFor="preschool-teacher">
-                <input id="preschool-teacher" className={inputClass} value={input.teacher_name} onChange={(event) => update("teacher_name", event.target.value)} placeholder={copy.teacherPlaceholder} disabled={busy} />
+                <input id="preschool-teacher" maxLength={160} className={inputClass} value={input.teacher_name} onChange={(event) => update("teacher_name", event.target.value)} placeholder={copy.teacherPlaceholder} disabled={busy} />
               </Field>
               <Field label={copy.language} labelFor="preschool-language">
                 <select id="preschool-language" className={inputClass} value={input.language} onChange={(event) => {
@@ -274,7 +281,7 @@ function FormView({
                   setInput((current) => ({
                     ...current,
                     language: nextLanguage,
-                    group_name: selectedGroup ? localizedPreschoolLabel(selectedGroup.label, nextLanguage, interfaceLanguage) : current.group_name,
+                    group_name: preschoolGroupNameForLanguage(current, selectedGroup, nextLanguage, interfaceLanguage),
                   }));
                 }} disabled={busy}>
                   {CONTENT_LANGUAGE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -311,7 +318,7 @@ function FormView({
                 </div>
               </Field>
               <Field label={copy.groupName} labelFor="preschool-group-name">
-                <input id="preschool-group-name" className={inputClass} value={input.group_name} onChange={(event) => update("group_name", event.target.value)} placeholder={copy.groupNamePlaceholder} disabled={busy} />
+                <input id="preschool-group-name" maxLength={160} className={inputClass} value={input.group_name} onChange={(event) => update("group_name", event.target.value)} placeholder={copy.groupNamePlaceholder} disabled={busy} />
               </Field>
               <Field label={copy.activity} labelFor="preschool-activity">
                 <select
@@ -330,7 +337,7 @@ function FormView({
               </Field>
               <Field label={copy.topic} labelFor="preschool-topic" wide>
                 <div className="flex flex-col gap-2 sm:flex-row">
-                  <input id="preschool-topic" className={inputClass} value={input.topic} onChange={(event) => update("topic", event.target.value)} placeholder={copy.topicPlaceholder} disabled={busy} />
+                  <input id="preschool-topic" maxLength={300} className={inputClass} value={input.topic} onChange={(event) => update("topic", event.target.value)} placeholder={copy.topicPlaceholder} disabled={busy} />
                   <button
                     type="button"
                     onClick={onTopics}
@@ -342,14 +349,14 @@ function FormView({
                 </div>
               </Field>
               <Field label={copy.season} labelFor="preschool-season" hint={copy.optional}>
-                <input id="preschool-season" className={inputClass} value={season} onChange={(event) => setSeason(event.target.value)} placeholder={copy.seasonPlaceholder} disabled={busy} />
+                <input id="preschool-season" maxLength={80} className={inputClass} value={season} onChange={(event) => setSeason(event.target.value)} placeholder={copy.seasonPlaceholder} disabled={busy} />
               </Field>
               <Field label={copy.goal}>
                 <div role="group" aria-label={copy.goal} className="grid grid-cols-2 gap-2">
                   <button type="button" aria-pressed={goalMode === "ai"} disabled={busy} onClick={() => { setGoalMode("ai"); update("goal", ""); }} className={`min-h-11 rounded-xl border px-3 text-xs font-bold transition ${goalMode === "ai" ? "border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-100" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}>{copy.goalAi}</button>
                   <button type="button" aria-pressed={goalMode === "own"} disabled={busy} onClick={() => setGoalMode("own")} className={`min-h-11 rounded-xl border px-3 text-xs font-bold transition ${goalMode === "own" ? "border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-100" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}>{copy.goalOwn}</button>
                 </div>
-                {goalMode === "own" ? <textarea aria-label={copy.goal} className={`${inputClass} mt-2 min-h-24 resize-y`} value={input.goal} onChange={(event) => update("goal", event.target.value)} placeholder={copy.goalPlaceholder} disabled={busy} /> : null}
+                {goalMode === "own" ? <textarea aria-label={copy.goal} maxLength={1500} className={`${inputClass} mt-2 min-h-24 resize-y`} value={input.goal} onChange={(event) => update("goal", event.target.value)} placeholder={copy.goalPlaceholder} disabled={busy} /> : null}
               </Field>
             </div>
 
@@ -456,7 +463,7 @@ function FormView({
                     </label>
                   ))}
                 </div>
-                {input.support_needs.includes("other") ? <input className={`${inputClass} mt-3`} value={input.custom_support_need} onChange={(event) => update("custom_support_need", event.target.value)} placeholder={copy.supportPlaceholder} disabled={busy} /> : null}
+                {input.support_needs.includes("other") ? <input aria-label={copy.supportPlaceholder} maxLength={500} className={`${inputClass} mt-3`} value={input.custom_support_need} onChange={(event) => update("custom_support_need", event.target.value)} placeholder={copy.supportPlaceholder} disabled={busy} /> : null}
               </div>
             ) : null}
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -465,10 +472,10 @@ function FormView({
                   <button type="button" aria-pressed={characterMode === "ai"} disabled={busy} onClick={() => { setCharacterMode("ai"); update("story_character", ""); }} className={`min-h-11 rounded-xl border px-3 text-xs font-bold transition ${characterMode === "ai" ? "border-violet-500 bg-violet-50 text-violet-800 ring-2 ring-violet-100" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}>{copy.characterAi}</button>
                   <button type="button" aria-pressed={characterMode === "own"} disabled={busy} onClick={() => setCharacterMode("own")} className={`min-h-11 rounded-xl border px-3 text-xs font-bold transition ${characterMode === "own" ? "border-violet-500 bg-violet-50 text-violet-800 ring-2 ring-violet-100" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"}`}>{copy.characterOwn}</button>
                 </div>
-                {characterMode === "own" ? <input aria-label={copy.character} className={`${inputClass} mt-2`} value={input.story_character} onChange={(event) => update("story_character", event.target.value)} placeholder={copy.characterPlaceholder} disabled={busy} /> : null}
+                {characterMode === "own" ? <input aria-label={copy.character} maxLength={160} className={`${inputClass} mt-2`} value={input.story_character} onChange={(event) => update("story_character", event.target.value)} placeholder={copy.characterPlaceholder} disabled={busy} /> : null}
               </Field>
               <Field label={copy.notes} labelFor="preschool-notes" hint={copy.optional}>
-                <textarea id="preschool-notes" className={`${inputClass} min-h-24 resize-y`} value={input.notes} onChange={(event) => update("notes", event.target.value)} placeholder={copy.notesPlaceholder} disabled={busy} />
+                <textarea id="preschool-notes" maxLength={3000} className={`${inputClass} min-h-24 resize-y`} value={input.notes} onChange={(event) => update("notes", event.target.value)} placeholder={copy.notesPlaceholder} disabled={busy} />
               </Field>
             </div>
           </section>
@@ -699,7 +706,7 @@ function TaskCard({
           </select>
           <button type="button" onClick={onTransform} disabled={locked || (selectedAction === "other" && customInstruction.trim().length < 3)} className="min-h-11 shrink-0 rounded-xl bg-slate-950 px-4 text-xs font-black text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">{copy.apply}</button>
         </div>
-        {selectedAction === "other" ? <textarea value={customInstruction} onChange={(event) => onInstructionChange(event.target.value)} placeholder={copy.customInstructionPlaceholder} aria-label={copy.customInstruction} disabled={locked} className={`${inputClass} mt-2 min-h-20 resize-y`} /> : null}
+        {selectedAction === "other" ? <textarea value={customInstruction} maxLength={1000} onChange={(event) => onInstructionChange(event.target.value)} placeholder={copy.customInstructionPlaceholder} aria-label={copy.customInstruction} disabled={locked} className={`${inputClass} mt-2 min-h-20 resize-y`} /> : null}
       </div>
     </article>
   );
@@ -904,13 +911,13 @@ function DocumentView({
 }
 
 function TopicDialog({ copy, topics, loading, onChoose, onClose }: { copy: Copy; topics: string[]; loading: boolean; onChoose: (topic: string) => void; onClose: () => void }) {
-  const dialogRef = useDialogAccessibility(onClose, !loading);
+  const dialogRef = useDialogAccessibility(onClose);
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 p-0 sm:items-center sm:p-6" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target && !loading) onClose(); }}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 p-0 sm:items-center sm:p-6" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
       <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="preschool-topics-title" className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl outline-none sm:rounded-3xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div><h2 id="preschool-topics-title" className="text-xl font-black text-slate-950">{copy.suggestionsTitle}</h2><p className="mt-1 text-sm text-slate-500">{copy.suggestionsHint}</p></div>
-          <button type="button" onClick={onClose} disabled={loading} aria-label={copy.cancel} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600">×</button>
+          <button type="button" onClick={onClose} aria-label={copy.cancel} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600">×</button>
         </div>
         {loading ? <div className="mt-8 flex items-center justify-center gap-3 py-10 text-sm font-bold text-sky-700"><span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-r-transparent" />{copy.topicsLoading}</div> : topics.length === 0 ? (
           <p className="mt-6 rounded-2xl bg-amber-50 px-4 py-8 text-center text-sm font-semibold text-amber-900">{copy.suggestionsEmpty}</p>
@@ -946,6 +953,8 @@ function VisualsDialog({ copy, document, onClose }: { copy: Copy; document: Pres
 }
 
 export default function PreschoolActivityWorkspace() {
+  const { user } = useAuth();
+  const ownerId = user?.userId ?? null;
   const { language } = useLanguage();
   const copy = preschoolActivityCopy[language];
   const { balance, refreshBalance } = useTokens();
@@ -957,6 +966,8 @@ export default function PreschoolActivityWorkspace() {
   const settledJobRef = useRef<string | null>(null);
   const restoredDocumentRef = useRef<string | null>(null);
   const mutationLockRef = useRef(false);
+  const draftOwnerRef = useRef<string | null>(null);
+  const documentRequestRef = useRef(0);
 
   const [view, setView] = useState<View>(requestedView === "history" ? "history" : "create");
   const [config, setConfig] = useState<PreschoolConfig | null>(null);
@@ -969,6 +980,7 @@ export default function PreschoolActivityWorkspace() {
   const [enqueueingTaskId, setEnqueueingTaskId] = useState<string | undefined>();
   const [progress, setProgress] = useState<GenerationJob["progress"] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [topics, setTopics] = useState<string[] | null>(null);
   const [visualsOpen, setVisualsOpen] = useState(false);
   const [downloading, setDownloading] = useState<"docx" | "pdf" | null>(null);
@@ -1012,15 +1024,18 @@ export default function PreschoolActivityWorkspace() {
   }, [history.length, loadHistory, router]);
 
   const openDocument = useCallback(async (id: string, updateRoute = true) => {
+    const requestId = ++documentRequestRef.current;
     setError(null);
     try {
       const value = await preschoolActivityApi.get(id);
+      if (requestId !== documentRequestRef.current) return;
       if (!isPreschoolDocument(value)) throw new Error("INVALID_PRESCHOOL_DOCUMENT");
       setDocument(value);
       setView("document");
       restoredDocumentRef.current = id;
       if (updateRoute) router.replace(`${SOURCE_PATH}?document=${encodeURIComponent(id)}`, { scroll: false });
     } catch (requestError) {
+      if (requestId !== documentRequestRef.current) return;
       reportError(requestError, copy.invalidResult);
     }
   }, [copy.invalidResult, reportError, router]);
@@ -1029,13 +1044,33 @@ export default function PreschoolActivityWorkspace() {
     let active = true;
     preschoolActivityApi.config().then((value) => {
       if (!active) return;
+      setConfigError(null);
       setConfig(value);
-      setInput((current) => current ?? defaultPreschoolInput(value, language));
+      const restored = restorePreschoolDraft(ownerId);
+      const sameOwner = draftOwnerRef.current === ownerId;
+      draftOwnerRef.current = ownerId;
+      setInput((current) => sameOwner && current ? current : restored?.input ?? defaultPreschoolInput(value, language));
+      if (!sameOwner || !input) setSeason(restored?.season ?? "");
+      const restoredPending = restorePreschoolPending(ownerId);
+      if (restoredPending && !requestedJobId && !requestedDocumentId && requestedView !== "history") {
+        setPending(restoredPending);
+        const params = new URLSearchParams({ job: restoredPending.id });
+        if (restoredPending.documentId) params.set("document", restoredPending.documentId);
+        router.replace(`${SOURCE_PATH}?${params.toString()}`, { scroll: false });
+        if (restoredPending.kind === "topics") setTopics([]);
+      }
     }).catch((requestError) => {
       if (active) setConfigError(teacherFacingErrorMessage(requestError, language));
     });
     return () => { active = false; };
-  }, [language]);
+    // Configuration changes on interface-language or account changes; form
+    // edits and route updates must not restart this request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, ownerId]);
+
+  useEffect(() => {
+    if (input && ownerId && draftOwnerRef.current === ownerId) savePreschoolDraft(ownerId, input, season);
+  }, [input, ownerId, season]);
 
   useEffect(() => {
     if (requestedJobId && pending?.id !== requestedJobId && settledJobRef.current !== requestedJobId) {
@@ -1044,7 +1079,7 @@ export default function PreschoolActivityWorkspace() {
   }, [pending?.id, requestedJobId]);
 
   useEffect(() => {
-    if (!requestedDocumentId || requestedJobId || restoredDocumentRef.current === requestedDocumentId) return;
+    if (!requestedDocumentId || restoredDocumentRef.current === requestedDocumentId) return;
     void openDocument(requestedDocumentId, false);
   }, [openDocument, requestedDocumentId, requestedJobId]);
 
@@ -1065,17 +1100,29 @@ export default function PreschoolActivityWorkspace() {
       try {
         const job = await preschoolActivityApi.job(pending.id, controller.signal);
         if (!active) return;
+        setConnectionError(null);
         const actualKind = pendingKind(job.kind);
-        if (pending.kind === "unknown" && actualKind !== "unknown") {
+        if (actualKind === "unknown") {
+          settledJobRef.current = job.id;
+          savePreschoolPending(ownerId, null);
+          setPending(null);
+          setProgress(null);
+          setTopics(null);
+          setError(copy.wrongMaterial);
+          router.replace(SOURCE_PATH, { scroll: false });
+          return;
+        }
+        if (pending.kind === "unknown") {
           setPending((current) => current?.id === job.id ? { ...current, kind: actualKind } : current);
         }
         setProgress(job.progress);
-        if (ACTIVE_STATUSES.has(job.status)) {
+        if (isPreschoolJobActive(job.status)) {
           timer = window.setTimeout(() => void poll(), 1_800);
           return;
         }
         if (settledJobRef.current === job.id) return;
         settledJobRef.current = job.id;
+        savePreschoolPending(ownerId, null);
         setPending(null);
         setProgress(null);
         void refreshBalance();
@@ -1083,27 +1130,46 @@ export default function PreschoolActivityWorkspace() {
         if ((job.status === "completed" || job.status === "billing_error") && job.result) {
           if (actualKind === "topics") {
             setTopics(topicsFromJobResult(job.result));
+            router.replace(SOURCE_PATH, { scroll: false });
             return;
           }
           if (actualKind === "generate" || actualKind === "task") {
             const nextDocument = documentFromJobResult(job.result);
             if (!nextDocument) {
               setError(copy.invalidResult);
+              router.replace(SOURCE_PATH, { scroll: false });
               return;
             }
+            documentRequestRef.current += 1;
+            restoredDocumentRef.current = nextDocument.id;
             setDocument(nextDocument);
             setView("document");
             setError(null);
+            setHistory([]);
+            setHistoryTotal(0);
             router.replace(`${SOURCE_PATH}?document=${encodeURIComponent(nextDocument.id)}`, { scroll: false });
             return;
           }
           setError(copy.wrongMaterial);
           return;
         }
-        setError(job.status === "cancelled" ? copy.cancelled : copy.failed);
+        setTopics(null);
+        setError(preschoolJobFailureMessage(job, language));
+        router.replace(pending.documentId ? `${SOURCE_PATH}?document=${encodeURIComponent(pending.documentId)}` : SOURCE_PATH, { scroll: false });
       } catch (requestError) {
         if (!active || controller.signal.aborted) return;
-        reportError(requestError);
+        if (!retryablePreschoolRequest(requestError)) {
+          settledJobRef.current = pending.id;
+          savePreschoolPending(ownerId, null);
+          setPending(null);
+          setProgress(null);
+          setTopics(null);
+          setConnectionError(null);
+          reportError(requestError);
+          router.replace(pending.documentId ? `${SOURCE_PATH}?document=${encodeURIComponent(pending.documentId)}` : SOURCE_PATH, { scroll: false });
+          return;
+        }
+        setConnectionError(copy.reconnecting);
         timer = window.setTimeout(() => void poll(), 4_000);
       }
     };
@@ -1113,7 +1179,7 @@ export default function PreschoolActivityWorkspace() {
       controller.abort();
       if (timer) window.clearTimeout(timer);
     };
-  }, [copy.cancelled, copy.failed, copy.invalidResult, copy.wrongMaterial, pending, refreshBalance, reportError, router]);
+  }, [copy.invalidResult, copy.reconnecting, copy.wrongMaterial, language, ownerId, pending, refreshBalance, reportError, router]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1123,6 +1189,14 @@ export default function PreschoolActivityWorkspace() {
     const issue = validatePreschoolInput(normalized);
     if (issue) {
       setError(copy.formErrors[issue as PreschoolValidationIssue]);
+      const selector: Partial<Record<PreschoolValidationIssue, string>> = {
+        group: "#preschool-group", groupName: "#preschool-group-name", teacher: "#preschool-teacher",
+        activity: "#preschool-activity", topic: "#preschool-topic", duration: "#preschool-duration",
+        children: "#preschool-children", groups: "#preschool-groups",
+      };
+      const field = window.document.querySelector<HTMLElement>(selector[issue] ?? "form");
+      field?.focus();
+      field?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     if (balance !== null && balance < (config?.token_cost ?? 0)) {
@@ -1134,7 +1208,9 @@ export default function PreschoolActivityWorkspace() {
     try {
       const job = await preschoolActivityApi.generate(normalized);
       settledJobRef.current = null;
-      setPending({ id: job.id, kind: "generate" });
+      const operation: PendingOperation = { id: job.id, kind: "generate" };
+      savePreschoolPending(ownerId, operation);
+      setPending(operation);
       setProgress(job.progress);
       router.replace(`${SOURCE_PATH}?job=${encodeURIComponent(job.id)}`, { scroll: false });
     } catch (requestError) {
@@ -1152,17 +1228,13 @@ export default function PreschoolActivityWorkspace() {
     mutationLockRef.current = true;
     setEnqueueing("topics");
     try {
-      const job = await preschoolActivityApi.topics({
-        group_id: input.group_id,
-        age: input.age,
-        activity_type: input.activity_type,
-        language: input.language,
-        goal: input.goal,
-        season: season.trim() || undefined,
-      });
+      const job = await preschoolActivityApi.topics(preschoolTopicRequest(input, season));
       settledJobRef.current = null;
-      setPending({ id: job.id, kind: "topics" });
+      const operation: PendingOperation = { id: job.id, kind: "topics" };
+      savePreschoolPending(ownerId, operation);
+      setPending(operation);
       setProgress(job.progress);
+      router.replace(`${SOURCE_PATH}?job=${encodeURIComponent(job.id)}`, { scroll: false });
     } catch (requestError) {
       setTopics(null);
       reportError(requestError);
@@ -1184,9 +1256,11 @@ export default function PreschoolActivityWorkspace() {
     try {
       const job = await preschoolActivityApi.transformTask(document.id, task.id, document.version, action, instructions);
       settledJobRef.current = null;
-      setPending({ id: job.id, kind: "task", taskId: task.id });
+      const operation: PendingOperation = { id: job.id, kind: "task", taskId: task.id, documentId: document.id };
+      savePreschoolPending(ownerId, operation);
+      setPending(operation);
       setProgress(job.progress);
-      router.replace(`${SOURCE_PATH}?job=${encodeURIComponent(job.id)}`, { scroll: false });
+      router.replace(`${SOURCE_PATH}?job=${encodeURIComponent(job.id)}&document=${encodeURIComponent(document.id)}`, { scroll: false });
     } catch (requestError) {
       reportError(requestError);
     } finally {
@@ -1261,18 +1335,21 @@ export default function PreschoolActivityWorkspace() {
   const pendingText = currentOperation === "task" ? copy.taskLoading : currentOperation === "topics" ? copy.topicsLoading : copy.loading;
   return (
     <div className="mx-auto max-w-[1480px] pb-12">
+      {connectionError ? <p role="status" className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{connectionError}</p> : null}
       <nav className="mb-6 flex flex-wrap gap-1 border-b border-slate-200" aria-label={copy.title}>
         <button type="button" onClick={createNew} aria-current={view === "create" ? "page" : undefined} className={`min-h-11 border-b-2 px-4 text-sm font-black ${view === "create" ? "border-emerald-600 text-emerald-700" : "border-transparent text-slate-500 hover:text-slate-900"}`}>{copy.createTab}</button>
         <button type="button" onClick={openHistory} aria-current={view === "history" ? "page" : undefined} className={`min-h-11 border-b-2 px-4 text-sm font-black ${view === "history" ? "border-emerald-600 text-emerald-700" : "border-transparent text-slate-500 hover:text-slate-900"}`}>{copy.historyTab}</button>
         {document ? <button type="button" onClick={() => { setView("document"); router.replace(`${SOURCE_PATH}?document=${encodeURIComponent(document.id)}`, { scroll: false }); }} aria-current={view === "document" ? "page" : undefined} className={`min-h-11 border-b-2 px-4 text-sm font-black ${view === "document" ? "border-emerald-600 text-emerald-700" : "border-transparent text-slate-500 hover:text-slate-900"}`}>{copy.resultTab}</button> : null}
       </nav>
 
+      {view === "history" && error ? <p role="alert" className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p> : null}
+
       {(pending || enqueueing) && view !== "create" ? <div aria-live="polite" className="mb-5 flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950"><span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-r-transparent" /><span><strong>{pendingText}</strong>{progress?.total ? ` · ${progress.current ?? 0}/${progress.total}` : progress?.message ? ` · ${progress.message}` : ""}</span></div> : null}
       {view === "create" ? <FormView copy={copy} interfaceLanguage={language} config={config} input={input} setInput={setReadyInput} season={season} setSeason={setSeason} busy={Boolean(pending || enqueueing)} pendingKind={currentOperation} balance={balance} error={error} onSubmit={(event) => void submit(event)} onTopics={() => void suggestTopics()} /> : null}
       {view === "history" ? <HistoryView copy={copy} config={config} language={language} items={history} total={historyTotal} loading={historyLoading} error={historyError} search={historySearch} setSearch={setHistorySearch} onOpen={(id) => void openDocument(id)} onAdapt={adapt} onLoadMore={() => void loadHistory(history.length)} /> : null}
       {view === "document" && document ? <DocumentView copy={copy} language={language} config={config} document={document} pendingTaskId={pending?.kind === "task" ? pending.taskId : enqueueing === "task" ? enqueueingTaskId : undefined} transformLocked={currentOperation === "task"} error={error} downloading={downloading} actions={taskActions} instructions={taskInstructions} onActionChange={(taskId, action) => setTaskActions((current) => ({ ...current, [taskId]: action }))} onInstructionChange={(taskId, value) => setTaskInstructions((current) => ({ ...current, [taskId]: value }))} onTransform={(task) => void transformTask(task)} onBack={createNew} onAdapt={() => adapt(document)} onExport={(format) => void exportDocument(format)} onOpenVisuals={() => setVisualsOpen(true)} /> : null}
 
-      {topics !== null ? <TopicDialog copy={copy} topics={topics} loading={pending?.kind === "topics" || enqueueing === "topics"} onChoose={(topic) => { setInput((current) => current ? { ...current, topic } : current); setTopics(null); }} onClose={() => { if (pending?.kind !== "topics" && enqueueing !== "topics") setTopics(null); }} /> : null}
+      {topics !== null ? <TopicDialog copy={copy} topics={topics} loading={pending?.kind === "topics" || enqueueing === "topics"} onChoose={(topic) => { setInput((current) => current ? { ...current, topic } : current); setTopics(null); }} onClose={() => setTopics(null)} /> : null}
       {visualsOpen && document ? <VisualsDialog copy={copy} document={document} onClose={() => setVisualsOpen(false)} /> : null}
     </div>
   );
