@@ -825,8 +825,23 @@ const generationEnqueueInFlight = new Map<string, Promise<GenerationJob>>();
 type GenerationIntent = {
   key: string;
   createdAt: number;
+  owner: string;
   jobId?: string;
 };
+
+function generationOwner(): string {
+  const token = getToken();
+  const subject = token ? decodeJwtPayload(token)?.sub : null;
+  return typeof subject === "string" && subject.length > 0 ? subject : "anonymous";
+}
+
+function assertGenerationOwner(owner: string): void {
+  if (generationOwner() !== owner) {
+    throw new ApiRequestError("The account changed while submitting this material.", 403, {
+      detail: { code: "AUTH_SESSION_CHANGED" },
+    });
+  }
+}
 
 function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
@@ -839,14 +854,14 @@ function canonicalJson(value: unknown): string {
   return JSON.stringify(value) ?? "null";
 }
 
-function generationFingerprint(kind: string, payload: Record<string, unknown>): string {
+function generationFingerprint(kind: string, payload: Record<string, unknown>, owner: string): string {
   const source = `${kind}:${canonicalJson(payload)}`;
   let hash = 2166136261;
   for (let index = 0; index < source.length; index += 1) {
     hash ^= source.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
-  return `${kind}:${(hash >>> 0).toString(16)}:${source.length}`;
+  return `${owner}:${kind}:${(hash >>> 0).toString(16)}:${source.length}`;
 }
 
 function readGenerationIntents(): Record<string, GenerationIntent> {
@@ -856,7 +871,8 @@ function readGenerationIntents(): Record<string, GenerationIntent> {
     const cutoff = Date.now() - 24 * 60 * 60 * 1_000;
     return Object.fromEntries(
       Object.entries(parsed).filter(([, intent]) =>
-        intent && typeof intent.key === "string" && intent.createdAt >= cutoff),
+        intent && typeof intent.key === "string" && typeof intent.owner === "string" &&
+        Number.isFinite(intent.createdAt) && intent.createdAt >= cutoff),
     );
   } catch {
     return {};
@@ -873,13 +889,17 @@ function writeGenerationIntents(intents: Record<string, GenerationIntent>): void
   }
 }
 
-function getOrCreateGenerationIntent(fingerprint: string): GenerationIntent {
+function getOrCreateGenerationIntent(fingerprint: string, owner: string): GenerationIntent {
   const intents = readGenerationIntents();
   const existing = intents[fingerprint];
-  if (existing) return existing;
-  const created = { key: globalThis.crypto.randomUUID(), createdAt: Date.now() };
-  intents[fingerprint] = created;
-  writeGenerationIntents(intents);
+  if (existing?.owner === owner) return existing;
+  const created = { key: globalThis.crypto.randomUUID(), createdAt: Date.now(), owner };
+  // An unauthenticated browser must not leave an intent that a later account
+  // can accidentally adopt. The backend still authenticates every request.
+  if (owner !== "anonymous") {
+    intents[fingerprint] = created;
+    writeGenerationIntents(intents);
+  }
   return created;
 }
 
@@ -926,17 +946,21 @@ export async function enqueueGenerationJob(
   payload: Record<string, unknown>,
   options: { title?: string; idempotencyKey?: string } = {},
 ): Promise<GenerationJob> {
-  const fingerprint = generationFingerprint(kind, payload);
+  const owner = generationOwner();
+  const fingerprint = generationFingerprint(kind, payload, owner);
   const existingRequest = generationEnqueueInFlight.get(fingerprint);
   if (existingRequest) return existingRequest;
 
   const requestPromise = (async () => {
     const intent = options.idempotencyKey
-      ? { key: options.idempotencyKey, createdAt: Date.now() }
-      : getOrCreateGenerationIntent(fingerprint);
+      ? { key: options.idempotencyKey, createdAt: Date.now(), owner }
+      : getOrCreateGenerationIntent(fingerprint, owner);
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
+        // Never retry an earlier account's paid submission as the current one.
+        // Token refresh within the same account remains safe and keeps its key.
+        assertGenerationOwner(owner);
         const response = await request<GenerationJob>("/api/v1/generations", {
           method: "POST",
           auth: true,
@@ -945,6 +969,7 @@ export async function enqueueGenerationJob(
           headers: { "Idempotency-Key": intent.key },
           body: JSON.stringify({ kind, payload, title: options.title }),
         });
+        assertGenerationOwner(owner);
         const job = validateGenerationJobAcknowledgement(response, kind);
         attachJobToGenerationIntent(fingerprint, job.id);
         invalidateCachedBalance();

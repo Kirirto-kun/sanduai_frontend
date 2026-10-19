@@ -5,12 +5,16 @@ import { saveToken } from "./api";
 import { markAuthLogoutTombstone } from "./auth-session";
 import {
   clearCachedBalance,
+  clearCachedCosts,
   getCachedBalance,
   getOrCreateBalanceFetchPromise,
+  getOrCreateFetchPromise,
   getSubscriptionExpiryTimerDelay,
   isBalanceCacheValid,
+  invalidateCachedBalance,
   parseSubscriptionEndTimestamp,
   setCachedBalance,
+  TOKEN_BALANCE_INVALIDATED_EVENT,
 } from "./tokenCache";
 
 type BalanceSnapshot = {
@@ -47,6 +51,39 @@ afterEach(() => {
 });
 
 describe("token balance request deduplication", () => {
+  it.each(["remove", "access"])("still refreshes mounted balance widgets when storage fails on %s", (failure) => {
+    const dispatchEvent = vi.fn();
+    const browser = {
+      dispatchEvent,
+      get localStorage() {
+        if (failure === "access") throw new Error("Storage access denied");
+        return { removeItem: () => { throw new Error("Storage access denied"); } };
+      },
+    };
+    vi.stubGlobal("window", browser);
+
+    expect(() => invalidateCachedBalance()).not.toThrow();
+    expect(dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: TOKEN_BALANCE_INVALIDATED_EVENT,
+    }));
+  });
+
+  it("starts a new prices request after clearing an unavailable browser cache", async () => {
+    vi.stubGlobal("window", {
+      localStorage: { removeItem: () => { throw new Error("Storage access denied"); } },
+    });
+    let resolveOld!: (value: Record<string, number>) => void;
+    const oldRequest = getOrCreateFetchPromise(() => new Promise((resolve) => { resolveOld = resolve; }));
+
+    expect(() => clearCachedCosts()).not.toThrow();
+    const fetchCurrent = vi.fn(async () => ({ preschool_activity_generate: 12 }));
+    const currentRequest = getOrCreateFetchPromise(fetchCurrent);
+    resolveOld({ preschool_activity_generate: 99 });
+    await oldRequest;
+    await expect(currentRequest).resolves.toEqual({ preschool_activity_generate: 12 });
+    expect(fetchCurrent).toHaveBeenCalledOnce();
+  });
+
   it("treats a timezone-naive backend subscription timestamp as UTC", () => {
     expect(parseSubscriptionEndTimestamp("2026-09-04T11:57:47.23667"))
       .toBe(Date.parse("2026-09-04T11:57:47.23667Z"));

@@ -318,6 +318,26 @@ export function fetchWithPolicy(
   return runWithFetchPolicy(input, init, options, async (response) => response);
 }
 
+/** Consume private media while its deadline and external cancellation still apply. */
+export function requestBlob(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  options: FetchPolicyOptions = {},
+): Promise<Blob> {
+  return runWithFetchPolicy(input, init, options, async (response) => {
+    if (!response.ok) {
+      const payload = await readResponsePayload(response);
+      throw makeError({
+        message: messageFromPayload(payload.data, response.status),
+        status: response.status,
+        code: apiErrorCodeForStatus(response.status),
+        details: payload.data,
+      }, options.errorFactory);
+    }
+    return response.blob();
+  });
+}
+
 /**
  * JSON request policy. It deliberately never retries: callers that debit a
  * balance or enqueue paid work cannot be duplicated by the client.

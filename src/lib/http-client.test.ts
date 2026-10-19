@@ -10,6 +10,7 @@ import {
   configureAuthRefresh,
   configureAuthTokenReader,
   requestJson,
+  requestBlob,
   resetAuthRefreshForTests,
 } from "./http-client";
 
@@ -128,6 +129,26 @@ describe("requestJson", () => {
       status: 0,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it.each(["deadline", "external abort"])("keeps %s active while a media body arrives after headers", async (reason) => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    let startedBody = false;
+    vi.stubGlobal("fetch", vi.fn((_input: RequestInfo | URL, init?: RequestInit) => Promise.resolve({
+      ok: true,
+      status: 200,
+      blob: () => new Promise<Blob>((_resolve, reject) => {
+        startedBody = true;
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+      }),
+    } as Response)));
+    const result = requestBlob("https://api.example.test/private-media", { signal: controller.signal, credentials: "omit" }, { timeoutMs: 25, attemptAuthRefresh: false });
+    const assertion = expect(result).rejects.toMatchObject({ code: reason === "deadline" ? API_ERROR_CODES.TIMEOUT : API_ERROR_CODES.ABORTED, status: 0 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(startedBody).toBe(true);
+    if (reason === "deadline") await vi.advanceTimersByTimeAsync(25);
+    else controller.abort();
+    await assertion;
   });
 
   it("emits one logout notification for a burst of 401 responses", async () => {

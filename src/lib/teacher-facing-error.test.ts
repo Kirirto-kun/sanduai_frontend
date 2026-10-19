@@ -66,4 +66,26 @@ describe("teacherFacingErrorMessage", () => {
       teacherFacingErrorMessage(new TeacherFacingError("Қауіпсіз хабарлама"), "kk"),
     ).toBe("Қауіпсіз хабарлама");
   });
+
+  it.each([
+    ["AUTH_SESSION_CHANGED", 403, "Аккаунт изменился", "Аккаунт өзгерді"],
+    ["INVALID_PROVIDER_OUTPUT", 502, "нужного качества", "Талапқа сай"],
+    ["PROVIDER_RATE_LIMITED", 502, "временно перегружен", "уақытша жүктеме"],
+    ["PROVIDER_OUTCOME_UNKNOWN", 502, "Создание прервалось", "тоқтап қалды"],
+  ])("explains %s with a useful next step in both languages without exposing internal diagnostics", (serverCode, status, ru, kk) => {
+    const error = new ApiRequestError("raw upstream secret-key response", status, {
+      detail: { code: serverCode },
+    });
+
+    for (const [language, expected] of [["ru", ru], ["kk", kk]] as const) {
+      const message = teacherFacingErrorMessage(error, language);
+      expect(message).toContain(expected);
+      expect(message).not.toContain(serverCode);
+      expect(message).not.toContain("secret-key");
+      // These messages may also be shown while a refund is settling, so they
+      // must not make a premature statement about the coin balance.
+      expect(message).not.toContain("Монеты возвращены");
+      expect(message).not.toContain("Монеталар қайтарылды");
+    }
+  });
 });
