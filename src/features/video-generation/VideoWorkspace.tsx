@@ -170,7 +170,7 @@ export function VideoWorkspace({
         aspect_ratio: defaults.aspect_ratio,
       });
       const first = await videoApi.createScene(created.id, {
-        title: kk ? "Бірінші сахна" : "Первая сцена",
+        title: kk ? "Бірінші көрініс" : "Первая сцена",
         prompt: initialPrompt,
         original_prompt: initialPrompt,
         settings: defaults,
@@ -194,7 +194,7 @@ export function VideoWorkspace({
     setAddAfter(null);
     try {
       const next = await videoApi.createScene(project.id, {
-        title: `${kk ? "Сахна" : "Сцена"} ${project.scenes.length + 1}`,
+        title: `${kk ? "Көрініс" : "Сцена"} ${project.scenes.length + 1}`,
         prompt: "",
         settings: { ...project.defaults, aspect_ratio: project.aspect_ratio },
         ...(source
@@ -377,7 +377,7 @@ export function VideoWorkspace({
       {catalog.data && !fastAvailable && (
         <aside className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-6 text-amber-900">
           {kk
-            ? "«Жылдам» әдепкі профилі уақытша қолжетімсіз. Сахналармен құрастыруда қолжетімді модельді таңдауға болады."
+            ? "«Жылдам» әдепкі профилі уақытша қолжетімсіз. Көріністермен құрастыруда қолжетімді модельді таңдауға болады."
             : "Профиль «Быстрый» для новых клипов временно недоступен. В построении по сценам можно выбрать доступную модель."}
           <Button
             className="ml-3"
@@ -476,7 +476,7 @@ export function VideoWorkspace({
               </p>
               <p className="mt-2 text-xs text-slate-400">
                 {kk
-                  ? "Мұнда жобалар, сахна нұсқалары және дайын MP4 болады."
+                  ? "Мұнда жобалар, көрініс нұсқалары және дайын MP4 болады."
                   : "Здесь будут проекты, версии сцен и готовые MP4."}
               </p>
               <Button
@@ -566,8 +566,8 @@ export function VideoWorkspace({
                 </span>
               </button>
               <p className="mt-1 text-[11px] text-slate-500">
-                {scenes.filter((item) => item.included).length}{" "}
-                {kk ? "сахна роликте" : "сцен в ролике"} ·{" "}
+                {kk ? "Роликтегі көріністер: " : "Сцен в ролике: "}
+                {scenes.filter((item) => item.included).length} ·{" "}
                 {projectDuration(project).toFixed(1)} {kk ? "сек" : "сек"}
                 <span className="ml-2 text-amber-600">
                   {expiryLabel(project.expires_at, kk)}{" "}
@@ -633,7 +633,7 @@ export function VideoWorkspace({
                     else
                       setError(
                         kk
-                          ? `Ең көбі ${catalog.data!.max_scenes} сахна қосуға болады.`
+                          ? `Ең көбі ${catalog.data!.max_scenes} көрініс қосуға болады.`
                           : `В одном ролике может быть до ${catalog.data!.max_scenes} сцен.`,
                       );
                   }}
@@ -652,7 +652,7 @@ export function VideoWorkspace({
           ) : (
             <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-10 text-center">
               <p className="text-sm text-slate-600">
-                {kk ? "Алғашқы сахнадан бастаңыз" : "Начните с первой сцены"}
+                {kk ? "Алғашқы көріністен бастаңыз" : "Начните с первой сцены"}
               </p>
               <Button
                 variant="primary"
@@ -661,7 +661,7 @@ export function VideoWorkspace({
                 onClick={() => void addScene()}
               >
                 <Icon name="plus" />
-                {kk ? "Сахна қосу" : "Добавить сцену"}
+                {kk ? "Көрініс қосу" : "Добавить сцену"}
               </Button>
             </div>
           )}
@@ -688,7 +688,7 @@ export function VideoWorkspace({
                 </strong>
               </p>
               <p>
-                {kk ? "Қалған сахналардың бағасы" : "Расчёт оставшихся сцен"}
+                {kk ? "Қалған көріністердің бағасы" : "Расчёт оставшихся сцен"}
                 <strong className="mt-1 block text-slate-800">
                   {money(project.estimated_remaining_tokens)} ₸
                 </strong>
@@ -696,7 +696,7 @@ export function VideoWorkspace({
                   <span className="mt-1 block text-[10px]">
                     {project.unquoted_scene_count}{" "}
                     {kk
-                      ? "сахнаға баға әлі есептелмеген"
+                      ? "көрініске баға әлі есептелмеген"
                       : "сцен ещё без расчёта цены"}
                   </span>
                 )}
@@ -719,12 +719,12 @@ export function VideoWorkspace({
               </span>
               <h2 className="mt-6 max-w-lg text-3xl font-bold leading-[1.2] tracking-tight text-slate-900 sm:text-4xl">
                 {kk
-                  ? "Кез келген оқиға бір сахнадан басталады"
+                  ? "Кез келген оқиға бір көріністен басталады"
                   : "Любая история начинается с одной сцены"}
               </h2>
               <p className="mt-4 max-w-lg text-sm leading-7 text-slate-500">
                 {kk
-                  ? "Бір клип жасаңыз немесе сценарий құрастырып, оны сахнадан сахнаға дамытыңыз. Сапа, ұзақтық, камера және дыбыс — өз таңдауыңыз."
+                  ? "Бір клип жасаңыз немесе сценарий құрастырып, оны көріністен көрініске дамытыңыз. Сапа, ұзақтық, камера және дыбыс — өз таңдауыңыз."
                   : "Создайте один клип или подготовьте сценарий и развивайте его сцена за сценой. Качество, длительность, камера и звук — на ваш выбор."}
               </p>
               {initialPrompt && (
@@ -748,7 +748,7 @@ export function VideoWorkspace({
                   onClick={() => setDialog("plan")}
                 >
                   <Icon name="scenes" />
-                  {kk ? "Сахналармен құрастыру" : "Построить по сценам"}
+                  {kk ? "Көріністермен құрастыру" : "Построить по сценам"}
                 </Button>
               </div>
               <p className="mt-4 flex items-center gap-2 text-[10px] text-slate-400">
@@ -809,7 +809,7 @@ export function VideoWorkspace({
                 "scenes",
                 kk ? "Әрекетті жалғастырыңыз" : "Продолжите действие",
                 kk
-                  ? "Соңғы кадр — келесі сахнаның басы"
+                  ? "Соңғы кадр — келесі көріністің басы"
                   : "Последний кадр — начало новой сцены",
               ],
               [
@@ -892,7 +892,7 @@ export function VideoWorkspace({
               >
                 <strong className="block text-sm text-teal-900">
                   {kk
-                    ? "Дайын жоспардағы келесі сахнаны жалғастыру"
+                    ? "Дайын жоспардағы келесі көріністі жалғастыру"
                     : "Продолжить следующую сцену из плана"}
                 </strong>
                 <span className="mt-1 block text-xs leading-6 text-teal-700">
@@ -917,11 +917,11 @@ export function VideoWorkspace({
               <Icon name="scenes" className="mt-1 h-5 w-5 text-indigo-500" />
               <span>
                 <strong className="text-sm text-slate-800">
-                  {kk ? "Осы сахнаны жалғастыру" : "Продолжить эту сцену"}
+                  {kk ? "Осы көріністі жалғастыру" : "Продолжить эту сцену"}
                 </strong>
                 <span className="mt-1 block text-xs leading-6 text-slate-500">
                   {kk
-                    ? "Таңдалған клиптің соңғы кадрынан жаңа сахна."
+                    ? "Таңдалған клиптің соңғы кадрынан жаңа көрініс."
                     : "Начнём с последнего кадра. Опишите, что произойдёт дальше."}
                 </span>
               </span>
@@ -935,7 +935,7 @@ export function VideoWorkspace({
               <Icon name="plus" className="mt-1 h-5 w-5 text-slate-400" />
               <span>
                 <strong className="text-sm text-slate-800">
-                  {kk ? "Жаңа сахна қосу" : "Новая сцена"}
+                  {kk ? "Жаңа көрініс қосу" : "Новая сцена"}
                 </strong>
                 <span className="mt-1 block text-xs leading-6 text-slate-500">
                   {kk
@@ -953,7 +953,7 @@ export function VideoWorkspace({
               <Icon name="image" className="mt-1 h-5 w-5 text-slate-500" />
               <span>
                 <strong className="text-sm text-slate-800">
-                  {kk ? "Суреттен сахна" : "Сцена из фото"}
+                  {kk ? "Суреттен көрініс" : "Сцена из фото"}
                 </strong>
                 <span className="mt-1 block text-xs leading-6 text-slate-500">
                   {kk
@@ -965,7 +965,7 @@ export function VideoWorkspace({
             {!versionAssetId(selectedVersion(addAfter)) && (
               <p className="rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500">
                 {kk
-                  ? "Жалғастыру үшін алдымен осы сахнаның видеосын жасаңыз."
+                  ? "Жалғастыру үшін алдымен осы көріністің видеосын жасаңыз."
                   : "Чтобы продолжить эту сцену, сначала создайте для неё видео."}
               </p>
             )}
@@ -981,7 +981,7 @@ export function VideoWorkspace({
             </Button>
             <p className="text-center text-[11px] text-slate-400">
               {kk
-                ? "Сахна қосу тегін. Видео бөлек батырмамен жасалады."
+                ? "Көрініс қосу тегін. Видео бөлек батырмамен жасалады."
                 : "Добавление сцены бесплатно. Видео запускается отдельной кнопкой."}
             </p>
           </div>
@@ -995,7 +995,7 @@ export function VideoWorkspace({
                 ? "Жобаны жою керек пе?"
                 : "Удалить проект?"
               : kk
-                ? "Сахнаны жою керек пе?"
+                ? "Көріністі жою керек пе?"
                 : "Удалить сцену?"
           }
           onClose={() => setDeletion(null)}
@@ -1006,10 +1006,10 @@ export function VideoWorkspace({
           <p className="mt-3 text-xs leading-6 text-slate-500">
             {deletion.kind === "project"
               ? kk
-                ? "Жоба, барлық сахналар мен жеке файлдар қолжетімсіз болады."
+                ? "Жоба, барлық көріністер мен жеке файлдар қолжетімсіз болады."
                 : "Проект, все сцены и приватные файлы станут недоступны."
               : kk
-                ? "Сахна мен оның нұсқалары жобадан алынады. Оған байланысты жалғастырулар бұрынғы клипке сүйенеді."
+                ? "Көрініс пен оның нұсқалары жобадан алынады. Оған байланысты жалғастырулар бұрынғы клипке сүйенеді."
                 : "Сцена и её версии будут удалены из проекта. Связанные продолжения используют прежний исходный клип."}{" "}
             {kk
               ? "Сәтті генерация үшін токендер қайтарылмайды."

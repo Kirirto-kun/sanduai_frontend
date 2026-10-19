@@ -207,6 +207,7 @@ export function PrivateMedia({
 export function DownloadVideo({
   assetId,
   name,
+  label,
   kk = false,
   expiresAt,
   projectExpiresAt,
@@ -214,6 +215,7 @@ export function DownloadVideo({
 }: {
   assetId: string;
   name: string;
+  label?: string;
   kk?: boolean;
   expiresAt?: string;
   projectExpiresAt?: string;
@@ -263,9 +265,11 @@ export function DownloadVideo({
           ? kk
             ? "Мерзімі аяқталды"
             : "Срок истёк"
-          : kk
-            ? "Жүктеу"
-            : "Скачать MP4"}
+          : busy
+            ? kk
+              ? "Жүктелуде…"
+              : "Скачивание…"
+            : (label ?? (kk ? "Жүктеу" : "Скачать MP4"))}
       </Button>
       {error && (
         <p role="alert" className="mt-2 text-xs text-rose-600">
