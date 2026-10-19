@@ -3,6 +3,7 @@
 import { useState, useEffect, FormEvent, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { useLanguage, useTranslations } from "../../../i18n/LanguageContext";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
@@ -673,7 +674,40 @@ export default function AdminPage() {
         </p>
       </div>
 
+      <Link
+        href="/dashboard/admin/video"
+        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-white px-5 py-4 transition hover:border-teal-400 hover:shadow-sm"
+      >
+        <div>
+          <p className="text-sm font-bold text-teal-900">{language === "kk" ? "ЖИ видео студиясы" : "Видеостудия ИИ"}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">{language === "kk" ? "Модельдер, тарифтер, кезек және операциялар" : "Модели, тарифы, очередь и операции"}</p>
+        </div>
+        <span aria-hidden="true">→</span>
+      </Link>
+
+      <Link
+        href="/dashboard/admin/competitions"
+        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-white px-5 py-4 transition hover:border-teal-400 hover:shadow-sm"
+      >
+        <div>
+          <p className="text-sm font-bold text-teal-900">{language === "kk" ? "Байқаулар және ресми ережелер" : "Конкурсы и официальные правила"}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">{language === "kk" ? "Панорама мен Фестиваль · бағыттар, критерийлер және жылдық нұсқалар" : "Панорама и Фестиваль · направления, критерии и версии по годам"}</p>
+        </div>
+        <span className="text-sm font-semibold text-teal-700">{language === "kk" ? "Басқару" : "Управлять"} →</span>
+      </Link>
+
       {/* Tabs */}
+      <Link
+        href="/dashboard/admin/masterclasses"
+        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-white px-5 py-4 transition hover:border-indigo-400 hover:shadow-sm"
+      >
+        <div>
+          <p className="text-sm font-bold text-indigo-950">{language === "kk" ? "Шебер сынып ұйымдастыру" : "Мастер-классы"}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">{language === "kk" ? "Аудиториялар, форматтар, төрт тіл және дайын материалдар" : "Аудитории, форматы, четыре языка и готовые материалы"}</p>
+        </div>
+        <span className="text-sm font-semibold text-indigo-700">{language === "kk" ? "Басқару" : "Управлять"} →</span>
+      </Link>
+
       <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-200">
         <button
           type="button"

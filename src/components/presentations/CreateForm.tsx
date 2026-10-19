@@ -23,28 +23,32 @@ export default function CreateForm({
   mode,
   loading,
   onSubmit,
+  initialPayload,
 }: {
   mode: "creative";
   loading: boolean;
   onSubmit: (input: CreatePresentationInput) => Promise<void> | void;
+  initialPayload?: CreatePresentationInput;
 }) {
   const { language: uiLanguage } = useLanguage();
   const copy = getPresentationCopy(uiLanguage);
-  const [source, setSource] = useState<PresentationSourceChoice>("topic");
-  const [topic, setTopic] = useState("");
+  const [source, setSource] = useState<PresentationSourceChoice>(initialPayload?.source_text ? "pasted" : "topic");
+  const [topic, setTopic] = useState(initialPayload?.topic ?? "");
   const [subject, setSubject] = useState("");
   const [grade, setGrade] = useState("");
   const [selectedKmzhId, setSelectedKmzhId] = useState("");
-  const [pastedTitle, setPastedTitle] = useState("");
-  const [pastedText, setPastedText] = useState("");
-  const [language, setLanguage] = useState<ContentLanguage>(uiLanguage);
-  const [slideCount, setSlideCount] = useState(10);
+  const [pastedTitle, setPastedTitle] = useState(initialPayload?.title ?? initialPayload?.topic ?? "");
+  const [pastedText, setPastedText] = useState(initialPayload?.source_text ?? "");
+  const [language, setLanguage] = useState<ContentLanguage>(initialPayload?.language ?? uiLanguage);
+  const [slideCount, setSlideCount] = useState(initialPayload?.slide_count ?? 10);
   const [submitted, setSubmitted] = useState(false);
   const kmzhQuery = useSavedKmzhSources(source === "saved_kmzh");
   const selectedKmzh = kmzhQuery.data?.items.find((item) => item.id === selectedKmzhId);
   const validationError = submitted
     ? validatePresentationSource({ source, topic, pastedTitle, pastedText, selectedKmzh })
     : null;
+  const exceedsApiBounds = (source === "topic" && topic.trim().length > 2_000)
+    || (source === "pasted" && (pastedTitle.trim().length > 240 || pastedText.trim().length > 80_000));
 
   const sourceOptions: Array<{
     id: PresentationSourceChoice;
@@ -59,7 +63,7 @@ export default function CreateForm({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitted(true);
-    if (validatePresentationSource({ source, topic, pastedTitle, pastedText, selectedKmzh })) return;
+    if (exceedsApiBounds || validatePresentationSource({ source, topic, pastedTitle, pastedText, selectedKmzh })) return;
     await onSubmit(buildPresentationCreateInput({
       mode,
       source,
@@ -76,6 +80,7 @@ export default function CreateForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      {submitted && exceedsApiBounds && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{uiLanguage === "kk" ? "Тақырып — 2 000, атау — 240, толық материал — 80 000 таңбаға дейін. Мәтінді қысқартыңыз; ол автоматты түрде қиылмайды." : "Тема — до 2 000, название — до 240, полный материал — до 80 000 символов. Сократите текст; он не обрезается автоматически."}</p>}
       <fieldset>
         <legend className="text-base font-bold text-slate-900">{copy.sourcePrompt}</legend>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">

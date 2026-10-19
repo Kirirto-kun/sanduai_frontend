@@ -7,6 +7,8 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useCreatePresentation, useStartPlanJob } from "@/hooks/usePresentations";
 import type { CreatePresentationInput, PresentationMode } from "@/types/presentations";
 import CreateForm from "@/components/presentations/CreateForm";
+import { useMasterclassHandoff } from "@/features/masterclasses/useMasterclassHandoff";
+import { MasterclassHandoffNotice } from "@/features/masterclasses/MasterclassHandoffNotice";
 import { ErrorNotice, PresentationStepper } from "@/components/presentations/PresentationUI";
 import { getPresentationCopy } from "@/components/presentations/copy";
 import { presentationErrorMessage } from "@/components/presentations/error-copy";
@@ -30,12 +32,19 @@ export default function CreatePresentationPage() {
   const planMutation = useStartPlanJob();
   const [error, setError] = useState<string | null>(null);
   const loading = createMutation.isPending || planMutation.isPending;
+  const masterclass = useMasterclassHandoff("presentation", !searchParams.has("job") && !searchParams.has("project"));
+  const handoffInput: CreatePresentationInput | undefined = masterclass.payload ? {
+    mode, title: masterclass.payload.title, topic: masterclass.payload.topic,
+    language: masterclass.payload.language, source_kind: "scenario",
+    source_text: masterclass.payload.source_text, slide_count: 9,
+  } : undefined;
 
   useEffect(() => {
     if (shouldCanonicalizePresentationCreationMode(requestedMode)) {
-      router.replace(PRESENTATION_CREATE_PATH, { scroll: false });
+      const next = new URLSearchParams(searchParams.toString()); next.delete("mode");
+      router.replace(`${PRESENTATION_CREATE_PATH}${next.size ? `?${next}` : ""}`, { scroll: false });
     }
-  }, [requestedMode, router]);
+  }, [requestedMode, router, searchParams]);
 
   const handleSubmit = async (input: CreatePresentationInput) => {
     setError(null);
@@ -75,9 +84,10 @@ export default function CreatePresentationPage() {
       </header>
 
       {error && <ErrorNotice message={error} />}
+      <MasterclassHandoffNotice handoff={masterclass} />
 
       <div className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-sm backdrop-blur sm:p-8">
-        <CreateForm mode={mode} loading={loading} onSubmit={handleSubmit} />
+        {!masterclass.loading && !masterclass.error && <CreateForm key={`${masterclass.identity}:${Boolean(handoffInput)}`} mode={mode} loading={loading} initialPayload={handoffInput} onSubmit={handleSubmit} />}
       </div>
     </div>
   );

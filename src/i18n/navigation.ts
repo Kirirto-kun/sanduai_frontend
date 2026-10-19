@@ -109,9 +109,16 @@ const AI_PEDAGOGICAL_IDEAS: NavItem = {
   key: "pedagogical-ideas",
   href: "/dashboard/ai/pedagogical-ideas",
   label: {
-    ru: "Идеи для урока",
-    kk: "Сабақ идеялары",
+    ru: "Педагогическая идея",
+    kk: "Педагогикалық идея",
   },
+  isNew: true,
+};
+
+const AI_MASTERCLASSES: NavItem = {
+  key: "masterclasses",
+  href: "/dashboard/ai/masterclasses",
+  label: { ru: "Мастер-классы", kk: "Шебер сынып ұйымдастыру" },
   isNew: true,
 };
 
@@ -144,6 +151,7 @@ const SCHOOL: NavSegment = {
         AI_INFOGRAPHICS,
         AI_PRESENTATIONS,
         AI_PEDAGOGICAL_IDEAS,
+        AI_MASTERCLASSES,
       ],
     },
     {
@@ -289,6 +297,7 @@ const KINDERGARTEN: NavSegment = {
           isNew: true,
         },
         AI_SCENARIO,
+        AI_MASTERCLASSES,
         AI_SCIPROJECT,
         AI_WORKSHEET,
         AI_COMICS,
@@ -360,6 +369,7 @@ const LIBRARY: NavSegment = {
         },
         AI_KORNEKILIK,
         AI_COMICS,
+        AI_MASTERCLASSES,
       ],
     },
     {
@@ -447,9 +457,8 @@ export const COMMON_GROUPS: NavGroup[] = [
       },
       {
         key: "video",
-        href: soon("video"),
+        href: "/dashboard/media/video",
         label: { ru: "Генерация видео", kk: "Видео генерациясы" },
-        soon: true,
       },
     ],
   },

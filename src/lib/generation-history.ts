@@ -9,6 +9,9 @@ const ACTIVE_STATUSES = new Set<GenerationJobStatus>([
   "refunding",
 ]);
 const SUPPORT_JOB_KINDS = new Set([
+  "masterclass.action",
+  "masterclass.topics",
+  "competition.action",
   "essay.revise",
   "article.revise",
   "class_hour.regenerate",
@@ -77,11 +80,16 @@ export function isUnavailableGenerationJobError(error: unknown): boolean {
 
 
 export function generationSourceHref(
-  job: Pick<GenerationJobSummary, "id" | "source_path">,
+  job: Pick<GenerationJobSummary, "id" | "source_path"> & { kind?: string },
 ): string {
   const fallback = "/dashboard/generations";
   const sourcePath = job.source_path.startsWith("/") ? job.source_path : fallback;
   const separator = sourcePath.includes("?") ? "&" : "?";
+  if (job.kind === "competition.generate" || job.kind === "competition.action") {
+    return `${sourcePath}${separator}competitionJob=${encodeURIComponent(job.id)}`;
+  }
+  if (job.kind === "masterclass.generate" || job.kind === "masterclass.action") return `${sourcePath}${separator}masterclassJob=${encodeURIComponent(job.id)}`;
+  if (job.kind === "masterclass.topics") return `${sourcePath}${separator}topicsJob=${encodeURIComponent(job.id)}`;
   return `${sourcePath}${separator}job=${encodeURIComponent(job.id)}`;
 }
 
