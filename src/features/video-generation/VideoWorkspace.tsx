@@ -16,6 +16,7 @@ import {
   isVideoExpired,
   money,
   projectDuration,
+  promptVideoSettings,
   selectedVersion,
   utcTimestamp,
   versionAssetId,
@@ -196,7 +197,11 @@ export function VideoWorkspace({
       const next = await videoApi.createScene(project.id, {
         title: `${kk ? "Көрініс" : "Сцена"} ${project.scenes.length + 1}`,
         prompt: "",
-        settings: { ...project.defaults, aspect_ratio: project.aspect_ratio },
+        settings: promptVideoSettings({
+          ...(source?.settings ?? after?.settings ?? project.defaults),
+          speech_text: "",
+          aspect_ratio: project.aspect_ratio,
+        }),
         ...(source
           ? {
               source_scene_id: source.id,
@@ -581,7 +586,7 @@ export function VideoWorkspace({
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="ghost" onClick={() => setDialog("plan")}>
                 <Icon name="sparkles" />
-                {kk ? "Сценарий" : "Сценарий"}
+                {kk ? "ЖИ сценарийі" : "ИИ-сценарий"}
               </Button>
               {allReady && (
                 <Button onClick={() => setDialog("preview")}>
@@ -676,7 +681,7 @@ export function VideoWorkspace({
               <p>
                 {kk ? "Барлық нұсқаларға жұмсалды" : "Потрачено на все версии"}
                 <strong className="mt-1 block text-slate-800">
-                  {money(project.total_spent_tokens)} ₸
+                  {money(project.total_spent_tokens)} {kk ? "токен" : "токенов"}
                 </strong>
               </p>
               <p>
@@ -684,13 +689,15 @@ export function VideoWorkspace({
                   ? "Роликтегі клиптердің бастапқы құны"
                   : "Исходная стоимость выбранных клипов"}
                 <strong className="mt-1 block text-slate-800">
-                  {money(project.selected_cost_tokens)} ₸
+                  {money(project.selected_cost_tokens)}{" "}
+                  {kk ? "токен" : "токенов"}
                 </strong>
               </p>
               <p>
                 {kk ? "Қалған көріністердің бағасы" : "Расчёт оставшихся сцен"}
                 <strong className="mt-1 block text-slate-800">
-                  {money(project.estimated_remaining_tokens)} ₸
+                  {money(project.estimated_remaining_tokens)}{" "}
+                  {kk ? "токен" : "токенов"}
                 </strong>
                 {Boolean(project.unquoted_scene_count) && (
                   <span className="mt-1 block text-[10px]">
@@ -704,8 +711,8 @@ export function VideoWorkspace({
             </div>
             <p className="pb-2 text-[10px]">
               {kk
-                ? "1 токен = 1 ₸. Дайын клиптерді көшіру мен роликті біріктіру тегін."
-                : "1 токен = 1 ₸. Копирование готовых клипов и соединение в ролик бесплатны."}
+                ? "Дайын клиптерді көшіру мен роликті біріктіру тегін."
+                : "Копирование готовых клипов и соединение в ролик бесплатны."}
             </p>
           </details>
         </>
@@ -724,8 +731,8 @@ export function VideoWorkspace({
               </h2>
               <p className="mt-4 max-w-lg text-sm leading-7 text-slate-500">
                 {kk
-                  ? "Бір клип жасаңыз немесе сценарий құрастырып, оны көріністен көрініске дамытыңыз. Сапа, ұзақтық, камера және дыбыс — өз таңдауыңыз."
-                  : "Создайте один клип или подготовьте сценарий и развивайте его сцена за сценой. Качество, длительность, камера и звук — на ваш выбор."}
+                  ? "Ойыңызды сипаттаңыз немесе ЖИ көмегімен сценарий дайындаңыз. Видео тілін, сапасын, ұзақтығын және форматын таңдаңыз."
+                  : "Опишите свой замысел или подготовьте сценарий с ИИ. Выберите язык видео, качество, длительность и формат."}
               </p>
               {initialPrompt && (
                 <div className="mt-4 max-h-32 overflow-auto rounded-2xl bg-slate-50 p-4 text-xs leading-6 text-slate-600">

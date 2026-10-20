@@ -9,6 +9,7 @@ import {
   isActiveVideoJob,
   modelDurations,
   projectDuration,
+  promptVideoSettings,
   sceneDuration,
   selectedVersion,
   settingsForModel,
@@ -24,9 +25,6 @@ function projectFields(project: VideoProject) {
     title: project.title,
     idea: project.idea,
     script: project.script,
-    characters: project.characters,
-    visual_style: project.visual_style,
-    audio_notes: project.audio_notes,
   };
 }
 
@@ -46,7 +44,9 @@ export function ProjectDetails({
   const [value, setValue] = useState(() => projectFields(project));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [defaults, setDefaults] = useState(project.defaults);
+  const [defaults, setDefaults] = useState(() =>
+    promptVideoSettings(project.defaults),
+  );
   const [baseline, setBaseline] = useState(project);
   const [conflict, setConflict] = useState<VideoProject | null>(null);
   const [applyDrafts, setApplyDrafts] = useState(false);
@@ -131,61 +131,6 @@ export function ProjectDetails({
                 onChange={(e) => setValue({ ...value, script: e.target.value })}
               />
             </Field>
-          </div>
-        </details>
-        <details className="rounded-2xl border border-slate-200 p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-700">
-            {kk
-              ? "Барлық көріністерге ортақ сипаттама"
-              : "Общие детали для всех сцен"}
-          </summary>
-          <p className="mt-2 text-xs leading-5 text-slate-500">
-            {kk
-              ? "Жаңа көріністерде кейіпкерлерді, стильді және дыбысты сақтау үшін толтырыңыз. Дайын видеолар өзгермейді."
-              : "Помогают сохранять персонажей, стиль и звук в новых сценах. Готовые видео останутся прежними."}
-          </p>
-          <div className="mt-4 space-y-4">
-            <Field
-              label={kk ? "Кейіпкерлер мен орын" : "Персонажи и место действия"}
-            >
-              <textarea
-                rows={3}
-                className={fieldClass}
-                value={value.characters}
-                maxLength={10000}
-                onChange={(e) =>
-                  setValue({ ...value, characters: e.target.value })
-                }
-              />
-            </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={kk ? "Бейне стилі" : "Визуальный стиль"}>
-                <textarea
-                  rows={3}
-                  className={fieldClass}
-                  value={value.visual_style}
-                  maxLength={3000}
-                  onChange={(e) =>
-                    setValue({ ...value, visual_style: e.target.value })
-                  }
-                />
-              </Field>
-              <Field
-                label={
-                  kk ? "Дауыстар және дыбыс" : "Голоса и звуковая атмосфера"
-                }
-              >
-                <textarea
-                  rows={3}
-                  className={fieldClass}
-                  value={value.audio_notes}
-                  maxLength={3000}
-                  onChange={(e) =>
-                    setValue({ ...value, audio_notes: e.target.value })
-                  }
-                />
-              </Field>
-            </div>
           </div>
         </details>
         <details className="rounded-2xl border border-slate-200 p-4">
@@ -318,7 +263,7 @@ export function ProjectDetails({
                       keys.map((key) => [key, merged[key]]),
                     ) as typeof value,
                   );
-                  setDefaults(merged.defaults);
+                  setDefaults(promptVideoSettings(merged.defaults));
                   setBaseline(conflict);
                   setConflict(null);
                   setError("");
@@ -333,7 +278,7 @@ export function ProjectDetails({
                 onClick={() => {
                   const latest = conflict;
                   setValue(projectFields(latest));
-                  setDefaults(latest.defaults);
+                  setDefaults(promptVideoSettings(latest.defaults));
                   setBaseline(latest);
                   setConflict(null);
                   setError("");

@@ -10,6 +10,7 @@ import {
   isActiveVideoJob,
   isVideoExpired,
   money,
+  promptVideoSettings,
   selectedVersion,
   validateTrim,
   versionAssetId,
@@ -38,11 +39,7 @@ import { videoInputLifetime } from "./input-availability";
 import { SceneStructureDialog } from "./SceneStructureDialog";
 import { ImportSceneDialog } from "./ImportSceneDialog";
 import { DeleteVersionDialog, SimilarVersionDialog } from "./VersionActions";
-import { videoPresetLabel } from "./presets";
-import {
-  hasUnresolvedPresetConflict,
-  presetConflictKey,
-} from "./preset-conflicts";
+import { PromptAssistantDialog } from "./PromptAssistantDialog";
 
 export function SceneEditor({
   scene,
@@ -75,13 +72,11 @@ export function SceneEditor({
   const [quote, setQuote] = useState<VideoQuote | null>(null);
   const [quoteError, setQuoteError] = useState("");
   const [quoteBusy, setQuoteBusy] = useState(false);
-  const [keptPresetConflicts, setKeptPresetConflicts] = useState("");
   const [quoteAttempt, setQuoteAttempt] = useState(0);
   const [uploadedInput, setUploadedInput] = useState<VideoAsset | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [enhanced, setEnhanced] = useState<string | null>(null);
-  const [enhancing, setEnhancing] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
   const [deletingVersion, setDeletingVersion] = useState<VideoVersion | null>(
     null,
@@ -165,12 +160,6 @@ export function SceneEditor({
     !inputUnavailable &&
     !projectExpired;
   const draftKey = JSON.stringify(draft);
-  const conflictKey = presetConflictKey(quote, draftKey);
-  const conflictsPending = hasUnresolvedPresetConflict(
-    quote,
-    draftKey,
-    keptPresetConflicts,
-  );
   useEffect(() => {
     if (!quoteError) return;
     const recover = () => setQuoteAttempt((n) => n + 1);
@@ -238,7 +227,6 @@ export function SceneEditor({
       submitLock.current ||
       (!recovery &&
         (!canGenerate || inputUnavailable || isVideoExpired(inputExpiresAt))) ||
-      (!recovery && conflictsPending) ||
       (!recovery && (!quote || isVideoExpired(quote.expires_at)))
     )
       return;
@@ -649,7 +637,7 @@ export function SceneEditor({
                 draft.prompt !== scene.prompt ||
                 draft.dialogue !== (scene.dialogue ?? "") ||
                 JSON.stringify(draft.settings) !==
-                  JSON.stringify(scene.settings) ||
+                  JSON.stringify(promptVideoSettings(scene.settings)) ||
                 draft.input_asset_id !== scene.input_asset_id,
             ),
           }) && (
@@ -725,6 +713,43 @@ export function SceneEditor({
             </span>
           </div>
 
+          <div className="mb-5">
+            <SettingsPanel
+              inputMode={
+                mode === "image" || scene.source_scene_id ? "image" : "text"
+              }
+              settings={draft.settings}
+              models={catalog.models}
+              profiles={catalog.default_profiles}
+              onChange={(settings) => {
+                if (settings.aspect_ratio === project.aspect_ratio) {
+                  update({ settings });
+                  return;
+                }
+                setBusy(true);
+                void save()
+                  .then(() =>
+                    videoApi.updateProject(project.id, {
+                      aspect_ratio: settings.aspect_ratio,
+                    }),
+                  )
+                  .then(() => videoApi.project(project.id))
+                  .then((p) => {
+                    const fresh = p.scenes.find((s) => s.id === scene.id);
+                    if (fresh) adopt(fresh);
+                    update({ settings });
+                    onRefresh();
+                  })
+                  .catch((err) => setError(videoError(err, kk)))
+                  .finally(() => setBusy(false));
+              }}
+              kk={kk}
+              aspectLocked={
+                project.scenes.some((s) => Boolean(s.selected_version_id)) ||
+                project.jobs.some(isActiveVideoJob)
+              }
+            />
+          </div>
           {mode === "image" && !scene.source_scene_id && (
             <div className="mt-4">
               <ImageInput
@@ -765,7 +790,7 @@ export function SceneEditor({
                 placeholder={
                   kk
                     ? "Кейіпкерді, орынды, әрекетті және атмосфераны сипаттаңыз…"
-                    : "Опишите героя, место, действие и атмосферу. Например: девушка идёт по степи на закате, ветер колышет траву, камера плавно следует за ней…"
+                    : "Например: клубника и банан идут по улице, едят хлеб и обсуждают свадьбу. Клубника мечтает о пышном празднике…"
                 }
               />
             </Field>
@@ -774,20 +799,10 @@ export function SceneEditor({
             <Button
               variant="ghost"
               className="-ml-3 text-indigo-600"
-              disabled={!draft.prompt.trim() || enhancing}
-              onClick={() => {
-                setEnhancing(true);
-                void videoApi
-                  .enhance(draft.prompt, project.language)
-                  .then((result) =>
-                    setEnhanced(result.enhanced_prompt ?? result.prompt),
-                  )
-                  .catch((err) => setError(videoError(err, kk)))
-                  .finally(() => setEnhancing(false));
-              }}
+              onClick={() => setAssistantOpen(true)}
             >
-              {enhancing ? <Spinner /> : <Icon name="sparkles" />}
-              {kk ? "Промптты жақсарту" : "Помочь с описанием"}
+              <Icon name="sparkles" />
+              {kk ? "ЖИ сценарийі" : "Сценарий с ИИ"}
             </Button>
             <span className="text-[10px] text-slate-400">
               {draft.prompt.length.toLocaleString()} / 12 000
@@ -822,69 +837,60 @@ export function SceneEditor({
             </div>
           ) : null}
           <div className="mt-4 border-t border-slate-100 pt-4">
-            {Boolean(scene.dialogue) && (
-              <details className="mb-3 rounded-xl border border-slate-200 px-3 py-2">
-                <summary className="min-h-8 cursor-pointer text-xs font-medium text-slate-600">
-                  {kk ? "Сценарийдегі репликалар" : "Реплики из сценария"}
-                </summary>
-                <Field
-                  label={
-                    kk
-                      ? "Өзгеріссіз айтылатын мәтін"
-                      : "Текст, который нужно произнести точно"
-                  }
-                  hint={
-                    kk
-                      ? "Бұл мәтінді видеомодель айтады."
-                      : "Эти реплики произнесёт видеомодель."
-                  }
-                >
-                  <textarea
-                    className={`${fieldClass} mt-2 min-h-24`}
-                    value={draft.dialogue ?? ""}
-                    maxLength={12000}
-                    onChange={(event) =>
-                      update({ dialogue: event.target.value })
-                    }
-                  />
-                </Field>
-              </details>
-            )}
-            <SettingsPanel
-              inputMode={
-                mode === "image" || scene.source_scene_id ? "image" : "text"
-              }
-              settings={draft.settings}
-              models={catalog.models}
-              profiles={catalog.default_profiles}
-              onChange={(settings) => {
-                if (settings.aspect_ratio === project.aspect_ratio) {
-                  update({ settings });
-                  return;
+            <details className="mb-3 rounded-xl border border-slate-200 px-3 py-2">
+              <summary className="min-h-8 cursor-pointer text-xs font-medium text-slate-500">
+                {draft.settings.speech_text || draft.dialogue
+                  ? kk
+                    ? "Дәл репликалар · қосылған"
+                    : "Точные реплики · добавлены"
+                  : kk
+                    ? "Дәл репликалар · міндетті емес"
+                    : "Точные реплики · необязательно"}
+              </summary>
+              <Field
+                label={
+                  kk ? "Өзгеріссіз айтылатын мәтін" : "Что произнести дословно"
                 }
-                setBusy(true);
-                void save()
-                  .then(() =>
-                    videoApi.updateProject(project.id, {
-                      aspect_ratio: settings.aspect_ratio,
-                    }),
-                  )
-                  .then(() => videoApi.project(project.id))
-                  .then((p) => {
-                    const fresh = p.scenes.find((s) => s.id === scene.id);
-                    if (fresh) adopt(fresh);
-                    update({ settings });
-                    onRefresh();
-                  })
-                  .catch((err) => setError(videoError(err, kk)))
-                  .finally(() => setBusy(false));
-              }}
-              kk={kk}
-              aspectLocked={
-                project.scenes.some((s) => Boolean(s.selected_version_id)) ||
-                project.jobs.some(isActiveVideoJob)
-              }
-            />
+                hint={
+                  kk
+                    ? "Диалогты негізгі сипаттамада да жазуға болады."
+                    : "Диалог можно написать и в основном описании."
+                }
+              >
+                <textarea
+                  className={`${fieldClass} mt-2 min-h-24`}
+                  value={draft.settings.speech_text}
+                  maxLength={4000}
+                  onChange={(event) =>
+                    update({
+                      settings: {
+                        ...draft.settings,
+                        speech_text: event.target.value,
+                      },
+                    })
+                  }
+                />
+              </Field>
+              {Boolean(draft.dialogue) && (
+                <div className="mt-3">
+                  <Field
+                    label={
+                      kk ? "Сценарийдегі репликалар" : "Реплики из сценария"
+                    }
+                  >
+                    <textarea
+                      className={`${fieldClass} min-h-24`}
+                      value={draft.dialogue}
+                      maxLength={4000}
+                      onChange={(event) =>
+                        update({ dialogue: event.target.value })
+                      }
+                    />
+                  </Field>
+                </div>
+              )}
+            </details>
+
             <div className="mt-4 border-t border-slate-100 pt-4">
               {inputUnavailable && !projectExpired && (
                 <p
@@ -918,17 +924,7 @@ export function SceneEditor({
                     </span>
                   </p>
                 </div>
-                {quote && (
-                  <span className="pb-0.5 text-xs text-slate-500">
-                    = {money(quote.cost_kzt)} ₸
-                  </span>
-                )}
               </div>
-              <p className="mt-2 text-[10px] leading-5 text-slate-400">
-                {kk
-                  ? "1 токен = API шығынының 1 ₸. Үстемесіз. Сәтсіз нәтиже болса, резерв қайтарылады."
-                  : "1 токен = 1 ₸ себестоимости API. Без наценки. При конечном сбое резерв вернётся."}
-              </p>
               {quote?.warnings?.map((w) => (
                 <p
                   key={w.code}
@@ -939,86 +935,6 @@ export function SceneEditor({
                     : w.message}
                 </p>
               ))}
-              {Boolean(quote?.preset_conflicts?.length) && (
-                <div
-                  role="status"
-                  className="mt-3 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-900"
-                >
-                  <p className="font-semibold">
-                    {kk
-                      ? "Пресет пен нұсқаулар сәйкес келмейді"
-                      : "Пресет расходится с вашими инструкциями"}
-                  </p>
-                  <p>
-                    {kk
-                      ? "Мәтіндегі нақты нұсқаулар басым. Қайшы пресетті алып тастаңыз немесе оны қалдыруды нақты таңдаңыз."
-                      : "Явные инструкции в тексте имеют приоритет. Уберите конфликтующий пресет или явно выберите оставить его."}
-                  </p>
-                  {quote?.preset_conflicts?.map((conflict) => (
-                    <div
-                      key={`${conflict.field}:${conflict.preset}`}
-                      className="rounded-lg border border-amber-200 bg-white/60 p-3"
-                    >
-                      <p>
-                        {conflict.field === "camera"
-                          ? kk
-                            ? "Камера"
-                            : "Камера"
-                          : kk
-                            ? "Стиль"
-                            : "Стиль"}
-                        :{" "}
-                        <strong>
-                          {videoPresetLabel(
-                            conflict.field,
-                            conflict.preset,
-                            kk,
-                          )}
-                        </strong>
-                      </p>
-                      <p className="mt-1">
-                        {conflict.reason_code === "EXPLICIT_CAMERA"
-                          ? kk
-                            ? "Нұсқауда камераның басқа қозғалысы көрсетілген."
-                            : "В инструкции задано другое движение камеры."
-                          : kk
-                            ? "Нұсқауда басқа визуалды стиль көрсетілген."
-                            : "В инструкции задан другой визуальный стиль."}
-                      </p>
-                      <Button
-                        className="mt-2"
-                        disabled={busy}
-                        onClick={() =>
-                          update({
-                            settings: {
-                              ...draft.settings,
-                              [conflict.field]: "",
-                            },
-                          })
-                        }
-                      >
-                        {kk ? "Осы пресетті алып тастау" : "Убрать этот пресет"}
-                      </Button>
-                    </div>
-                  ))}
-                  {conflictsPending ? (
-                    <Button
-                      disabled={busy}
-                      onClick={() => setKeptPresetConflicts(conflictKey)}
-                    >
-                      {kk
-                        ? "Таңдалған пресеттерді қалдыру"
-                        : "Оставить выбранные пресеты"}
-                    </Button>
-                  ) : (
-                    <p className="font-semibold text-teal-800">
-                      {kk
-                        ? "Пресеттерді қалдыруды таңдадыңыз. Мәтіндегі нұсқаулар басым болып қалады."
-                        : "Вы выбрали оставить пресеты. Инструкции в тексте сохраняют приоритет."}
-                    </p>
-                  )}
-                </div>
-              )}
               {quoteError && (
                 <div
                   role="alert"
@@ -1057,7 +973,6 @@ export function SceneEditor({
                   variant="primary"
                   className="mt-4 min-h-12 w-full text-sm"
                   disabled={
-                    conflictsPending ||
                     !canGenerate ||
                     !quote ||
                     quoteBusy ||
@@ -1236,42 +1151,23 @@ export function SceneEditor({
           onClose={() => setImportOpen(false)}
         />
       )}
-      {enhanced !== null && (
-        <Modal
-          title={kk ? "Ұсынылған промпт" : "Предложение для промпта"}
-          onClose={() => setEnhanced(null)}
-        >
-          <p className="mb-4 text-xs leading-5 text-slate-500">
-            {kk
-              ? "Мәтінді тексеріп, қажет болса өңдеңіз. Қабылдау видео жасамайды және токен алмайды."
-              : "Проверьте и при необходимости отредактируйте текст. Принятие не запускает видео и не списывает токены."}
-          </p>
-          <textarea
-            className={`${fieldClass} min-h-64`}
-            value={enhanced}
-            maxLength={12000}
-            onChange={(e) => setEnhanced(e.target.value)}
-          />
-          <div className="mt-4 flex flex-wrap justify-end gap-2">
-            <Button onClick={() => setEnhanced(null)}>
-              {kk ? "Өз мәтінімді қалдыру" : "Оставить свой текст"}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                update({
-                  original_prompt: draft.original_prompt || draft.prompt,
-                  enhanced_prompt: enhanced,
-                  prompt: enhanced,
-                });
-                setEnhanced(null);
-              }}
-            >
-              <Icon name="check" />
-              {kk ? "Қабылдау" : "Применить"}
-            </Button>
-          </div>
-        </Modal>
+      {assistantOpen && (
+        <PromptAssistantDialog
+          initialPrompt={draft.prompt}
+          language={kk ? "kk" : "ru"}
+          speechLanguage={draft.settings.speech_language}
+          duration={draft.settings.duration}
+          kk={kk}
+          onClose={() => setAssistantOpen(false)}
+          onApply={(prompt, originalPrompt) => {
+            update({
+              original_prompt: originalPrompt,
+              enhanced_prompt: prompt,
+              prompt,
+            });
+            setAssistantOpen(false);
+          }}
+        />
       )}
       {showVersions && (
         <Modal

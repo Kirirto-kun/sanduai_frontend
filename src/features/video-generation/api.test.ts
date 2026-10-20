@@ -24,7 +24,7 @@ describe("video API contract", () => {
     mocks.json.mockResolvedValue({
       enhanced_prompt: "Клубника и банан идут по улице.",
     });
-    await videoApi.enhance("Клубника и банан", "ru", "kk");
+    await videoApi.enhance("Клубника и банан", "ru", "kk", 8);
     await videoApi.plan({
       idea: "Клубника и банан",
       language: "ru",
@@ -44,6 +44,7 @@ describe("video API contract", () => {
       });
     }
     expect(mocks.invalidate).not.toHaveBeenCalled();
+    expect(JSON.parse(mocks.json.mock.calls[0][1].body).duration).toBe(8);
   });
   it("does not retry a paid POST when the transport acknowledgement is lost", async () => {
     mocks.json.mockRejectedValueOnce(
