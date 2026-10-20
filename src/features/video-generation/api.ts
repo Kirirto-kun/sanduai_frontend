@@ -245,14 +245,16 @@ export const videoApi = {
     invalidateCachedBalance();
     return job;
   },
-  enhance: (prompt: string, language: string) =>
+  enhance: (prompt: string, language: string, speechLanguage = "") =>
     request<{ prompt: string; enhanced_prompt?: string }>("/enhance", "POST", {
       prompt,
       language,
+      speech_language: speechLanguage,
     }),
   plan: (payload: {
     idea: string;
     language: string;
+    speech_language?: string;
     scene_count: number;
     total_duration: number;
     model_id: string;

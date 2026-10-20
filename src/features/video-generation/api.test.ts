@@ -20,6 +20,31 @@ import { videoApi } from "./api";
 import { ApiRequestError, API_ERROR_CODES } from "@/lib/http-client";
 beforeEach(() => vi.clearAllMocks());
 describe("video API contract", () => {
+  it("keeps video speech language independent from the interface language during AI assistance", async () => {
+    mocks.json.mockResolvedValue({
+      enhanced_prompt: "Клубника и банан идут по улице.",
+    });
+    await videoApi.enhance("Клубника и банан", "ru", "kk");
+    await videoApi.plan({
+      idea: "Клубника и банан",
+      language: "ru",
+      speech_language: "kk",
+      scene_count: 1,
+      total_duration: 5,
+      model_id: "minimax/h3-max",
+    });
+    expect(mocks.json.mock.calls.map(([url]) => url)).toEqual([
+      "https://api.sandu.test/api/video-generation/enhance",
+      "https://api.sandu.test/api/video-generation/plan",
+    ]);
+    for (const [, init] of mocks.json.mock.calls) {
+      expect(JSON.parse(init.body)).toMatchObject({
+        language: "ru",
+        speech_language: "kk",
+      });
+    }
+    expect(mocks.invalidate).not.toHaveBeenCalled();
+  });
   it("does not retry a paid POST when the transport acknowledgement is lost", async () => {
     mocks.json.mockRejectedValueOnce(
       new ApiRequestError(

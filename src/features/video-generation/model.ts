@@ -21,9 +21,24 @@ export const DEFAULT_VIDEO_SETTINGS: VideoSettings = {
   sound_effects: "",
   style: "",
   camera: "",
-  motion_strength: 4,
+  motion_strength: null,
   negative_prompt: "",
 };
+
+/** Retired creative controls must not reappear from saved scenes or admin profiles. */
+export function promptVideoSettings(settings: VideoSettings): VideoSettings {
+  return {
+    ...settings,
+    generate_audio: true,
+    style: "",
+    camera: "",
+    motion_strength: null,
+    negative_prompt: "",
+    voice_description: "",
+    music: "",
+    sound_effects: "",
+  };
+}
 export const ACTIVE_VIDEO_STATUSES = new Set([
   "queued",
   "pending",
@@ -177,11 +192,12 @@ export function catalogDefaultSettings(
   const model = profile
     ? catalog.models.find((m) => m.id === profile.model_id)
     : catalog.models.find((m) => m.available);
-  const settings = {
+  const settings = promptVideoSettings({
     ...DEFAULT_VIDEO_SETTINGS,
     ...profile,
     speech_language: language,
-  };
+    speech_text: "",
+  });
   return model ? settingsForModel(settings, model) : settings;
 }
 export function draftChanged(scene: VideoScene): boolean {

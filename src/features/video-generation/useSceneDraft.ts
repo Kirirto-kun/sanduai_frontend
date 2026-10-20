@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiRequestError } from "@/lib/http-client";
 import { videoApi } from "./api";
 import { mergeVideoDraft } from "./draft-merge";
-import { isVideoExpired, utcTimestamp } from "./model";
+import { isVideoExpired, promptVideoSettings, utcTimestamp } from "./model";
 import type { ScenePatch, VideoScene } from "./types";
 
 type Draft = {
@@ -22,7 +22,7 @@ function fromScene(scene: VideoScene): Draft {
     dialogue: scene.dialogue ?? "",
     original_prompt: scene.original_prompt ?? scene.prompt,
     enhanced_prompt: scene.enhanced_prompt,
-    settings: scene.settings,
+    settings: promptVideoSettings(scene.settings),
     input_asset_id: scene.input_asset_id,
   };
 }
@@ -45,7 +45,11 @@ export function useSceneDraft(
         !isVideoExpired(saved.expires_at) &&
         saved.scene_id === scene.id
       )
-        return { ...fromScene(scene), ...saved.draft } as Draft;
+        return {
+          ...fromScene(scene),
+          ...saved.draft,
+          settings: promptVideoSettings(saved.draft.settings ?? scene.settings),
+        } as Draft;
       if (saved) window.localStorage.removeItem(storageKey);
     } catch {
       /* Optional cache. */
@@ -168,7 +172,13 @@ export function useSceneDraft(
   );
   const update = useCallback(
     (patch: Partial<Draft>) => {
-      const next = { ...current.current, ...patch };
+      const next = {
+        ...current.current,
+        ...patch,
+        ...(patch.settings
+          ? { settings: promptVideoSettings(patch.settings) }
+          : {}),
+      };
       current.current = next;
       setDraft(next);
       setState("dirty");

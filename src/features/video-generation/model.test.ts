@@ -8,6 +8,7 @@ import {
   isVideoExpired,
   modelDurations,
   projectDuration,
+  promptVideoSettings,
   settingsForModel,
   utcTimestamp,
   validateTrim,
@@ -41,6 +42,8 @@ describe("video capabilities and timeline", () => {
           resolution: "768p",
           duration: 12,
           generate_audio: false,
+          speech_text: "Unrequested presenter script",
+          voice_description: "presenter",
         },
       },
     } as VideoCatalog;
@@ -48,9 +51,42 @@ describe("video capabilities and timeline", () => {
       model_id: h3.id,
       resolution: "768p",
       duration: 12,
-      generate_audio: false,
+      generate_audio: true,
       speech_language: "kk",
+      speech_text: "",
+      voice_description: "",
     });
+  });
+  it("keeps technical choices and optional exact speech while retiring saved creative controls", () => {
+    const original = {
+      ...DEFAULT_VIDEO_SETTINGS,
+      model_id: h3.id,
+      duration: 9,
+      resolution: "768p",
+      aspect_ratio: "9:16",
+      speech_language: "kk",
+      speech_text: "Әлия, бүгін 25 қазан.",
+      generate_audio: false,
+      style: "Realistic",
+      camera: "Static",
+      motion_strength: 10,
+      negative_prompt: "animation",
+      voice_description: "presenter",
+      music: "violin",
+      sound_effects: "applause",
+    };
+    expect(promptVideoSettings(original)).toEqual({
+      ...original,
+      generate_audio: true,
+      style: "",
+      camera: "",
+      motion_strength: null,
+      negative_prompt: "",
+      voice_description: "",
+      music: "",
+      sound_effects: "",
+    });
+    expect(original.style).toBe("Realistic");
   });
   it("does not silently replace an explicitly unavailable default profile", () => {
     const catalog = {
