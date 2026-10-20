@@ -1,4 +1,44 @@
-import type { VideoPlan } from "./types";
+import { sceneDuration } from "./model";
+import type { VideoCatalog, VideoPlan, VideoProject } from "./types";
+
+/** A partial apply can be reflected in the query already, or still be local. */
+export function scenarioCapacity(
+  project: Pick<VideoProject, "scenes"> | null | undefined,
+  proposal: VideoPlan | null,
+  applied: string[],
+  limits: Pick<VideoCatalog, "max_scenes" | "max_project_duration">,
+) {
+  const existing = project?.scenes ?? [];
+  const existingIds = new Set(existing.map((scene) => scene.id));
+  const unreported = applied.flatMap((id, index) =>
+    existingIds.has(id) ? [] : [index],
+  );
+  const remainingScenes = Math.max(
+    0,
+    limits.max_scenes - existing.length - unreported.length,
+  );
+  const usedDuration =
+    existing
+      .filter((scene) => scene.included)
+      .reduce((total, scene) => total + sceneDuration(scene), 0) +
+    unreported.reduce(
+      (total, index) => total + (proposal?.scenes[index]?.duration ?? 0),
+      0,
+    );
+  const remainingDuration = Math.max(
+    0,
+    limits.max_project_duration - usedDuration,
+  );
+  const pending = proposal?.scenes.slice(applied.length) ?? [];
+  return {
+    remainingScenes,
+    remainingDuration,
+    fits:
+      pending.length <= remainingScenes &&
+      pending.reduce((total, scene) => total + (scene.duration ?? 5), 0) <=
+        remainingDuration,
+  };
+}
 
 function lineAlreadyInPrompt(line: string, prompt: string): boolean {
   if (prompt.includes(line)) return true;

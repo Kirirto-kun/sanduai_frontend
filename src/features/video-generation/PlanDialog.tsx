@@ -10,6 +10,7 @@ import {
 } from "./model";
 import {
   nearestScenarioDuration,
+  scenarioCapacity,
   scenarioDurationOptions,
   scenarioPrompt,
 } from "./scenario";
@@ -31,12 +32,14 @@ export function PlanDialog({
   onClose: () => void;
   onCreated: (id: string, sceneId?: string) => void;
 }) {
-  const remainingScenes = Math.min(
+  const initialRemainingScenes = Math.min(
     catalog.max_scenes - (project?.scenes.length ?? 0),
     20,
   );
   const [idea, setIdea] = useState(initialIdea);
-  const [count, setCount] = useState(Math.max(1, Math.min(3, remainingScenes)));
+  const [count, setCount] = useState(
+    Math.max(1, Math.min(3, initialRemainingScenes)),
+  );
   const [requestedDuration, setRequestedDuration] = useState(15);
   const [speechLanguage, setSpeechLanguage] = useState(
     project?.defaults.speech_language ?? "",
@@ -56,10 +59,18 @@ export function PlanDialog({
   const [createdProject, setCreatedProject] = useState<VideoProject | null>(
     project ?? null,
   );
+  const currentProject =
+    project && createdProject
+      ? (project.revision ?? 0) >= (createdProject.revision ?? 0)
+        ? project
+        : createdProject
+      : (project ?? createdProject);
+  const capacity = scenarioCapacity(currentProject, proposal, applied, catalog);
+  const remainingScenes = Math.min(capacity.remainingScenes, 20);
   const capability = catalog.models.find((m) => m.id === model);
   const shotDurations = capability ? modelDurations(capability) : [];
   const totalDurations = scenarioDurationOptions(shotDurations, count).filter(
-    (value) => value <= catalog.max_project_duration,
+    (value) => value <= capacity.remainingDuration,
   );
   const duration = nearestScenarioDuration(totalDurations, requestedDuration);
   const canPlan = Boolean(
@@ -99,9 +110,16 @@ export function PlanDialog({
 
   async function accept() {
     if (!proposal || !capability) return;
+    const limitError = kk
+      ? "Қалған көріністер жоба шегінен асып кетті. Көрініс санын немесе ұзақтығын азайтыңыз."
+      : "Оставшиеся сцены превышают лимит проекта. Уменьшите количество сцен или их длительность.";
+    if (!capacity.fits) {
+      setError(limitError);
+      return;
+    }
     setBusy(true);
     setError("");
-    let target = createdProject;
+    let target = currentProject;
     const accepted = [...applied];
     try {
       const defaults = {
@@ -115,6 +133,14 @@ export function PlanDialog({
         speech_language: speechLanguage,
         speech_text: "",
       };
+      if (target) {
+        target = await videoApi.project(target.id);
+        setCreatedProject(target);
+        if (!scenarioCapacity(target, proposal, accepted, catalog).fits) {
+          setError(limitError);
+          return;
+        }
+      }
       if (!target) {
         target = await videoApi.createProject({
           title: proposal.title || (kk ? "Жаңа видео" : "Новое видео"),
@@ -130,6 +156,7 @@ export function PlanDialog({
         setCreatedProject(target);
       } else if (!accepted.length) {
         await videoApi.updateProject(target.id, {
+          expected_revision: target.revision,
           script: proposal.script,
           characters: proposal.characters,
           visual_style: proposal.visual_style,
@@ -291,6 +318,14 @@ export function PlanDialog({
                 : "В проекте уже достигнут лимит сцен."}
             </p>
           )}
+          {remainingScenes > 0 &&
+            (!totalDurations.length || count > remainingScenes) && (
+              <p role="alert" className="text-sm text-amber-700">
+                {kk
+                  ? "Бұл жобаға көріністер саны немесе ұзақтығы аз сценарийді таңдаңыз."
+                  : "Для этого проекта выберите меньше сцен или сократите длительность ролика."}
+              </p>
+            )}
           <div className="flex flex-wrap justify-end gap-2">
             <Button disabled={busy} onClick={onClose}>
               {kk ? "Бас тарту" : "Отмена"}
@@ -390,6 +425,13 @@ export function PlanDialog({
                 ? "Көріністерді қосу видео генерациясын іске қоспайды."
                 : "Добавление сцен не запускает генерацию видео."}
             </p>
+            {!capacity.fits && (
+              <p role="alert" className="text-sm text-amber-700">
+                {kk
+                  ? "Қалған көріністердің ұзақтығын азайтыңыз: жоба шегіне жеттіңіз."
+                  : "Сократите длительность оставшихся сцен: они превышают лимит проекта."}
+              </p>
+            )}
             <div className="flex flex-wrap justify-end gap-2">
               <Button
                 disabled={busy || applied.length > 0}
@@ -407,12 +449,7 @@ export function PlanDialog({
                       !scene.prompt.trim() ||
                       !shotDurations.includes(scene.duration ?? 5),
                   ) ||
-                  proposal.scenes.length + (project?.scenes.length ?? 0) >
-                    catalog.max_scenes ||
-                  proposal.scenes.reduce(
-                    (n, scene) => n + (scene.duration ?? 5),
-                    0,
-                  ) > catalog.max_project_duration
+                  !capacity.fits
                 }
                 onClick={() => void accept()}
               >
