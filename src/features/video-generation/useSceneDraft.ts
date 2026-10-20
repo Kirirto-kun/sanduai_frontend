@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiRequestError } from "@/lib/http-client";
 import { videoApi } from "./api";
 import { mergeVideoDraft } from "./draft-merge";
-import { isVideoExpired, promptVideoSettings, utcTimestamp } from "./model";
+import { isVideoExpired, utcTimestamp } from "./model";
+import { normalizeVideoPromptDraft } from "./prompt-draft";
 import type { ScenePatch, VideoScene } from "./types";
 
 type Draft = {
@@ -27,7 +28,7 @@ function storedScene(scene: VideoScene): Draft {
   };
 }
 function normalizedDraft(draft: Draft): Draft {
-  return { ...draft, settings: promptVideoSettings(draft.settings) };
+  return normalizeVideoPromptDraft(draft);
 }
 function fromScene(scene: VideoScene): Draft {
   return normalizedDraft(storedScene(scene));
@@ -51,11 +52,11 @@ export function useSceneDraft(
         !isVideoExpired(saved.expires_at) &&
         saved.scene_id === scene.id
       )
-        return {
-          ...fromScene(scene),
+        return normalizedDraft({
+          ...storedScene(scene),
           ...saved.draft,
-          settings: promptVideoSettings(saved.draft.settings ?? scene.settings),
-        } as Draft;
+          settings: saved.draft.settings ?? scene.settings,
+        } as Draft);
       if (saved) window.localStorage.removeItem(storageKey);
     } catch {
       /* Optional cache. */
@@ -186,13 +187,10 @@ export function useSceneDraft(
   );
   const update = useCallback(
     (patch: Partial<Draft>) => {
-      const next = {
+      const next = normalizedDraft({
         ...current.current,
         ...patch,
-        ...(patch.settings
-          ? { settings: promptVideoSettings(patch.settings) }
-          : {}),
-      };
+      });
       current.current = next;
       setDraft(next);
       setState("dirty");

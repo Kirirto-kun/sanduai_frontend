@@ -156,6 +156,7 @@ export function SceneEditor({
     !busy &&
     jobs.length === 0 &&
     draft.prompt.trim().length > 0 &&
+    draft.prompt.length <= 12000 &&
     (mode !== "image" || Boolean(draft.input_asset_id)) &&
     !inputUnavailable &&
     !projectExpired;
@@ -802,12 +803,19 @@ export function SceneEditor({
               onClick={() => setAssistantOpen(true)}
             >
               <Icon name="sparkles" />
-              {kk ? "ЖИ сценарийі" : "Сценарий с ИИ"}
+              {kk ? "ЖИ көмегімен жақсарту" : "Улучшить промпт с ИИ"}
             </Button>
             <span className="text-[10px] text-slate-400">
               {draft.prompt.length.toLocaleString()} / 12 000
             </span>
           </div>
+          {draft.prompt.length > 12000 && (
+            <p role="alert" className="mt-3 text-xs text-rose-600">
+              {kk
+                ? "Сақтау мен видео жасау үшін сипаттаманы 12 000 таңбаға дейін қысқартыңыз."
+                : "Сократите описание до 12 000 символов, чтобы сохранить его и создать видео."}
+            </p>
+          )}
           {saveError ? (
             <div
               role="alert"
@@ -837,61 +845,7 @@ export function SceneEditor({
             </div>
           ) : null}
           <div className="mt-4 border-t border-slate-100 pt-4">
-            <details className="mb-3 rounded-xl border border-slate-200 px-3 py-2">
-              <summary className="min-h-8 cursor-pointer text-xs font-medium text-slate-500">
-                {draft.settings.speech_text || draft.dialogue
-                  ? kk
-                    ? "Дәл репликалар · қосылған"
-                    : "Точные реплики · добавлены"
-                  : kk
-                    ? "Дәл репликалар · міндетті емес"
-                    : "Точные реплики · необязательно"}
-              </summary>
-              <Field
-                label={
-                  kk ? "Өзгеріссіз айтылатын мәтін" : "Что произнести дословно"
-                }
-                hint={
-                  kk
-                    ? "Диалогты негізгі сипаттамада да жазуға болады."
-                    : "Диалог можно написать и в основном описании."
-                }
-              >
-                <textarea
-                  className={`${fieldClass} mt-2 min-h-24`}
-                  value={draft.settings.speech_text}
-                  maxLength={4000}
-                  onChange={(event) =>
-                    update({
-                      settings: {
-                        ...draft.settings,
-                        speech_text: event.target.value,
-                      },
-                    })
-                  }
-                />
-              </Field>
-              {Boolean(draft.dialogue) && (
-                <div className="mt-3">
-                  <Field
-                    label={
-                      kk ? "Сценарийдегі репликалар" : "Реплики из сценария"
-                    }
-                  >
-                    <textarea
-                      className={`${fieldClass} min-h-24`}
-                      value={draft.dialogue}
-                      maxLength={4000}
-                      onChange={(event) =>
-                        update({ dialogue: event.target.value })
-                      }
-                    />
-                  </Field>
-                </div>
-              )}
-            </details>
-
-            <div className="mt-4 border-t border-slate-100 pt-4">
+            <div>
               {inputUnavailable && !projectExpired && (
                 <p
                   role="alert"

@@ -586,7 +586,7 @@ export function VideoWorkspace({
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="ghost" onClick={() => setDialog("plan")}>
                 <Icon name="sparkles" />
-                {kk ? "ЖИ сценарийі" : "ИИ-сценарий"}
+                {kk ? "Көріністер сценарийі" : "Сценарий по сценам"}
               </Button>
               {allReady && (
                 <Button onClick={() => setDialog("preview")}>
