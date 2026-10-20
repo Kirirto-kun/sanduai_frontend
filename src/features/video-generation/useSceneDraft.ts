@@ -15,16 +15,22 @@ type Draft = {
   settings: VideoScene["settings"];
   input_asset_id?: string | null;
 };
-function fromScene(scene: VideoScene): Draft {
+function storedScene(scene: VideoScene): Draft {
   return {
     title: scene.title,
     prompt: scene.prompt,
     dialogue: scene.dialogue ?? "",
     original_prompt: scene.original_prompt ?? scene.prompt,
     enhanced_prompt: scene.enhanced_prompt,
-    settings: promptVideoSettings(scene.settings),
+    settings: scene.settings,
     input_asset_id: scene.input_asset_id,
   };
+}
+function normalizedDraft(draft: Draft): Draft {
+  return { ...draft, settings: promptVideoSettings(draft.settings) };
+}
+function fromScene(scene: VideoScene): Draft {
+  return normalizedDraft(storedScene(scene));
 }
 
 /** One ordered stream of saves per editor; polling never replaces unsaved work. */
@@ -57,13 +63,13 @@ export function useSceneDraft(
     return fromScene(scene);
   });
   const current = useRef(draft);
-  const persisted = useRef(JSON.stringify(fromScene(scene)));
+  const persisted = useRef(JSON.stringify(storedScene(scene)));
   const revision = useRef(scene.revision);
   const running = useRef<Promise<void> | null>(null);
   const alive = useRef(true);
   const [state, setState] = useState<"saved" | "dirty" | "saving" | "error">(
     () =>
-      JSON.stringify(draft) === JSON.stringify(fromScene(scene))
+      JSON.stringify(draft) === JSON.stringify(storedScene(scene))
         ? "saved"
         : "dirty",
   );
@@ -81,18 +87,26 @@ export function useSceneDraft(
   useEffect(() => {
     if (running.current || (scene.revision ?? 0) <= (revision.current ?? 0))
       return;
-    const next = fromScene(scene);
+    const remote = storedScene(scene);
+    const next = normalizedDraft(remote);
     const merged = mergeVideoDraft(
-      JSON.parse(persisted.current) as Draft,
+      normalizedDraft(JSON.parse(persisted.current) as Draft),
       current.current,
       next,
     );
     if (merged.conflicts.length) return;
     revision.current = scene.revision;
-    persisted.current = JSON.stringify(next);
+    persisted.current = JSON.stringify(remote);
     current.current = merged.draft;
     queueMicrotask(() => {
-      if (alive.current) setDraft(merged.draft);
+      if (alive.current) {
+        setDraft(merged.draft);
+        setState(
+          JSON.stringify(merged.draft) === persisted.current
+            ? "saved"
+            : "dirty",
+        );
+      }
     });
   }, [scene]);
   const save = useCallback(async () => {
@@ -134,11 +148,11 @@ export function useSceneDraft(
               .catch(() => null);
             const latest = project?.scenes.find((s) => s.id === scene.id);
             if (latest) {
-              const remote = fromScene(latest);
+              const remote = storedScene(latest);
               const merged = mergeVideoDraft(
-                JSON.parse(persisted.current) as Draft,
+                normalizedDraft(JSON.parse(persisted.current) as Draft),
                 current.current,
-                remote,
+                normalizedDraft(remote),
               );
               if (!merged.conflicts.length) {
                 revision.current = latest.revision;
@@ -202,10 +216,10 @@ export function useSceneDraft(
   const adopt = useCallback((saved: VideoScene) => {
     const next = fromScene(saved);
     current.current = next;
-    persisted.current = JSON.stringify(next);
+    persisted.current = JSON.stringify(storedScene(saved));
     revision.current = saved.revision;
     setDraft(next);
-    setState("saved");
+    setState(JSON.stringify(next) === persisted.current ? "saved" : "dirty");
     setSaveError(null);
   }, []);
   const saveMyDraft = useCallback(async () => {
