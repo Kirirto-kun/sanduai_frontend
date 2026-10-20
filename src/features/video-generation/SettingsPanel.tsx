@@ -2,6 +2,7 @@
 
 import type { VideoDefaultProfiles, VideoModel, VideoSettings } from "./types";
 import { modelDurations, settingsForModel } from "./model";
+import { VIDEO_STYLE_PRESETS } from "./presets";
 import { Field, fieldClass } from "./ui";
 
 const compactFieldClass = `${fieldClass} min-h-11 px-3 py-2 text-xs`;
@@ -39,6 +40,8 @@ export function SettingsPanel({
         !candidate.available_modes.includes(inputMode),
     ) ||
     (aspectLocked && !candidate.aspect_ratios.includes(settings.aspect_ratio));
+  const selectedStyle =
+    settings.style_mode === "selected" ? settings.style : "";
 
   return (
     <div className="space-y-3">
@@ -147,6 +150,32 @@ export function SettingsPanel({
                       : ""}
               </option>
             ))}
+          </select>
+        </Field>
+      </div>
+      <div className="max-w-xs">
+        <Field label={kk ? "Видео стилі" : "Стиль видео"}>
+          <select
+            className={compactFieldClass}
+            value={selectedStyle}
+            onChange={(e) =>
+              onChange({
+                ...settings,
+                style: e.target.value,
+                style_mode: e.target.value ? "selected" : "auto",
+              })
+            }
+          >
+            <option value="">Авто</option>
+            {VIDEO_STYLE_PRESETS.map((preset) => (
+              <option key={preset.value} value={preset.value}>
+                {kk ? preset.kk : preset.ru}
+              </option>
+            ))}
+            {selectedStyle &&
+              !VIDEO_STYLE_PRESETS.some(
+                (preset) => preset.value === selectedStyle,
+              ) && <option value={selectedStyle}>{selectedStyle}</option>}
           </select>
         </Field>
       </div>

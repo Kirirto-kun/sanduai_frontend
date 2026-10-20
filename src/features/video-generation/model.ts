@@ -20,17 +20,20 @@ export const DEFAULT_VIDEO_SETTINGS: VideoSettings = {
   music: "",
   sound_effects: "",
   style: "",
+  style_mode: "auto",
   camera: "",
   motion_strength: null,
   negative_prompt: "",
 };
 
-/** Retired creative controls must not reappear from saved scenes or admin profiles. */
+/** Only an explicit style selection survives; retired controls stay inactive. */
 export function promptVideoSettings(settings: VideoSettings): VideoSettings {
+  const style = settings.style_mode === "selected" ? settings.style.trim() : "";
   return {
     ...settings,
     generate_audio: true,
-    style: "",
+    style,
+    style_mode: style ? "selected" : "auto",
     camera: "",
     motion_strength: null,
     negative_prompt: "",
@@ -197,6 +200,8 @@ export function catalogDefaultSettings(
     ...profile,
     speech_language: language,
     speech_text: "",
+    style: "",
+    style_mode: "auto",
   });
   return model ? settingsForModel(settings, model) : settings;
 }

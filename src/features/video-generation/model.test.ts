@@ -105,6 +105,37 @@ describe("video capabilities and timeline", () => {
     } as VideoCatalog;
     expect(catalogDefaultSettings(catalog).model_id).toBe(h3.id);
   });
+  it("applies a style only after explicit selection and clears it again for Auto", () => {
+    const selected = promptVideoSettings({
+      ...DEFAULT_VIDEO_SETTINGS,
+      style: "3d",
+      style_mode: "selected",
+    });
+    expect(selected).toMatchObject({ style: "3d", style_mode: "selected" });
+    expect(
+      promptVideoSettings({ ...selected, style_mode: "auto" }),
+    ).toMatchObject({ style: "", style_mode: "auto" });
+    expect(
+      promptVideoSettings({ ...selected, style_mode: undefined }),
+    ).toMatchObject({ style: "", style_mode: "auto" });
+  });
+  it("starts new projects in Auto even when an admin profile contains a style selection", () => {
+    const catalog = {
+      models: [h3],
+      default_profiles: {
+        fast: {
+          ...DEFAULT_VIDEO_SETTINGS,
+          model_id: h3.id,
+          style: "cartoon",
+          style_mode: "selected",
+        },
+      },
+    } as VideoCatalog;
+    expect(catalogDefaultSettings(catalog)).toMatchObject({
+      style: "",
+      style_mode: "auto",
+    });
+  });
   it("keeps real 768p, clamps the duration, and never keeps an unsupported aspect", () => {
     const value = settingsForModel(
       { ...DEFAULT_VIDEO_SETTINGS, duration: 1, aspect_ratio: "5:2" },

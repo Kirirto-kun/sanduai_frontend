@@ -45,6 +45,7 @@ export type VideoSettings = {
   music: string;
   sound_effects: string;
   style: string;
+  style_mode?: "auto" | "selected";
   camera: string;
   motion_strength: number | null;
   negative_prompt: string;
