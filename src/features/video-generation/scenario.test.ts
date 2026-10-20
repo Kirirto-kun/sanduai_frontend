@@ -17,6 +17,31 @@ describe("AI scenario preparation", () => {
     expect(scenarioPrompt({ ...scene, prompt })).toBe(prompt);
   });
 
+  it("does not repeat quoted speech just because its speaker label is formatted differently", () => {
+    const prompt =
+      "Клубника идёт рядом с бананом и говорит: «Хочу шикарную свадьбу!»";
+    expect(
+      scenarioPrompt({
+        title: "Wedding",
+        prompt,
+        dialogue: "Клубника: «Хочу шикарную свадьбу!»",
+      }),
+    ).toBe(prompt);
+  });
+
+  it("keeps additional directions, unquoted lines and missing speaker assignments", () => {
+    const prompt = "Банан говорит: «Хочу шикарную свадьбу!»";
+    const extra =
+      "Банан: «Хочу шикарную свадьбу!»\nКлубника смеётся и обнимает банан.";
+    expect(
+      scenarioPrompt({ title: "Wedding", prompt, dialogue: extra }),
+    ).toContain(extra);
+    const speaker = "Клубника: «Хочу шикарную свадьбу!»";
+    expect(
+      scenarioPrompt({ title: "Wedding", prompt, dialogue: speaker }),
+    ).toContain(speaker);
+  });
+
   it("respects sparse model durations and count when offering total lengths", () => {
     expect(scenarioDurationOptions([5, 10], 2)).toEqual([10, 15, 20]);
     expect(

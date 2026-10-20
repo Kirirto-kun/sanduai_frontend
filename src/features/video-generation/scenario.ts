@@ -1,12 +1,34 @@
 import type { VideoPlan } from "./types";
 
+function lineAlreadyInPrompt(line: string, prompt: string): boolean {
+  if (prompt.includes(line)) return true;
+  // Only a short speaker label plus one complete quoted line is safe to compare.
+  // Mixed action directions or unquoted lines must remain visible for review.
+  const match = line.match(
+    /^(?:([A-Za-zА-Яа-яЁёӘәҒғҚқҰұҮүҺһІіҢңӨө][A-Za-zА-Яа-яЁёӘәҒғҚқҰұҮүҺһІіҢңӨө0-9 _-]{0,49}):\s*)?(?:«([^»]+)»|"([^"\n]+)"|“([^”]+)”)[.!?…]?$/,
+  );
+  if (!match) return false;
+  const words = match.slice(2).find(Boolean);
+  if (!words) return false;
+  const at = prompt.indexOf(words);
+  if (at < 0) return false;
+  return (
+    !match[1] || prompt.slice(Math.max(0, at - 120), at).includes(match[1])
+  );
+}
+
 /** Older assistant responses can place lines outside the visible scene prompt. */
 export function scenarioPrompt(scene: VideoPlan["scenes"][number]): string {
   const prompt = scene.prompt.trim();
   const dialogue = scene.dialogue?.trim();
-  return dialogue && !prompt.includes(dialogue)
-    ? `${prompt}\n\n${dialogue}`.trim()
-    : prompt;
+  if (!dialogue || prompt.includes(dialogue)) return prompt;
+  const lines = dialogue
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.every((line) => lineAlreadyInPrompt(line, prompt))
+    ? prompt
+    : `${prompt}\n\n${dialogue}`.trim();
 }
 
 /** Offer only totals that can actually be made with the model's shot lengths. */
