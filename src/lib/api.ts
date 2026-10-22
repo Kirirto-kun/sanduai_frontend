@@ -138,6 +138,17 @@ export type LessonPlanLanguage = "kazakh" | "russian" | "english" | "kyrgyz" | "
 export type LessonPlanType = "new_lesson" | "consolidation" | "review";
 
 export type LessonPlanRequest = {
+  planner_version?: "open_lesson_v1";
+  schema_version?: "v1" | "v2";
+  school_name?: string;
+  duration?: number;
+  student_count?: number | null;
+  teaching_language?: string;
+  inclusive_support?: string;
+  resources?: string[];
+  additional_requirements?: string;
+  selected_objective_ids?: string[];
+  program_id?: string;
   subject: string;
   grade: string;
   topic: string;
@@ -154,6 +165,9 @@ export type LessonPlanRequest = {
 };
 
 export type LessonMeta = {
+  school_name?: string;
+  duration?: number;
+  student_count?: number | null;
   section_name: string;
   subject: string;
   teacher_name: string;
@@ -163,7 +177,7 @@ export type LessonMeta = {
   students_absent: string;
   topic: string;
   learning_objectives: string[];
-  lesson_objectives: string[];
+  lesson_objectives: string[] | string;
 };
 
 export type LessonTask = {
@@ -178,15 +192,72 @@ export type LessonTask = {
 
 export type NeuroExercise = string | { name: string; description?: string } | null;
 
+export type LessonTemplateTable = { caption: string; columns: string[]; rows: string[][] };
+export type LessonSubBlock = {
+  time: string;
+  phase_name: string;
+  work_type?: string | null;
+  method_name?: string | null;
+  teacher_activity: string;
+  student_activity: string;
+  free_text_content?: string | null;
+  quiz?: { text: string; options: string[]; correct: string }[] | null;
+  template_table?: LessonTemplateTable | null;
+  descriptors: { text: string; points: number }[];
+  assessment_note?: string | null;
+  resource_urls: string[];
+  resource_materials: string[];
+  interesting_fact?: string | null;
+  neuro_exercise?: string | null;
+  task_objective?: string | null;
+  task_id?: string;
+  objective_ids?: string[];
+  expected_result?: string;
+  assessment_criteria?: string;
+  inclusive_support?: string;
+  offline_alternative?: string;
+  minutes?: number | null;
+  individual_check?: boolean;
+  reflection_questions?: string[];
+};
+
+export type LessonKnowledge = {
+  version: string;
+  status: "verified" | "partial" | "unverified";
+  objectives: CurriculumObjective[];
+  sources: { title: string; url: string; version?: string; checked_at?: string }[];
+  warnings: string[];
+  checked_at?: string;
+};
+
+export type CurriculumObjective = {
+  context_id?: string;
+  id: string; program_id: string; program_title: string; subject: string; grade: string;
+  teaching_language: string; code: string; text: string; section: string;
+  source_url: string; source_locator: string; source_version: string;
+  verified_at?: string; verification_status: string;
+};
+export type CurriculumSearchResponse = {
+  items: CurriculumObjective[];
+  programs: { id?: string; program_id?: string; title?: string; program_title?: string }[];
+  total: number; knowledge_version: string; coverage: unknown; warnings: string[];
+};
+
 export type LessonStage = {
   stage_id?: "start" | "middle" | "end";
   stage_name: string;
-  time: string;
-  neuro_exercise: NeuroExercise;
-  tasks: LessonTask[];
+  time?: string;
+  neuro_exercise?: NeuroExercise;
+  tasks?: LessonTask[];
+  sub_blocks?: LessonSubBlock[];
+  homework?: string | null;
 };
 
 export type LessonPlanResponse = {
+  planner_version?: string;
+  schema_version?: string;
+  knowledge?: LessonKnowledge;
+  answer_keys?: { task_ref: string; content: string; table?: LessonTemplateTable | null }[];
   language?: LessonPlanLanguage;
   meta: LessonMeta;
   flow: LessonStage[];
@@ -1896,6 +1967,17 @@ export function chatWithYbyraiStream(
 }
 
 // Lesson Plan (Short-term КМЖ) API functions
+export async function searchLessonCurriculum(
+  filters: { subject: string; grade: string; teaching_language: string; query?: string; program_id?: string; limit?: number },
+  signal?: AbortSignal,
+): Promise<CurriculumSearchResponse> {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") params.set(key, String(value));
+  });
+  return request<CurriculumSearchResponse>(`/api/kmzh/curriculum?${params}`, { signal, auth: true });
+}
+
 export async function generateLessonPlan(
   payload: LessonPlanRequest,
 ): Promise<LessonPlanResponse> {
