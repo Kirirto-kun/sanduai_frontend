@@ -1,10 +1,10 @@
-import type { LessonPlanRequest, LessonPlanResponse, LessonSubBlock } from "@/lib/api";
+import type { CurriculumObjective, LessonPlanRequest, LessonPlanResponse, LessonSubBlock } from "@/lib/api";
 
 export type EditableLessonPlan = Omit<LessonPlanResponse, "flow"> & {
   flow: (LessonPlanResponse["flow"][number] & { sub_blocks: LessonSubBlock[] })[];
 };
 
-export type LessonPlanDraft = LessonPlanRequest & { selected_objective_texts?: string[] };
+export type LessonPlanDraft = LessonPlanRequest & { selected_objective_texts?: string[]; selected_objectives?: CurriculumObjective[] };
 
 export const createLessonDraft = (): LessonPlanDraft => ({
   planner_version: "open_lesson_v1", schema_version: "v2",
@@ -58,7 +58,8 @@ export function updateLessonBlock(plan: EditableLessonPlan, stageIndex: number, 
 }
 
 export function cleanLessonRequest(draft: LessonPlanDraft): LessonPlanRequest {
-  const { selected_objective_texts = [], ...request } = draft;
+  const { selected_objective_texts = [], selected_objectives: _selection, ...request } = draft;
+  void _selection;
   return {
     ...request, planner_version: "open_lesson_v1", schema_version: "v2",
     subject: draft.subject.trim(), grade: draft.grade.trim(), topic: draft.topic.trim(),
@@ -67,6 +68,10 @@ export function cleanLessonRequest(draft: LessonPlanDraft): LessonPlanRequest {
     date: draft.date?.trim() || null, textbook_text: draft.textbook_text?.trim() || null,
     resources: (draft.resources ?? []).map((value) => value.trim()).filter(Boolean),
   };
+}
+
+export function validStudentCount(value: number | null | undefined): boolean {
+  return value == null || (Number.isInteger(value) && value >= 1 && value <= 1000);
 }
 
 export function lessonMinutes(plan: EditableLessonPlan): number | null {

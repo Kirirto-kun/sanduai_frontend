@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LessonPlanResponse, LessonSubBlock } from "@/lib/api";
-import { cleanLessonRequest, createLessonDraft, editableLessonPlan, lessonExportPayload, lessonMinutes, safeSourceUrl, updateLessonBlock } from "./model";
-import { lessonWarning } from "./copy";
+import { cleanLessonRequest, createLessonDraft, editableLessonPlan, lessonExportPayload, lessonMinutes, safeSourceUrl, updateLessonBlock, validStudentCount } from "./model";
+import { getDocumentCopy, lessonWarning } from "./copy";
 
 const block: LessonSubBlock = {
   task_id: "task1", objective_ids: ["lo1"], minutes: 45, time: "45 мин", phase_name: "Задание",
@@ -56,5 +56,13 @@ describe("open lesson canonical editor", () => {
     expect(lessonWarning("academic_year_guidance_not_verified", false)).toContain("учебный год");
     expect(lessonWarning("edited_objectives_require_verification", true)).toContain("Ресми");
     expect(lessonWarning("some_future_code", false)).not.toContain("some_future_code");
+  });
+  it("accepts an optional class count and matches backend boundaries without coercing invalid values", () => {
+    for (const value of [null, undefined, 1, 1000]) expect(validStudentCount(value)).toBe(true);
+    for (const value of [0, -1, 1001, 1.5, NaN]) expect(validStudentCount(value)).toBe(false);
+  });
+  it("uses document-language stage and metadata labels for Kyrgyz and Uzbek output", () => {
+    expect(getDocumentCopy("ky")).toMatchObject({ stageTime: "Сабактын этабы / убакыт", field: "Көрсөткүч" });
+    expect(getDocumentCopy("uz")).toMatchObject({ stageTime: "Dars bosqichi / vaqt", details: "Ma’lumot" });
   });
 });

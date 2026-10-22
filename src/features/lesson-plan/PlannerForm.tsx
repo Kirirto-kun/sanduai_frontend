@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type Dispatch, type SetStateAction } from "react";
-import type { CurriculumObjective, LessonPlanRequest } from "@/lib/api";
+import type { LessonPlanRequest } from "@/lib/api";
 import { CurriculumPicker } from "./CurriculumPicker";
 import { buttonClass, fieldClass, TextField } from "./Fields";
 import type { LessonPlanDraft } from "./model";
@@ -8,13 +8,12 @@ type Props = { draft: LessonPlanDraft; onChange: Dispatch<SetStateAction<LessonP
 const languageOptions = [["kazakh", "Қазақша"], ["russian", "Русский"], ["english", "English"], ["kyrgyz", "Кыргызча"], ["uzbek", "O‘zbekcha"]] as const;
 
 export function PlannerForm({ draft, onChange, onSubmit, busy, kk, cost, balance, error }: Props) {
-  const [selected, setSelected] = useState<CurriculumObjective[]>([]);
+  const selected = draft.selected_objectives ?? [];
   const [uploadError, setUploadError] = useState("");
   const [uploading, setUploading] = useState(false);
   const set = <K extends keyof LessonPlanRequest,>(key: K, value: LessonPlanRequest[K]) => {
     const selectionChanged = ["subject", "grade", "teaching_language"].includes(key);
-    if (selectionChanged) setSelected([]);
-    onChange({ ...draft, [key]: value, ...(selectionChanged ? { selected_objective_ids: [], selected_objective_texts: [], program_id: undefined } : {}) });
+    onChange({ ...draft, [key]: value, ...(selectionChanged ? { selected_objective_ids: [], selected_objective_texts: [], selected_objectives: [], program_id: undefined } : {}) });
   };
   const upload = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -42,9 +41,9 @@ export function PlannerForm({ draft, onChange, onSubmit, busy, kk, cost, balance
       <label className="text-sm font-semibold text-slate-700">{kk ? "Оқыту тілі" : "Язык обучения"}<select value={draft.teaching_language} onChange={(event) => set("teaching_language", event.target.value)} className={`${fieldClass} mt-1.5`}>{languageOptions.map(([value, title]) => <option key={value} value={value}>{title}</option>)}</select><span className="mt-1.5 block text-xs font-normal leading-5 text-slate-600">{kk ? "Сыныптың оқу бағдарламасын таңдау үшін." : "Определяет учебную программу класса."}</span></label>
       <label className="text-sm font-semibold text-slate-700">{kk ? "ҚМЖ құжатының тілі" : "Язык документа КМЖ"}<select value={draft.language} onChange={(event) => set("language", event.target.value as LessonPlanRequest["language"])} className={`${fieldClass} mt-1.5`}>{languageOptions.map(([value, title]) => <option key={value} value={value}>{title}</option>)}</select></label>
       <TextField label={kk ? "Сабақ ұзақтығы, минут" : "Продолжительность, минут"} type="number" min={10} max={180} step={1} required value={String(draft.duration ?? 45)} onChange={(value) => set("duration", value === "" ? undefined : Number(value))} hint={kk ? "Әдепкі мәні — 45 минут. Өзгертуге болады." : "По умолчанию 45 минут. Можно изменить."} />
-      <TextField label={kk ? "Оқушылар саны" : "Количество учеников"} type="number" min={0} max={100} step={1} value={draft.student_count == null ? "" : String(draft.student_count)} onChange={(value) => set("student_count", value === "" ? null : Number(value))} />
+      <TextField label={kk ? "Оқушылар саны" : "Количество учеников"} type="number" min={1} max={1000} step={1} value={draft.student_count == null ? "" : String(draft.student_count)} onChange={(value) => set("student_count", value === "" ? null : Number(value))} />
     </fieldset>
-    <CurriculumPicker key={`${draft.subject}|${draft.grade}|${draft.teaching_language}`} subject={draft.subject} grade={draft.grade} teachingLanguage={draft.teaching_language ?? "kazakh"} selected={selected} onSelect={(items) => { setSelected(items); const programs = new Set(items.map((item) => item.program_id)); onChange({ ...draft, selected_objective_ids: items.map((item) => item.id), selected_objective_texts: items.map((item) => `${item.code} ${item.text}`), program_id: programs.size === 1 ? items[0]?.program_id : undefined }); }} kk={kk} />
+    <CurriculumPicker key={`${draft.subject}|${draft.grade}|${draft.teaching_language}`} subject={draft.subject} grade={draft.grade} teachingLanguage={draft.teaching_language ?? "kazakh"} selected={selected} onSelect={(items) => { const programs = new Set(items.map((item) => item.program_id)); onChange({ ...draft, selected_objectives: items, selected_objective_ids: items.map((item) => item.id), selected_objective_texts: items.map((item) => `${item.code} ${item.text}`), program_id: programs.size === 1 ? items[0]?.program_id : undefined }); }} kk={kk} />
     <TextField label={kk ? "Оқу мақсатының коды және толық тұжырымы (қолмен)" : "Код и полная формулировка цели (вручную)"} multiline value={draft.learning_objectives.join("\n")} onChange={(value) => set("learning_objectives", value.split("\n"))} hint={kk ? "Әр мақсатты жаңа жолға жазыңыз. Анықтамалықта мақсат болмаса да, жалғастыра аласыз." : "Каждую цель пишите с новой строки. Можно продолжить, даже если цели нет в справочнике."} />
     <details className="rounded-2xl border border-slate-200 p-4" open>
       <summary className="cursor-pointer text-base font-bold text-slate-900">{kk ? "Мектеп, педагог және сабақ күні" : "Школа, учитель и дата"}</summary>
@@ -62,7 +61,7 @@ export function PlannerForm({ draft, onChange, onSubmit, busy, kk, cost, balance
         <TextField label={kk ? "Қолжетімді ресурстар" : "Доступные ресурсы"} multiline value={(draft.resources ?? []).join("\n")} onChange={(value) => set("resources", value.split("\n"))} hint={kk ? "Әр ресурсты жаңа жолға жазыңыз; интернеттің бар-жоғын көрсетіңіз." : "Каждый ресурс с новой строки; укажите, есть ли интернет."} />
         <TextField label={kk ? "Қосымша талаптар" : "Дополнительные требования"} multiline value={draft.additional_requirements ?? ""} onChange={(value) => set("additional_requirements", value)} />
         <TextField label={kk ? "Оқулықтағы мәтін немесе тапсырма" : "Текст или задание из учебника"} multiline value={draft.textbook_text ?? ""} onChange={(value) => set("textbook_text", value)} />
-        <label className="block text-sm font-semibold text-slate-700">{kk ? "Оқулық беттерінің суреттері" : "Изображения страниц учебника"}<input type="file" accept="image/*" multiple onChange={(event) => void upload(event.target.files)} disabled={uploading || busy} className={`${fieldClass} mt-1.5`} /></label>
+        <label className="block text-sm font-semibold text-slate-700">{kk ? "Оқулық беттерінің суреттері" : "Изображения страниц учебника"}<span className="mt-1 block text-xs font-normal leading-5 text-slate-600">{kk ? "Суреттер бет жаңартылғанда сақталмайды. Қайта тіркеу қажет болады." : "Изображения не сохраняются при обновлении страницы. Их нужно прикрепить повторно."}</span><input type="file" accept="image/*" multiple onChange={(event) => void upload(event.target.files)} disabled={uploading || busy} className={`${fieldClass} mt-1.5`} /></label>
         {uploading ? <p role="status" className="text-sm">{kk ? "Суреттер жүктелуде…" : "Загружаем изображения…"}</p> : null}
         {uploadError ? <p role="alert" className="text-sm text-red-700">{uploadError}</p> : null}
         {(draft.textbook_images ?? []).map((image, index) => <div key={index} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-2"><div className="flex items-center gap-3">

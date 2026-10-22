@@ -16,3 +16,15 @@ export function lessonWarning(warning: string, kk: boolean): string {
   if (/^[a-z][a-z0-9_:.\-]+$/.test(warning)) return kk ? "Бұл деректерді ресми бағдарламамен салыстырып тексеріңіз." : "Сравните эти данные с официальной учебной программой.";
   return warning;
 }
+
+const documentCopy = {
+  kk: { stageTime: "Сабақтың кезеңі/ уақыт", flow: "Сабақтың барысы", field: "Көрсеткіш", details: "Мәлімет" },
+  ru: { stageTime: "Этап урока/ Время", flow: "Ход урока", field: "Показатель", details: "Сведения" },
+  en: { stageTime: "Lesson stage / time", flow: "Lesson flow", field: "Field", details: "Details" },
+  ky: { stageTime: "Сабактын этабы / убакыт", flow: "Сабактын жүрүшү", field: "Көрсөткүч", details: "Маалымат" },
+  uz: { stageTime: "Dars bosqichi / vaqt", flow: "Dars jarayoni", field: "Ko‘rsatkich", details: "Ma’lumot" },
+};
+
+export function getDocumentCopy(language: keyof typeof documentCopy) {
+  return documentCopy[language];
+}
