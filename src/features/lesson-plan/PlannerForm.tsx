@@ -1,8 +1,9 @@
-import { useState, type FormEvent, type Dispatch, type SetStateAction } from "react";
+import { useRef, useState, type FormEvent, type Dispatch, type SetStateAction } from "react";
 import type { LessonPlanRequest } from "@/lib/api";
 import { CurriculumPicker } from "./CurriculumPicker";
 import { buttonClass, fieldClass, TextField } from "./Fields";
 import type { LessonPlanDraft } from "./model";
+import { lessonImageUploadError } from "./image-upload";
 
 type Props = { draft: LessonPlanDraft; onChange: Dispatch<SetStateAction<LessonPlanDraft>>; onSubmit: (event: FormEvent) => void; busy: boolean; kk: boolean; cost?: number; balance: number | null; error: string };
 const languageOptions = [["kazakh", "Қазақша"], ["russian", "Русский"], ["english", "English"], ["kyrgyz", "Кыргызча"], ["uzbek", "O‘zbekcha"]] as const;
@@ -11,24 +12,27 @@ export function PlannerForm({ draft, onChange, onSubmit, busy, kk, cost, balance
   const selected = draft.selected_objectives ?? [];
   const [uploadError, setUploadError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const uploadActive = useRef(false);
   const set = <K extends keyof LessonPlanRequest,>(key: K, value: LessonPlanRequest[K]) => {
     const selectionChanged = ["subject", "grade", "teaching_language"].includes(key);
     onChange({ ...draft, [key]: value, ...(selectionChanged ? { selected_objective_ids: [], selected_objective_texts: [], selected_objectives: [], program_id: undefined } : {}) });
   };
   const upload = async (files: FileList | null) => {
-    if (!files?.length) return;
+    if (!files?.length || uploadActive.current) return;
+    const selectedFiles = Array.from(files);
+    const validationError = lessonImageUploadError(draft.textbook_images?.length ?? 0, selectedFiles, kk);
+    if (validationError) { setUploadError(validationError); return; }
+    uploadActive.current = true;
     setUploadError(""); setUploading(true);
     try {
-      const images = await Promise.all(Array.from(files).map((file) => {
-        if (!file.type.startsWith("image/")) throw new Error(kk ? "Сурет файлын таңдаңыз." : "Выберите файл изображения.");
-        if (file.size > 10 * 1024 * 1024) throw new Error(kk ? "Әр сурет 10 МБ-тан аспауы керек." : "Каждое изображение должно быть меньше 10 МБ.");
+      const images = await Promise.all(selectedFiles.map((file) => {
         return new Promise<string>((resolve, reject) => {
           const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error(kk ? "Суретті оқу мүмкін болмады." : "Не удалось прочитать изображение.")); reader.readAsDataURL(file);
         });
       }));
       onChange((current) => ({ ...current, textbook_images: [...(current.textbook_images ?? []), ...images] }));
     } catch (failure) { setUploadError(failure instanceof Error ? failure.message : (kk ? "Суретті қайта жүктеңіз." : "Попробуйте загрузить изображение снова.")); }
-    finally { setUploading(false); }
+    finally { uploadActive.current = false; setUploading(false); }
   };
 
   return <form onSubmit={onSubmit} className="space-y-6 rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-sm sm:p-7">
@@ -61,7 +65,7 @@ export function PlannerForm({ draft, onChange, onSubmit, busy, kk, cost, balance
         <TextField label={kk ? "Қолжетімді ресурстар" : "Доступные ресурсы"} multiline value={(draft.resources ?? []).join("\n")} onChange={(value) => set("resources", value.split("\n"))} hint={kk ? "Әр ресурсты жаңа жолға жазыңыз; интернеттің бар-жоғын көрсетіңіз." : "Каждый ресурс с новой строки; укажите, есть ли интернет."} />
         <TextField label={kk ? "Қосымша талаптар" : "Дополнительные требования"} multiline value={draft.additional_requirements ?? ""} onChange={(value) => set("additional_requirements", value)} />
         <TextField label={kk ? "Оқулықтағы мәтін немесе тапсырма" : "Текст или задание из учебника"} multiline value={draft.textbook_text ?? ""} onChange={(value) => set("textbook_text", value)} />
-        <label className="block text-sm font-semibold text-slate-700">{kk ? "Оқулық беттерінің суреттері" : "Изображения страниц учебника"}<span className="mt-1 block text-xs font-normal leading-5 text-slate-600">{kk ? "Суреттер бет жаңартылғанда сақталмайды. Қайта тіркеу қажет болады." : "Изображения не сохраняются при обновлении страницы. Их нужно прикрепить повторно."}</span><input type="file" accept="image/*" multiple onChange={(event) => void upload(event.target.files)} disabled={uploading || busy} className={`${fieldClass} mt-1.5`} /></label>
+        <label className="block text-sm font-semibold text-slate-700">{kk ? "Оқулық беттерінің суреттері" : "Изображения страниц учебника"}<span className="mt-1 block text-xs font-normal leading-5 text-slate-600">{kk ? "Ең көбі 3 сурет, әрқайсысы 10 МБ-тан аспасын. Суреттер бет жаңартылғанда сақталмайды; қайта тіркеу қажет." : "До 3 изображений, каждое не более 10 МБ. При обновлении страницы их нужно прикрепить повторно."}</span><input type="file" accept="image/*" multiple onChange={(event) => void upload(event.target.files)} disabled={uploading || busy} className={`${fieldClass} mt-1.5`} /></label>
         {uploading ? <p role="status" className="text-sm">{kk ? "Суреттер жүктелуде…" : "Загружаем изображения…"}</p> : null}
         {uploadError ? <p role="alert" className="text-sm text-red-700">{uploadError}</p> : null}
         {(draft.textbook_images ?? []).map((image, index) => <div key={index} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-2"><div className="flex items-center gap-3">

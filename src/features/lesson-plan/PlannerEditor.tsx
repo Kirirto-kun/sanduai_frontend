@@ -4,6 +4,28 @@ import { tryNormalizeContentLanguage } from "@/lib/content-languages";
 import { buttonClass, fieldClass, TextField } from "./Fields";
 import { getDocumentCopy, lessonWarning } from "./copy";
 import { lessonMinutes, safeSourceUrl, validStudentCount, updateLessonBlock, type EditableLessonPlan } from "./model";
+import { canonicalWorkType, taskReferenceOptions, workTypeOptions } from "./editor-labels";
+
+function WorkTypeField({ value, onChange, kk }: { value?: string | null; onChange: (value: string | null) => void; kk: boolean }) {
+  const options = workTypeOptions(kk);
+  const selected = canonicalWorkType(value) ?? value ?? "";
+  const custom = Boolean(selected && !options.some((option) => option.value === selected));
+  return <label className="block text-sm font-semibold text-slate-700">{kk ? "Жұмыс түрі" : "Форма работы"}
+    <select className={`${fieldClass} mt-1.5`} value={selected} onChange={(event) => onChange(event.target.value || null)}>
+      <option value="">{kk ? "Көрсетілмеген" : "Не указана"}</option>
+      {custom ? <option value={selected}>{/^[a-z][a-z0-9_-]*$/.test(selected) ? (kk ? "Басқа жұмыс түрі" : "Другая форма работы") : selected}</option> : null}
+      {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+    </select>
+  </label>;
+}
+
+function TaskReferenceField({ plan, reference, index, onChange, kk }: { plan: EditableLessonPlan; reference: string; index: number; onChange: (value: string) => void; kk: boolean }) {
+  return <label className="block text-sm font-semibold text-slate-700">{kk ? "Жауап берілген тапсырма" : "Задание для этого ответа"}
+    <select value={reference} onChange={(event) => onChange(event.target.value)} className={`${fieldClass} mt-1.5`}>
+      {taskReferenceOptions(plan, reference, index, kk).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+    </select>
+  </label>;
+}
 
 function TableEditor({ table, onChange, kk }: { table: LessonTemplateTable; onChange: (table: LessonTemplateTable) => void; kk: boolean }) {
   return <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -17,7 +39,7 @@ function TableEditor({ table, onChange, kk }: { table: LessonTemplateTable; onCh
 function BlockContent({ block, onChange, kk }: { block: LessonSubBlock; onChange: (patch: Partial<LessonSubBlock>) => void; kk: boolean }) {
   return <div className="space-y-3">
     <TextField label={kk ? "Әдіс" : "Метод"} value={block.method_name ?? ""} onChange={(method_name) => onChange({ method_name })} />
-    <TextField label={kk ? "Жұмыс түрі" : "Форма работы"} value={block.work_type ?? ""} onChange={(work_type) => onChange({ work_type })} />
+    <WorkTypeField value={block.work_type} onChange={(work_type) => onChange({ work_type })} kk={kk} />
     <TextField label={kk ? "Тапсырма, нұсқау және сұрақтар" : "Задание, инструкция и вопросы"} multiline value={block.teacher_activity} onChange={(teacher_activity) => onChange({ teacher_activity })} />
     {block.free_text_content != null ? <TextField label={kk ? "Тапсырма материалы" : "Материал задания"} multiline value={block.free_text_content} onChange={(free_text_content) => onChange({ free_text_content })} /> : null}
     {block.quiz?.map((question, index) => <div key={index} className="space-y-2 rounded-xl border border-slate-200 p-3">
@@ -90,7 +112,7 @@ export function PlannerEditor({ plan, onChange, kk, onExport, exporting, onNew, 
       }))}</tbody></table></div>
       {plan.flow.map((stage, index) => stage.homework != null ? <div key={index} className="mt-4"><TextField label={kk ? "Үй тапсырмасы" : "Домашнее задание"} multiline value={stage.homework} onChange={(homework) => onChange({ ...plan, flow: plan.flow.map((item, i) => i !== index ? item : { ...item, homework }) })} /></div> : null)}
     </section>
-    {plan.answer_keys?.length ? <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5"><h2 className="text-xl font-bold">{kk ? "Мұғалімге арналған қосымша материалдар" : "Дополнительные материалы учителю"}</h2>{plan.answer_keys.map((answer, index) => <div key={index} className="space-y-3 rounded-2xl border border-slate-200 p-4"><TextField label={kk ? "Тапсырма атауы" : "Название задания"} value={answer.task_ref} onChange={(task_ref) => onChange({ ...plan, answer_keys: plan.answer_keys?.map((item, i) => i !== index ? item : { ...item, task_ref }) })} /><TextField label={kk ? "Жауаптар мен шешімдер" : "Ответы и решения"} multiline value={answer.content} onChange={(content) => onChange({ ...plan, answer_keys: plan.answer_keys?.map((item, i) => i !== index ? item : { ...item, content }) })} />{answer.table ? <TableEditor table={answer.table} kk={kk} onChange={(table) => onChange({ ...plan, answer_keys: plan.answer_keys?.map((item, i) => i !== index ? item : { ...item, table }) })} /> : null}</div>)}</section> : null}
+    {plan.answer_keys?.length ? <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5"><h2 className="text-xl font-bold">{kk ? "Мұғалімге арналған қосымша материалдар" : "Дополнительные материалы учителю"}</h2>{plan.answer_keys.map((answer, index) => <div key={index} className="space-y-3 rounded-2xl border border-slate-200 p-4"><TaskReferenceField plan={plan} reference={answer.task_ref} index={index} kk={kk} onChange={(task_ref) => onChange({ ...plan, answer_keys: plan.answer_keys?.map((item, i) => i !== index ? item : { ...item, task_ref }) })} /><TextField label={kk ? "Жауаптар мен шешімдер" : "Ответы и решения"} multiline value={answer.content} onChange={(content) => onChange({ ...plan, answer_keys: plan.answer_keys?.map((item, i) => i !== index ? item : { ...item, content }) })} />{answer.table ? <TableEditor table={answer.table} kk={kk} onChange={(table) => onChange({ ...plan, answer_keys: plan.answer_keys?.map((item, i) => i !== index ? item : { ...item, table }) })} /> : null}</div>)}</section> : null}
     <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5"><h2 className="text-lg font-bold">{kk ? "Дереккөздер және тексеру" : "Источники и проверка"}</h2><p className="mt-2 text-sm leading-6 text-slate-700">{plan.knowledge?.status === "verified" ? (kk ? "Таңдалған нормативтік деректер базамен расталған." : "Выбранные нормативные данные подтверждены базой.") : (kk ? "Деректердің бір бөлігі тексеруді қажет етеді. Оқу мақсаттарын ресми бағдарламамен салыстырыңыз." : "Часть данных требует проверки. Сравните учебные цели с официальной программой.")}</p>{plan.knowledge ? <p className="mt-1 text-xs text-slate-600">{kk ? "База нұсқасы" : "Версия базы"}: {plan.knowledge.version} {plan.knowledge.checked_at ? `· ${plan.knowledge.checked_at}` : ""}</p> : null}<ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-amber-900">{plan.knowledge?.warnings.map((warning, index) => <li key={index}>{lessonWarning(warning, kk)}</li>)}</ul><ul className="mt-3 space-y-2 text-sm">{plan.knowledge?.sources.map((source, index) => <li key={index}>{safeSourceUrl(source.url) ? <a className="font-semibold text-[var(--primary)] underline" href={safeSourceUrl(source.url)} target="_blank" rel="noopener noreferrer">{source.title}</a> : source.title}{source.version ? ` · ${source.version}` : ""}{source.checked_at ? ` · ${source.checked_at}` : ""}</li>)}</ul></section>
     {countInvalid ? <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{kk ? "Оқушылар саны 1–1000 аралығындағы бүтін сан болуы керек немесе бос қалсын." : "Укажите целое количество учеников от 1 до 1000 или оставьте поле пустым."}</p> : null}
     {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">{error}</p> : null}
