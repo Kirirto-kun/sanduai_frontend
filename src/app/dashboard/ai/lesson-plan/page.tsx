@@ -38,6 +38,7 @@ function LessonPlanner({ userId }: { userId: string | null }) {
   const [storageFailed, setStorageFailed] = useState(false);
   const [restoredNotice, setRestoredNotice] = useState<"draft" | "edits" | "images" | null>(null);
   const draftHydrated = useRef(false);
+  const restoredScope = useRef<string | null>(null);
   const job = useQuery({
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
@@ -49,6 +50,8 @@ function LessonPlanner({ userId }: { userId: string | null }) {
   });
 
   useEffect(() => {
+    if (restoredScope.current === persistenceScope) return;
+    restoredScope.current = persistenceScope;
     const store = lessonSessionStore();
     const savedDraft = store && !draftHydrated.current ? readLessonDraft(store, userId) : null;
     const savedPlan = store && currentJobId ? readLessonEdits(store, userId, currentJobId) : null;
