@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage, useTranslations } from "../../i18n/LanguageContext";
 import { TokenBalance } from "../../components/TokenBalance";
-import { COMMON_GROUPS, NavGroup, NavItem, resolveNavAccess, SEGMENTS, SegmentKey } from "../../i18n/navigation";
+import { COMMON_GROUPS, filterNavGroupsForRole, NavGroup, NavItem, resolveNavAccess, SEGMENTS, SegmentKey } from "../../i18n/navigation";
 import { useSegment } from "../../hooks/useSegment";
 import { useTokens } from "../../hooks/useTokens";
 import { classifyRouteAccess, decideRouteAccess } from "../../lib/access-policy";
@@ -185,7 +185,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
           items: group.items.filter((item) => item.key !== "lib-presentations"),
         }))
       : COMMON_GROUPS;
-    const groups = [...activeSegment.groups, ...commonGroups];
+    const groups = filterNavGroupsForRole([...activeSegment.groups, ...commonGroups], user?.role);
     const query = search.trim().toLowerCase();
     if (!query) return groups;
 
@@ -197,7 +197,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
         ),
       }))
       .filter((group) => group.items.length > 0);
-  }, [activeSegment, search, language]);
+  }, [activeSegment, search, language, user?.role]);
 
   if (loading) {
     return (
@@ -685,10 +685,15 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
                 {children}
               </SubscriptionAccessGate>
             ) : accessDecision === "forbidden" ? (
-              <section className="mx-auto max-w-2xl rounded-3xl border border-red-200 bg-white/95 px-6 py-12 text-center shadow-sm">
+              <section role="status" className="mx-auto max-w-2xl rounded-3xl border border-red-200 bg-white/95 px-6 py-12 text-center shadow-sm">
                 <h2 className="text-xl font-semibold text-slate-900">
                   {language === "kk" ? "Бұл бөлімге қол жеткізуге болмайды" : "Нет доступа к этому разделу"}
                 </h2>
+                {pathname === "/dashboard/media/video" && (
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {language === "kk" ? "Видео генерациясы әзірге тек әкімшіге қолжетімді." : "Генерация видео пока доступна только администратору."}
+                  </p>
+                )}
                 <Link href="/dashboard" className="mt-5 inline-flex min-h-11 items-center font-semibold text-[color:var(--primary)]">
                   {language === "kk" ? "Басты бетке оралу" : "Вернуться на главную"}
                 </Link>

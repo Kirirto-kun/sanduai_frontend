@@ -13,6 +13,7 @@ import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
 import { useMasterclassHandoff } from "@/features/masterclasses/useMasterclassHandoff";
 import { MasterclassHandoffNotice } from "@/features/masterclasses/MasterclassHandoffNotice";
 import { VideoWorkspace } from "@/features/video-generation/VideoWorkspace";
+import { canAccessVideoGeneration } from "@/lib/access-policy";
 
 function VideoContent() {
   const { language } = useLanguage();
@@ -75,6 +76,18 @@ function VideoContent() {
 }
 
 export default function VideoPage() {
+  const { user, loading } = useAuth();
+  const { language } = useLanguage();
+
+  if (loading) return <p role="status">{language === "kk" ? "Қолжетімділік тексерілуде…" : "Проверяем доступ…"}</p>;
+  if (!canAccessVideoGeneration(user?.role)) {
+    return (
+      <section role="status" className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white px-6 py-12 text-center">
+        <h1 className="text-xl font-semibold text-slate-900">{language === "kk" ? "Видео генерациясы әзірге тек әкімшіге қолжетімді" : "Генерация видео пока доступна только администратору"}</h1>
+        <Link href="/dashboard" className="mt-5 inline-flex min-h-11 items-center font-semibold text-[color:var(--primary)]">{language === "kk" ? "Басты бетке оралу" : "Вернуться на главную"}</Link>
+      </section>
+    );
+  }
   return (
     <Suspense
       fallback={

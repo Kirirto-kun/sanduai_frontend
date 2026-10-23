@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { COMMON_GROUPS, resolveNavAccess, SEGMENTS } from "../i18n/navigation";
-import { classifyRouteAccess, decideRouteAccess } from "./access-policy";
+import { COMMON_GROUPS, filterNavGroupsForRole, resolveNavAccess, SEGMENTS } from "../i18n/navigation";
+import { canAccessVideoGeneration, classifyRouteAccess, decideRouteAccess } from "./access-policy";
 
 describe("dashboard access classification", () => {
   it.each([
@@ -63,7 +63,7 @@ describe("dashboard access classification", () => {
     for (const group of groups) {
       expect(group.access).toMatch(/^(authenticated|subscription)$/);
       for (const item of group.items) {
-        expect(resolveNavAccess(item, group)).toMatch(/^(authenticated|subscription)$/);
+        expect(resolveNavAccess(item, group)).toMatch(/^(authenticated|subscription|admin)$/);
       }
     }
 
@@ -84,6 +84,36 @@ describe("dashboard access classification", () => {
         expect(classifyRouteAccess(pathname), `${item.key}: ${item.href}`)
           .toBe(resolveNavAccess(item, group));
       }
+    }
+  });
+
+  it("limits the video rollout to admin while retaining course videos and other media", () => {
+    for (const pathname of ["/dashboard/media/video", "/dashboard/media/video/", "/dashboard/media/video/project-id"]) {
+      expect(classifyRouteAccess(pathname)).toBe("admin");
+      expect(decideRouteAccess({ policy: classifyRouteAccess(pathname), isAuthenticated: true, isAdmin: false, hasSubscription: true })).toBe("forbidden");
+      expect(decideRouteAccess({ policy: classifyRouteAccess(pathname), isAuthenticated: true, isAdmin: true, hasSubscription: false })).toBe("allow");
+    }
+    expect(classifyRouteAccess("/dashboard/media/voiceover")).toBe("authenticated");
+    expect(classifyRouteAccess("/dashboard/library/videos")).toBe("subscription");
+    expect(classifyRouteAccess("/dashboard/media/video-help")).toBe("authenticated");
+    expect(canAccessVideoGeneration("admin")).toBe(true);
+    for (const role of [undefined, null, "teacher", "user", "super_admin", "ADMIN"]) {
+      expect(canAccessVideoGeneration(role)).toBe(false);
+    }
+  });
+
+  it("hides restricted navigation for every non-admin segment without mutating shared groups", () => {
+    for (const segment of SEGMENTS) {
+      const groups = [...segment.groups, ...COMMON_GROUPS];
+      const before = JSON.stringify(groups);
+      for (const role of [undefined, "teacher", "user"]) {
+        const visible = filterNavGroupsForRole(groups, role).flatMap((group) => group.items);
+        expect(visible.some((item) => item.key === "video")).toBe(false);
+        expect(visible.some((item) => item.key === "photo")).toBe(true);
+        expect(visible.some((item) => item.key === "voiceover")).toBe(true);
+      }
+      expect(filterNavGroupsForRole(groups, "admin").flatMap((group) => group.items).some((item) => item.key === "video")).toBe(true);
+      expect(JSON.stringify(groups)).toBe(before);
     }
   });
 });
