@@ -13,7 +13,7 @@ import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { PlannerForm } from "@/features/lesson-plan/PlannerForm";
 import { PlannerEditor } from "@/features/lesson-plan/PlannerEditor";
 import { buttonClass } from "@/features/lesson-plan/Fields";
-import { cleanLessonRequest, createLessonDraft, editableLessonPlan, lessonExportPayload, validStudentCount, type EditableLessonPlan, type LessonPlanDraft } from "@/features/lesson-plan/model";
+import { cleanLessonRequest, createLessonDraft, editableLessonPlan, lessonExportPayload, validStudentCount, lessonValidationIssues, lessonApiErrorMessage, type EditableLessonPlan, type LessonPlanDraft } from "@/features/lesson-plan/model";
 import { clearLessonSession, lessonSessionStore, readLessonDraft, readLessonEdits, saveLessonDraft, saveLessonEdits } from "@/features/lesson-plan/persistence";
 
 function LessonPlanner({ userId }: { userId: string | null }) {
@@ -113,6 +113,9 @@ function LessonPlanner({ userId }: { userId: string | null }) {
 
   const generate = async (event: FormEvent) => {
     event.preventDefault(); setError("");
+    if (new Set((draft.selected_objectives ?? []).map((item) => item.program_id)).size > 1) {
+      setError(kk ? "Бір сабақ үшін бір оқу бағдарламасын таңдаңыз. Бұрынғы мақсаттарды қайта таңдаңыз." : "Выберите одну учебную программу для урока и заново отметьте цели."); return;
+    }
     const payload = cleanLessonRequest(draft);
     if (!payload.subject || !payload.grade || !payload.topic) {
       setError(kk ? "Пәнді, сыныпты және сабақ тақырыбын толтырыңыз." : "Укажите предмет, класс и тему урока."); return;
@@ -132,12 +135,14 @@ function LessonPlanner({ userId }: { userId: string | null }) {
     } catch (failure) {
       setError(failure instanceof InsufficientTokensError
         ? (kk ? `Монета жеткіліксіз. Қажет: ${failure.required}, бар: ${failure.available}.` : `Недостаточно монет. Требуется: ${failure.required}, доступно: ${failure.available}.`)
-        : teacherError(failure));
+        : lessonApiErrorMessage(failure) ?? teacherError(failure));
     } finally { setSubmitting(false); }
   };
 
   const exportDocument = async () => {
     if (!plan || exporting) return;
+    const issues = lessonValidationIssues(plan, kk);
+    if (issues.length) { setError(issues.map((issue) => issue.message).join("\n")); return; }
     setExporting(true); setError("");
     try {
       const blob = await exportLessonPlanDocx(lessonExportPayload(plan));
@@ -146,7 +151,7 @@ function LessonPlanner({ userId }: { userId: string | null }) {
       link.download = `kmzh_${plan.meta.subject}_${plan.meta.grade}.docx`;
       document.body.appendChild(link); link.click(); link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (failure) { setError(teacherError(failure, kk ? "Word файлын жүктеу мүмкін болмады. Өзгерістер осы бетте қалды — қайталап көріңіз." : "Не удалось скачать Word. Изменения остались на этой странице — попробуйте снова.")); }
+    } catch (failure) { setError(lessonApiErrorMessage(failure) ?? teacherError(failure, kk ? "Word файлын жүктеу мүмкін болмады. Өзгерістер осы бетте қалды — қайталап көріңіз." : "Не удалось скачать Word. Изменения остались на этой странице — попробуйте снова.")); }
     finally { setExporting(false); }
   };
 

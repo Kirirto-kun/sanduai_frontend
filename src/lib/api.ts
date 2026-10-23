@@ -135,6 +135,8 @@ export type ArticleRevisePayload = {
 
 // Lesson Plan (Short-term КМЖ) types
 export type LessonPlanLanguage = "kazakh" | "russian" | "english" | "kyrgyz" | "uzbek";
+export type LessonTeachingLanguage = "kazakh" | "russian" | "uzbek" | "uyghur" | "tajik";
+export type LessonAssessmentMode = "feedback" | "recorded_formative";
 export type LessonPlanType = "new_lesson" | "consolidation" | "review";
 
 export type LessonPlanRequest = {
@@ -144,6 +146,8 @@ export type LessonPlanRequest = {
   duration?: number;
   student_count?: number | null;
   teaching_language?: string;
+  assessment_mode?: LessonAssessmentMode;
+  lesson_score_max?: number | null;
   inclusive_support?: string;
   resources?: string[];
   additional_requirements?: string;
@@ -168,6 +172,11 @@ export type LessonMeta = {
   school_name?: string;
   duration?: number;
   student_count?: number | null;
+  teaching_language?: string;
+  program_id?: string;
+  assessment_mode?: LessonAssessmentMode;
+  lesson_score_max?: number | null;
+  answer_keys_required?: boolean;
   section_name: string;
   subject: string;
   teacher_name: string;
@@ -218,6 +227,8 @@ export type LessonSubBlock = {
   offline_alternative?: string;
   minutes?: number | null;
   individual_check?: boolean;
+  is_main_task?: boolean;
+  total_points?: number | null;
   reflection_questions?: string[];
 };
 
@@ -230,17 +241,34 @@ export type LessonKnowledge = {
   checked_at?: string;
 };
 
+export type CurriculumRichFragment = { type: "text"; text: string } | {
+  type: "image"; asset_id: string; source_url: string; sha256: string; mime_type: string; alt?: string;
+};
 export type CurriculumObjective = {
   context_id?: string;
   id: string; program_id: string; program_title: string; subject: string; grade: string;
   teaching_language: string; code: string; text: string; section: string;
   source_url: string; source_locator: string; source_version: string;
   verified_at?: string; verification_status: string;
+  display?: string;
+  rich_fragments?: CurriculumRichFragment[];
+  quality_state?: "ready" | "needs_review" | "blocked";
+  selectable?: boolean;
+  quality_issues?: string[];
+};
+export type CurriculumProgram = {
+  id?: string; program_id?: string; title?: string; program_title?: string;
+  school_type?: "general" | "abai_specialized" | "specialized";
+  stream?: "all" | "natural_science_math" | "social_humanities";
+  workload?: "standard" | "reduced";
 };
 export type CurriculumSearchResponse = {
   items: CurriculumObjective[];
-  programs: { id?: string; program_id?: string; title?: string; program_title?: string }[];
-  total: number; knowledge_version: string; coverage: unknown; warnings: string[];
+  review_items?: CurriculumObjective[];
+  programs: CurriculumProgram[];
+  total: number; knowledge_version: string;
+  coverage: { ready_objectives?: number; review_objectives?: number; blocked_objectives?: number; source_checked_at?: string; [key: string]: unknown };
+  warnings: string[];
 };
 
 export type LessonStage = {
@@ -257,6 +285,7 @@ export type LessonPlanResponse = {
   planner_version?: string;
   schema_version?: string;
   knowledge?: LessonKnowledge;
+  quality_review?: { status: "passed" | "corrected" | "needs_review" | "edited"; corrections?: number; concerns?: string[]; [key: string]: unknown } | null;
   answer_keys?: { task_ref: string; content: string; table?: LessonTemplateTable | null }[];
   language?: LessonPlanLanguage;
   meta: LessonMeta;
@@ -2008,6 +2037,12 @@ export async function exportLessonPlanDocx(
     throw requestErrorFromResponse(res.status, data);
   }
   return res.blob();
+}
+
+/** Only bundled curriculum assets are displayed; source URLs are never image fetch targets. */
+export function lessonCurriculumAssetUrl(assetId: string): string | undefined {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,159}(?:\.(?:png|jpe?g|gif|webp|svg))?$/.test(assetId)) return undefined;
+  return `${API_BASE}/api/kmzh/curriculum-assets/${encodeURIComponent(assetId)}`;
 }
 
 // Scientific Project API functions (legacy - removed, use wizard instead)

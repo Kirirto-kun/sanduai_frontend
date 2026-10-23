@@ -34,6 +34,7 @@ export function readLessonDraft(store: SessionStore, userId: string | null): { d
   if (![draft.subject, draft.grade, draft.topic, draft.teacher_name, draft.section_name].every((item) => typeof item === "string") || !strings(draft.learning_objectives)) return null;
   if (draft.selected_objective_ids && !strings(draft.selected_objective_ids)) return null;
   if (draft.selected_objective_texts && !strings(draft.selected_objective_texts)) return null;
+  if (draft.selection_backup_texts && !strings(draft.selection_backup_texts)) return null;
   if (draft.resources && !strings(draft.resources)) return null;
   if (draft.selected_objectives && (!Array.isArray(draft.selected_objectives) || !draft.selected_objectives.every((item) => item && typeof item.id === "string" && typeof item.code === "string" && typeof item.text === "string"))) return null;
   return { draft: { ...createLessonDraft(), ...draft, textbook_images: [] }, omittedImages: typeof saved?.omitted_images === "number" ? saved.omitted_images : 0 };
