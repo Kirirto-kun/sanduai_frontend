@@ -45,4 +45,26 @@ describe("teacher editor export safeguards", () => {
     expect(rendered).toContain("Автоматическая проверка содержания этой версии не подтверждена");
     expect(rendered).not.toMatch(/<button[^>]*disabled=""[^>]*>Скачать Word<\/button>/);
   });
+  it("links erased actions, invalid quiz fields and empty answers to their editable controls", () => {
+    const value = plan(); const task = value.flow[0].sub_blocks[0];
+    task.teacher_activity = ""; task.student_activity = "";
+    task.quiz = [{ text: "", options: ["один", "один"], correct: "Z" }];
+    value.answer_keys = [{ task_ref: "task1", content: "", table: { caption: "Ключ", columns: [""], rows: [[""]] } }];
+    const rendered = html(value);
+    for (const id of ["block-0-0-teacher", "block-0-0-student", "block-0-0-quiz-0-text", "block-0-0-quiz-0-options", "block-0-0-quiz-0-correct", "answer-0-content", "answer-0-table"]) {
+      expect(rendered).toContain(`href="#${id}"`);
+      expect(rendered).toContain(`id="${id}"`);
+    }
+    expect(rendered).toMatch(/<textarea[^>]*id="block-0-0-teacher"[^>]*aria-invalid="true"/);
+    expect(rendered).toMatch(/<button[^>]*disabled=""[^>]*>Скачать Word<\/button>/);
+    expect(rendered).toContain("Добавить ответ");
+  });
+  it("keeps surplus table content visible for explicit repair when columns are removed", () => {
+    const value = plan();
+    value.flow[0].sub_blocks[0].template_table = { caption: "Данные", columns: ["Число"], rows: [["1", "Сохранённый ответ"]] };
+    const rendered = html(value);
+    expect(rendered).toContain('href="#block-0-0-table"');
+    expect(rendered).toContain("Сохранённый ответ");
+    expect(rendered).toContain("Удалить лишнюю ячейку");
+  });
 });

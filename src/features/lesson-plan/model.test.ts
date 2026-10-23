@@ -7,6 +7,7 @@ import { getDocumentCopy, lessonWarning } from "./copy";
 const block: LessonSubBlock = {
   task_id: "task1", objective_ids: ["lo1"], minutes: 45, time: "45 мин", phase_name: "Задание",
   teacher_activity: "Исследуйте", student_activity: "Сравнивает", descriptors: [{ text: "Объясняет", points: 1 }],
+  expected_result: "Сравнивает результаты", assessment_criteria: "Объясняет способ сравнения", inclusive_support: "Пошаговая опора",
   resource_urls: [], resource_materials: ["Бумага"],
   quiz: [{ text: "Сколько?", options: ["A) 1", "B) 2"], correct: "B" }],
   template_table: null,
@@ -119,5 +120,61 @@ describe("open lesson canonical editor", () => {
   it("renders only allowlisted public document validation messages, including field issues", () => {
     expect(lessonApiErrorMessage({ status: 422, details: { detail: { code: "invalid_open_lesson_document", message: "Исправьте документ", issues: [{ path: "flow.1", message: "Укажите время" }] } } })).toBe("Исправьте документ\nУкажите время");
     expect(lessonApiErrorMessage({ status: 502, details: { detail: { code: "provider_error", message: "PRIVATE_PROVIDER_FAILURE" } } })).toBeUndefined();
+  });
+  it("blocks erased metadata and teacher/student actions only for the strict new profile", () => {
+    const edited = editableLessonPlan(structuredClone(response));
+    edited.meta.subject = " "; edited.meta.grade = ""; edited.meta.topic = ""; edited.meta.lesson_objectives = [" "];
+    edited.flow[0].sub_blocks[0].teacher_activity = " "; edited.flow[0].sub_blocks[0].student_activity = "";
+    expect(lessonValidationIssues(edited, false).map((issue) => issue.path)).toEqual(expect.arrayContaining(["meta-subject", "meta-grade", "meta-topic", "meta-lesson-objectives", "block-0-0-teacher", "block-0-0-student"]));
+    edited.planner_version = "legacy_v2";
+    expect(lessonValidationIssues(edited, false)).toEqual([]);
+  });
+  it("rejects incomplete quizzes without requiring a particular option-label format", () => {
+    const edited = editableLessonPlan(structuredClone(response));
+    const task = edited.flow[0].sub_blocks[0];
+    for (const quiz of [
+      [{ text: "", options: ["1", "2"], correct: "A" }],
+      [{ text: "Вопрос", options: ["1", " "], correct: "A" }],
+      [{ text: "Вопрос", options: ["A) 1", "A) 2"], correct: "A" }],
+      [{ text: "Вопрос", options: ["1", "1"], correct: "A" }],
+      [{ text: "Вопрос", options: ["1", "2"], correct: "Z" }],
+      [{ text: "Вопрос", options: ["1"], correct: "A" }],
+    ]) {
+      task.quiz = quiz;
+      expect(lessonValidationIssues(edited, false).some((issue) => issue.path.includes("-quiz-"))).toBe(true);
+    }
+    task.quiz = [{ text: "Сколько?", options: ["1", "2"], correct: "2" }];
+    expect(lessonValidationIssues(edited, false)).toEqual([]);
+  });
+  it("blocks ragged task/answer tables but allows intentionally blank worksheet cells", () => {
+    const edited = editableLessonPlan(structuredClone(response));
+    edited.flow[0].sub_blocks[0].template_table = { caption: "Таблица", columns: ["Число", "Ответ"], rows: [["1"]] };
+    edited.answer_keys![0].table = { caption: "Ответ", columns: [" "], rows: [["2"]] };
+    expect(lessonValidationIssues(edited, false).map((issue) => issue.path)).toEqual(expect.arrayContaining(["block-0-0-table", "answer-0-table"]));
+    edited.flow[0].sub_blocks[0].template_table!.rows = [["1", ""]];
+    edited.answer_keys![0].table!.columns = ["Ответ"];
+    expect(lessonValidationIssues(edited, false)).toEqual([]);
+  });
+  it("requires actual answer content or a populated answer table", () => {
+    const edited = editableLessonPlan(structuredClone(response));
+    edited.answer_keys![0] = { task_ref: "task1", content: " ", table: { caption: "Ключ", columns: ["Ответ"], rows: [[""]] } };
+    expect(lessonValidationIssues(edited, false).some((issue) => issue.path === "answer-0-content")).toBe(true);
+    edited.answer_keys![0].table!.rows[0][0] = "2";
+    expect(lessonValidationIssues(edited, false)).toEqual([]);
+  });
+  it("requires main task material, criteria, support, exact answer mapping and final checks", () => {
+    const edited = editableLessonPlan(structuredClone(response));
+    const task = edited.flow[0].sub_blocks[0];
+    task.quiz = null; task.expected_result = ""; task.assessment_criteria = ""; task.inclusive_support = "";
+    edited.answer_keys![0].task_ref = "task10";
+    edited.flow.push({ stage_id: "end", stage_name: "Конец", sub_blocks: [{ ...structuredClone(block), task_id: "reflection", minutes: 1 }] });
+    expect(lessonValidationIssues(edited, false).map((issue) => issue.path)).toEqual(expect.arrayContaining(["block-0-0-material", "block-0-0-result", "block-0-0-criteria", "block-0-0-support", "answer-keys", "block-1-0-individual", "block-1-0-reflection"]));
+  });
+  it("cannot confirm an explicit stale assessment total without correcting it", () => {
+    const edited = editableLessonPlan(structuredClone(response));
+    edited.flow[0].sub_blocks[0].assessment_note = "Итого 3 балла";
+    expect(lessonValidationIssues(confirmLessonAssessmentReview(edited, "task1"), false).some((issue) => issue.path === "block-0-0-assessment-note")).toBe(true);
+    edited.flow[0].sub_blocks[0].assessment_note = "Обратная связь, шкала журнала 1–10 баллов";
+    expect(lessonValidationIssues(edited, false)).toEqual([]);
   });
 });
