@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LessonPlanResponse, LessonSubBlock } from "@/lib/api";
-import { cleanLessonRequest, createLessonDraft, editableLessonPlan, lessonExportPayload, lessonMinutes, safeSourceUrl, updateLessonBlock, validStudentCount, selectLessonProgramme, selectLessonObjectives, lessonValidationIssues, confirmLessonAssessmentReview, lessonApiErrorMessage } from "./model";
+import { cleanLessonRequest, createLessonDraft, editableLessonPlan, lessonExportPayload, lessonMinutes, safeSourceUrl, updateLessonBlock, validStudentCount, selectLessonProgramme, selectLessonObjectives, lessonValidationIssues, confirmLessonAssessmentReview, lessonApiErrorMessage, lessonObjectiveChoices, updateLessonObjectives } from "./model";
 import type { CurriculumObjective } from "@/lib/api";
 import { getDocumentCopy, lessonWarning } from "./copy";
 
@@ -17,7 +17,7 @@ const response: LessonPlanResponse = {
   meta: { subject: "Математика", grade: "4", section_name: "", teacher_name: "", date: "", topic: "Числа", students_present: "", students_absent: "", learning_objectives: ["4.1.1.1 цель"], lesson_objectives: "Сравнивает", duration: 45 },
   flow: [{ stage_id: "middle", stage_name: "Середина", sub_blocks: [block], tasks: [{ work_type: "", method_name: "Старый метод", teacher_activity: "СТАРОЕ", student_activity: "", descriptors: [], resources: "", time_marker: null }] }],
   answer_keys: [{ task_ref: "task1", content: "Ответ 2", table: { caption: "Ключ", columns: ["Ответ"], rows: [["2"]] } }],
-  knowledge: { version: "2026-10", status: "partial", warnings: ["Проверьте"], objectives: [], sources: [] },
+  knowledge: { version: "2026-10", status: "partial", warnings: ["Проверьте"], objectives: [{ context_id: "lo1", id: "official:1", code: "4.1.1.1", text: "цель", display: "4.1.1.1 цель", source_url: "https://adilet.zan.kz/kaz/docs/V2200039767", verification_status: "verified" } as CurriculumObjective], sources: [] },
 };
 
 describe("open lesson canonical editor", () => {
@@ -176,5 +176,38 @@ describe("open lesson canonical editor", () => {
     expect(lessonValidationIssues(confirmLessonAssessmentReview(edited, "task1"), false).some((issue) => issue.path === "block-0-0-assessment-note")).toBe(true);
     edited.flow[0].sub_blocks[0].assessment_note = "Обратная связь, шкала журнала 1–10 баллов";
     expect(lessonValidationIssues(edited, false)).toEqual([]);
+  });
+  it("preserves exact unchanged evidence and removes only changed goal links without losing task content", () => {
+    const original = editableLessonPlan(structuredClone(response));
+    original.meta.learning_objectives.push("Прежняя ручная цель");
+    original.knowledge!.objectives.push({ ...original.knowledge!.objectives[0], id: "", code: "", text: "Прежняя ручная цель", display: "Прежняя ручная цель", context_id: "manual:7", source_url: "", verification_status: "unverified" });
+    original.flow[0].sub_blocks[0].objective_ids = ["lo1", "manual:7"];
+    const edited = updateLessonObjectives(original, ["4.1.1.1 цель", "Новая ручная цель"]);
+    expect(edited.knowledge!.objectives[0]).toEqual(original.knowledge!.objectives[0]);
+    expect(edited.knowledge!.objectives[1]).toMatchObject({ id: "", context_id: "manual:8", display: "Новая ручная цель", text: "Новая ручная цель", code: "", verification_status: "unverified", source_url: "", program_id: "" });
+    expect(edited.flow[0].sub_blocks[0]).toEqual({ ...original.flow[0].sub_blocks[0], objective_ids: ["lo1"] });
+    expect(edited.editor_review?.objectives_changed).toBe(true);
+    expect(lessonValidationIssues(edited, false).some((issue) => issue.path === "lesson-objective-links")).toBe(true);
+    const linked = updateLessonBlock(edited, 0, 0, { objective_ids: ["lo1", "manual:8"] });
+    expect(lessonValidationIssues(linked, false)).toEqual([]);
+    expect(lessonExportPayload(linked).knowledge!.objectives).toEqual(linked.knowledge!.objectives);
+    expect(updateLessonObjectives(linked, ["Новая ручная цель", "4.1.1.1 цель"]).knowledge!.objectives.map((item) => item.context_id)).toEqual(["manual:8", "lo1"]);
+  });
+  it("shows only current goal choices and does not copy source evidence to edited official wording", () => {
+    const original = editableLessonPlan(structuredClone(response));
+    const edited = updateLessonObjectives(original, ["4.1.1.1 Изменённая формулировка"]);
+    expect(lessonObjectiveChoices(edited)).toHaveLength(1);
+    expect(lessonObjectiveChoices(edited)[0]).toMatchObject({ id: "", context_id: "manual:1", source_url: "", verification_status: "unverified" });
+    expect(edited.flow[0].sub_blocks[0].objective_ids).toEqual([]);
+    expect(original.flow[0].sub_blocks[0].objective_ids).toEqual(["lo1"]);
+  });
+  it("can link a code-free handwritten goal when an older plan has no knowledge rows", () => {
+    const edited = editableLessonPlan(structuredClone(response));
+    edited.knowledge = undefined; edited.meta.learning_objectives = ["Сравнить две дроби и объяснить ответ"];
+    const choices = lessonObjectiveChoices(edited);
+    expect(choices[0]).toMatchObject({ id: "", code: "", context_id: "manual:1", display: "Сравнить две дроби и объяснить ответ" });
+    edited.flow[0].sub_blocks[0].objective_ids = ["manual:1"];
+    expect(lessonValidationIssues(edited, false)).toEqual([]);
+    expect(lessonExportPayload(edited).knowledge!.objectives[0].context_id).toBe("manual:1");
   });
 });

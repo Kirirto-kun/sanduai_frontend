@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PlannerEditor } from "./PlannerEditor";
 import { AssessmentModeField } from "./AssessmentModeField";
-import { type EditableLessonPlan, updateLessonBlock } from "./model";
+import { type EditableLessonPlan, updateLessonBlock, updateLessonObjectives } from "./model";
 
 function plan(): EditableLessonPlan {
   return {
@@ -66,5 +66,13 @@ describe("teacher editor export safeguards", () => {
     expect(rendered).toContain('href="#block-0-0-table"');
     expect(rendered).toContain("Сохранённый ответ");
     expect(rendered).toContain("Удалить лишнюю ячейку");
+  });
+  it("renders full handwritten objective labels and a relinking notice instead of blank code labels", () => {
+    const edited = updateLessonObjectives(plan(), ["Сравнить дроби и объяснить решение"]);
+    const rendered = html(edited);
+    expect(rendered).toContain("Связи изменённых и удалённых целей сняты");
+    expect(rendered).toMatch(/<label[^>]*><input[^>]*type="checkbox"[^>]*\/><span>Сравнить дроби и объяснить решение<\/span><\/label>/);
+    expect(rendered).toContain('href="#lesson-objective-links"');
+    expect(rendered).not.toContain("manual:1");
   });
 });

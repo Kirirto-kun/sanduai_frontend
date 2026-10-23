@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { CurriculumObjective } from "@/lib/api";
 import { lessonCurriculumAssetUrl } from "@/lib/api";
-import { ObjectiveContent, readableObjectiveText } from "./ObjectiveContent";
+import { ObjectiveContent, readableObjectiveText, restoreObjectiveSourceText } from "./ObjectiveContent";
 import { programmeLabel } from "./CurriculumPicker";
 import { teachingLanguageOptions, documentLanguageOptions } from "./PlannerForm";
 
@@ -30,5 +30,13 @@ describe("official rich curriculum content", () => {
   it("keeps catalogue teaching languages independent of document translation languages", () => {
     expect(teachingLanguageOptions.map(([id]) => id)).toEqual(["kazakh", "russian", "uzbek", "uyghur", "tajik"]);
     expect(documentLanguageOptions.map(([id]) => id)).toEqual(["kazakh", "russian", "english", "kyrgyz", "uzbek"]);
+  });
+  it("preserves an unchanged formula goal when another line is added, without restoring edited wording", () => {
+    const original = "3.2.1.4 Решить [formula:abc123] и объяснить";
+    for (const kk of [false, true]) {
+      const visible = readableObjectiveText(original, kk);
+      expect(restoreObjectiveSourceText([visible, "Новая цель"], [original], kk)).toEqual([original, "Новая цель"]);
+      expect(restoreObjectiveSourceText([visible.replace("объяснить", "сравнить")], [original], kk)).toEqual([visible.replace("объяснить", "сравнить")]);
+    }
   });
 });

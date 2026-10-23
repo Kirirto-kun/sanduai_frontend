@@ -2,7 +2,7 @@ import type { CurriculumObjective, LessonPlanRequest, LessonPlanResponse, Lesson
 
 export type EditableLessonPlan = Omit<LessonPlanResponse, "flow"> & {
   flow: (LessonPlanResponse["flow"][number] & { sub_blocks: LessonSubBlock[] })[];
-  editor_review?: { task_ids: string[] };
+  editor_review?: { task_ids: string[]; objectives_changed?: boolean };
 };
 
 export type LessonPlanDraft = LessonPlanRequest & { selected_objective_texts?: string[]; selected_objectives?: CurriculumObjective[]; selection_backup_texts?: string[] };
@@ -43,6 +43,7 @@ export function lessonExportPayload(plan: EditableLessonPlan): LessonPlanRespons
   void _review;
   return {
     ...document,
+    ...(plan.knowledge || (plan.planner_version === "open_lesson_v1" && plan.meta.learning_objectives.some((text) => text.trim())) ? { knowledge: { ...(plan.knowledge ?? { version: "", status: "unverified" as const, warnings: ["teacher_objective_requires_verification"], sources: [] }), objectives: lessonObjectiveChoices(plan) } } : {}),
     flow: plan.flow.map((stage) => {
       // Compatibility tasks may arrive alongside sub_blocks. Never send a stale duplicate.
       const { tasks: _tasks, ...canonical } = stage;
@@ -64,7 +65,7 @@ export function updateLessonBlock(plan: EditableLessonPlan, stageIndex: number, 
     flow: plan.flow.map((stage, si) => si !== stageIndex ? stage : {
       ...stage, sub_blocks: stage.sub_blocks.map((block, bi) => bi !== blockIndex ? block : { ...block, ...updates }),
     }),
-    editor_review: { task_ids: [...reviewed] },
+    editor_review: { ...plan.editor_review, task_ids: [...reviewed] },
   });
 }
 
@@ -73,7 +74,38 @@ export function markLessonEdited(plan: EditableLessonPlan): EditableLessonPlan {
 }
 
 export function confirmLessonAssessmentReview(plan: EditableLessonPlan, taskId: string): EditableLessonPlan {
-  return { ...plan, editor_review: { task_ids: (plan.editor_review?.task_ids ?? []).filter((id) => id !== taskId) } };
+  return { ...plan, editor_review: { ...plan.editor_review, task_ids: (plan.editor_review?.task_ids ?? []).filter((id) => id !== taskId) } };
+}
+
+export const lessonObjectiveDisplay = (objective: CurriculumObjective) => (objective.display || [objective.code, objective.text].filter(Boolean).join(" ")).trim();
+
+/** Keep source evidence only for an unchanged formulation; handwritten goals have no official ID. */
+export function lessonObjectiveChoices(plan: EditableLessonPlan, values = plan.meta.learning_objectives): CurriculumObjective[] {
+  const existing = plan.knowledge?.objectives ?? [];
+  let sequence = Math.max(0, ...existing.map((item) => Number(item.context_id?.match(/^manual:(\d+)$/)?.[1]) || 0));
+  const used = new Set(existing.map((item) => item.context_id || item.id).filter(Boolean));
+  return [...new Set(values.map((text) => text.trim()).filter(Boolean))].map((display) => {
+    const previous = existing.find((item) => lessonObjectiveDisplay(item) === display);
+    if (previous && (previous.context_id || previous.id)) return previous;
+    let contextId: string;
+    do { contextId = `manual:${++sequence}`; } while (used.has(contextId));
+    used.add(contextId);
+    return { context_id: contextId, id: "", display, code: "", text: display,
+      subject: plan.meta.subject, grade: plan.meta.grade, teaching_language: plan.meta.teaching_language ?? "",
+      program_id: "", program_title: "", section: "", source_url: "", source_locator: "", source_version: "",
+      verification_status: "unverified", quality_state: "needs_review" };
+  });
+}
+
+export function updateLessonObjectives(plan: EditableLessonPlan, values: string[]): EditableLessonPlan {
+  const objectives = lessonObjectiveChoices(plan, values);
+  const retained = new Set(objectives.flatMap((item) => [item.context_id, item.id]).filter(Boolean));
+  const knowledge = plan.knowledge ?? { version: "", status: "unverified" as const, warnings: [], objectives: [], sources: [] };
+  return markLessonEdited({ ...plan, meta: { ...plan.meta, learning_objectives: values },
+    knowledge: { ...knowledge, status: "unverified", objectives, warnings: [...new Set([...knowledge.warnings, "edited_objectives_require_verification"])] },
+    flow: plan.flow.map((stage) => ({ ...stage, sub_blocks: stage.sub_blocks.map((block) => ({ ...block, objective_ids: block.objective_ids?.filter((id) => retained.has(id)) })) })),
+    editor_review: { ...plan.editor_review, task_ids: plan.editor_review?.task_ids ?? [], objectives_changed: true },
+  });
 }
 
 export function selectLessonProgramme(draft: LessonPlanDraft, programId: string): LessonPlanDraft {
@@ -170,6 +202,10 @@ export function lessonValidationIssues(plan: EditableLessonPlan, kk: boolean): L
   }));
   if (strict) {
     const main = plan.flow.flatMap((stage, si) => stage.sub_blocks.map((block, bi) => ({ block, si, bi, main: stage.stage_id === "middle" || block.is_main_task || block.individual_check }))).filter((item) => item.main);
+    const covered = new Set(main.flatMap(({ block }) => block.objective_ids ?? []));
+    for (const objective of lessonObjectiveChoices(plan)) {
+      if (!covered.has(objective.context_id || objective.id)) add("lesson-objective-links", `Свяжите цель «${lessonObjectiveDisplay(objective)}» хотя бы с одним основным заданием.`, `«${lessonObjectiveDisplay(objective)}» мақсатын кемінде бір негізгі тапсырмамен байланыстырыңыз.`);
+    }
     if (main.length && !main.some(({ block }) => hasText(block.inclusive_support))) add(`block-${main[0].si}-${main[0].bi}-support`, "Добавьте дифференциацию или опору хотя бы к одному основному заданию.", "Кемінде бір негізгі тапсырмаға саралау немесе тірек қосыңыз.");
     const endIndex = plan.flow.findIndex((stage) => stage.stage_id === "end");
     const end = plan.flow[endIndex];

@@ -4,6 +4,11 @@ export function readableObjectiveText(text: string, kk: boolean): string {
   return text.replace(/\[formula:[^\]]+\]/g, kk ? "[ресми бағдарламадағы формула]" : "[формула из официальной программы]");
 }
 
+/** Restore only an unchanged UI projection of a source formula, never edited wording. */
+export function restoreObjectiveSourceText(values: string[], originals: string[], kk: boolean): string[] {
+  return values.map((value) => originals.find((original) => readableObjectiveText(original, kk).trim() === value.trim()) ?? value);
+}
+
 export function ObjectiveContent({ objective, kk }: { objective: CurriculumObjective; kk: boolean }) {
   const fragments = objective.rich_fragments;
   if (!fragments?.length) return <>{readableObjectiveText(objective.text, kk)}</>;
