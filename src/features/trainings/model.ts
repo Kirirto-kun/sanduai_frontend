@@ -43,18 +43,28 @@ export function audienceDuration(id: string): number {
   return id === "preschool_children" ? 25 : id === "primary_students" ? 35 : 45;
 }
 export function selectOutput(input: TrainingInput, mode: OutputMode): TrainingInput {
-  return { ...input, output_mode: mode, duration_minutes: mode === "express" ? Math.min(15, Math.max(5, input.duration_minutes === 45 ? 10 : input.duration_minutes)) : input.output_mode === "express" ? 45 : input.duration_minutes };
+  if (input.output_mode === mode) return input;
+  const audienceId = AUDIENCES.find(item => item.kk === input.audience || item.ru === input.audience)?.id;
+  const duration = mode === "express"
+    ? Number.isInteger(input.duration_minutes) && input.duration_minutes >= 5 && input.duration_minutes <= 15 ? input.duration_minutes : 10
+    : input.output_mode === "express" ? audienceDuration(audienceId ?? "other") : input.duration_minutes;
+  return { ...input, output_mode: mode, duration_minutes: duration };
 }
 export function isTrainingDraft(value: unknown): value is TrainingInput {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
-  return Object.entries(blankTraining()).every(([key, fallback]) => Array.isArray(fallback) ? Array.isArray(v[key]) && (v[key] as unknown[]).every(x => typeof x === "string") : typeof v[key] === typeof fallback)
+  const defaults = blankTraining();
+  return Object.keys(v).every(key => Object.keys(defaults).includes(key))
+    && Object.entries(defaults).every(([key, fallback]) => Array.isArray(fallback) ? Array.isArray(v[key]) && (v[key] as unknown[]).every(x => typeof x === "string") : typeof v[key] === typeof fallback)
     && EVENTS.some(x => x.id === v.event_type) && MODES.some(x => x.id === v.output_mode)
     && CONTENT_LANGUAGE_CODES.includes(v.language as typeof CONTENT_LANGUAGE_CODES[number])
     && ["offline", "online", "hybrid"].includes(String(v.format)) && ["balanced", "bold", "restrained"].includes(String(v.creativity))
-    && Number.isInteger(v.participant_count) && Number(v.participant_count) >= 1 && Number(v.participant_count) <= 1000
+    && Number.isInteger(v.participant_count) && Number(v.participant_count) >= 2 && Number(v.participant_count) <= 1000
     && Number.isInteger(v.duration_minutes) && Number(v.duration_minutes) >= 5 && Number(v.duration_minutes) <= 240
-    && (v.output_mode !== "express" || Number(v.duration_minutes) <= 15);
+    && (v.output_mode !== "express" || Number(v.duration_minutes) <= 15)
+    && Object.entries({ topic: 500, audience: 250, age_group: 100, experience: 500, goal: 1500, venue: 300, expected_result: 1500, accessibility_notes: 1500, notes: 2500 }).every(([key, max]) => (v[key] as string).length <= max)
+    && (v.materials as string[]).length <= 20 && (v.digital_tools as string[]).length <= 15
+    && [...v.materials as string[], ...v.digital_tools as string[]].every(item => item.trim().length >= 1 && item.trim().length <= 1000);
 }
 export const splitItems = (value: string) => value.split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
 export const TRAINING_PATH = "/dashboard/ai/trainings";

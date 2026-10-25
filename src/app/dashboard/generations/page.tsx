@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useInfiniteQuery } from "@tanstack/react-query";
 
 import { GenerationMaterialCard } from "../../../components/generations/GenerationMaterialCard";
@@ -14,7 +15,7 @@ import {
   type GenerationJobSummary,
   type ScienceProjectListItem,
 } from "../../../lib/api";
-import { isPrimaryGenerationMaterial } from "../../../lib/generation-history";
+import { generationMaterialFilterFromKind, isPrimaryGenerationMaterial, type GenerationMaterialFilter } from "../../../lib/generation-history";
 import { teacherFacingErrorMessage } from "../../../lib/teacher-facing-error";
 import { useAuth } from "@/contexts/AuthContext";
 import { canAccessVideoGeneration } from "@/lib/access-policy";
@@ -23,11 +24,21 @@ import { canAccessVideoGeneration } from "@/lib/access-policy";
 const HISTORY_PAGE_SIZE = 30;
 
 
-export default function GenerationsPage() {
+export default function Page() {
+  return <Suspense fallback={<div className="h-72 animate-pulse rounded-3xl bg-white" />}><GenerationHistoryFromQuery /></Suspense>;
+}
+
+function GenerationHistoryFromQuery() {
+  const params = useSearchParams();
+  const initialFilter = generationMaterialFilterFromKind(params.get("kind"));
+  return <GenerationsPage key={initialFilter} initialFilter={initialFilter} />;
+}
+
+function GenerationsPage({ initialFilter }: { initialFilter: GenerationMaterialFilter }) {
   const { language } = useLanguage();
   const { user } = useAuth();
   const [actionError, setActionError] = useState<string | null>(null);
-  const [materialFilter, setMaterialFilter] = useState<"all" | "masterclasses" | "trainings">("all");
+  const [materialFilter, setMaterialFilter] = useState<GenerationMaterialFilter>(initialFilter);
   const jobs = useInfiniteQuery({
     queryKey: [...generationJobsQueryKey, "history"],
     queryFn: ({ pageParam }) => listGenerationJobs({
