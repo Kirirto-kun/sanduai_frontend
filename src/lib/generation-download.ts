@@ -21,6 +21,7 @@ import {
   type WorksheetResponse,
 } from "./api";
 import { getApiBase } from "./api-base";
+import { requestBlob } from "./http-client";
 import {
   contentLanguageFromResult,
   tryNormalizeContentLanguage,
@@ -110,6 +111,15 @@ async function exportedDocument(
   }
 
   switch (job.kind) {
+    case "training.generate": {
+      const token = getToken();
+      const blob = await requestBlob(`${getApiBase()}/api/v1/trainings/${encodeURIComponent(job.id)}/export?format=docx`, {
+        cache: "no-store",
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      return { blob, extension: "docx" };
+    }
     case "kmzh.generate":
       return {
         blob: await exportLessonPlanDocx({

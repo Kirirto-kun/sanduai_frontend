@@ -27,7 +27,7 @@ export default function GenerationsPage() {
   const { language } = useLanguage();
   const { user } = useAuth();
   const [actionError, setActionError] = useState<string | null>(null);
-  const [materialFilter, setMaterialFilter] = useState<"all" | "masterclasses">("all");
+  const [materialFilter, setMaterialFilter] = useState<"all" | "masterclasses" | "trainings">("all");
   const jobs = useInfiniteQuery({
     queryKey: [...generationJobsQueryKey, "history"],
     queryFn: ({ pageParam }) => listGenerationJobs({
@@ -95,7 +95,9 @@ export default function GenerationsPage() {
     return (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
   }), [items, projectItems]);
   const hasMaterials = materialItems.length > 0;
-  const visibleMaterials = materialFilter === "masterclasses" ? materialItems.filter(item => item.job?.kind === "masterclass.generate") : materialItems;
+  const visibleMaterials = materialFilter === "all"
+    ? materialItems
+    : materialItems.filter(item => item.job?.kind === (materialFilter === "trainings" ? "training.generate" : "masterclass.generate"));
   const initialLoading = jobs.isLoading || scienceProjects.isLoading;
   const queryError = jobs.error ?? scienceProjects.error;
 
@@ -133,7 +135,7 @@ export default function GenerationsPage() {
       </Link>}
 
       <nav aria-label={language === "kk" ? "Материал түрі" : "Тип материалов"} className="flex flex-wrap gap-2">
-        {(["all", "masterclasses"] as const).map(value => <button key={value} type="button" aria-pressed={materialFilter === value} onClick={() => setMaterialFilter(value)} className={`rounded-xl border px-4 py-2.5 text-xs font-semibold ${materialFilter === value ? "border-teal-700 bg-teal-700 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{value === "all" ? language === "kk" ? "Барлық материал" : "Все материалы" : language === "kk" ? "Мастер-класстар" : "Мастер-классы"}</button>)}
+        {(["all", "masterclasses", "trainings"] as const).map(value => <button key={value} type="button" aria-pressed={materialFilter === value} onClick={() => setMaterialFilter(value)} className={`min-h-11 rounded-xl border px-4 py-2.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${materialFilter === value ? "border-teal-700 bg-teal-700 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-teal-300 hover:bg-teal-50"}`}>{value === "all" ? language === "kk" ? "Барлық материал" : "Все материалы" : value === "trainings" ? language === "kk" ? "Тренингтер" : "Тренинги" : language === "kk" ? "Мастер-класстар" : "Мастер-классы"}</button>)}
       </nav>
 
       {actionError ? (
@@ -186,6 +188,7 @@ export default function GenerationsPage() {
             </div>
           ) : null}
           {materialFilter === "masterclasses" && !visibleMaterials.length && <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">{language === "kk" ? "Осы бетте мастер-класс табылмады. Жаңа мастер-класс жасаңыз немесе басқа материалдарды жүктеңіз." : "На этой странице пока нет мастер-классов. Создайте первый или загрузите следующие материалы."}</p>}
+          {materialFilter === "trainings" && !visibleMaterials.length && <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600"><p>{language === "kk" ? "Жүктелген материалдар арасында тренинг жоқ. Алғашқы тренингті жасаңыз немесе келесі материалдарды көрсетіңіз." : "Среди загруженных материалов пока нет тренингов. Создайте первый или покажите следующие материалы."}</p><Link href="/dashboard/ai/trainings" className="mt-3 inline-flex min-h-11 items-center font-semibold text-teal-800 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">{language === "kk" ? "Тренинг жасау" : "Создать тренинг"}</Link></div>}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {visibleMaterials.map(({ key, job, project }) => job ? (
               <GenerationMaterialCard

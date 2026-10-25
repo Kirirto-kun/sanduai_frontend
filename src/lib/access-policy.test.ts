@@ -25,6 +25,7 @@ describe("dashboard access classification", () => {
     "/dashboard",
     "/dashboard/generations",
     "/dashboard/ai/kmzh",
+    "/dashboard/ai/trainings",
     "/dashboard/ai/presentations/editor/project-1",
     "/dashboard/media/photo",
     "/dashboard/media/qr-generator",
