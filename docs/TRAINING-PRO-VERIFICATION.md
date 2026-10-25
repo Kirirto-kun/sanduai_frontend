@@ -35,6 +35,10 @@
 
 Финальный пример: http://127.0.0.1:3000/dashboard/ai/trainings?job=f77c25ef-469b-4354-ab6e-6316ca3a28a7
 
+Финальная генерация полного пакета заняла 157 секунд. Сохранённый результат повторно прошёл строгую проверку последним кодом; DOCX получен через API с HTTP 200 (49 835 байт, 15 страниц).
+
+Итоговый SQL-аудит QA: 12 заданий, 9 успешных списаний, 3 возврата, 0 активных заданий и 0 оставшихся резервов. Баланс соответствует только девяти успешным списаниям. После этого API перезапущен с последним кодом; readiness — HTTP 200.
+
 Во время проверки резервный OpenAI API вернул `credit_balance_exhausted`. Основной DeepSeek API работал; успешные итоговые запросы выполнены через него. Кредиты и настройки оплаты не изменялись.
 
 ## Найдено и исправлено
@@ -66,3 +70,9 @@ Word отрендерен в 15 страниц; проверены казахс�
 - PostgreSQL/Redis — только loopback, QA-данные и реквизиты не коммитятся.
 - Изменения frontend и backend последовательно запушены в `codex/psycho-training-pro`.
 - Production серверы, окружение и данные не изменялись; deploy не выполнялся.
+
+Команды расширенной backend-проверки из `sanduai_backend`:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_trainings.py tests/test_generation_jobs_durable.py tests/test_generation_jobs_router.py tests/test_token_reservations.py tests/test_config_generation_roles.py tests/test_language_purity.py -q --disable-warnings
+```
