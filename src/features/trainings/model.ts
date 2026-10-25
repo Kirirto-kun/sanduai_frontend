@@ -37,7 +37,7 @@ export const AUDIENCES = [
   { id: "other", ru: "Другая аудитория", kk: "Басқа аудитория" },
 ];
 export function blankTraining(): TrainingInput {
-  return { topic: "", event_type: "psychological_training", output_mode: "full_package", audience: "Мектеп мұғалімдері", participant_count: 20, duration_minutes: 45, age_group: "", format: "offline", experience: "", goal: "", venue: "", expected_result: "", accessibility_notes: "", notes: "", materials: [], digital_tools: [], creativity: "balanced", language: "kk", include_ai: false };
+  return { topic: "", event_type: "psychological_training", output_mode: "full_scenario", audience: "Мектеп мұғалімдері", participant_count: 20, duration_minutes: 45, age_group: "", format: "offline", experience: "", goal: "", venue: "", expected_result: "", accessibility_notes: "", notes: "", materials: [], digital_tools: [], creativity: "balanced", language: "kk", include_ai: false };
 }
 export function audienceDuration(id: string): number {
   return id === "preschool_children" ? 25 : id === "primary_students" ? 35 : 45;

@@ -3,7 +3,7 @@ import { AUDIENCES, audienceDuration, blankTraining, isTrainingDraft, selectOutp
 
 describe("training defaults and recoverable drafts", () => {
   it("starts in Kazakh and uses adult timing for educator audiences", () => {
-    expect(blankTraining()).toMatchObject({ language: "kk", duration_minutes: 45, participant_count: 20 });
+    expect(blankTraining()).toMatchObject({ language: "kk", duration_minutes: 45, participant_count: 20, output_mode: "full_scenario" });
     expect(audienceDuration("primary_teachers")).toBe(45);
     expect(audienceDuration("preschool_teachers")).toBe(45);
     expect(audienceDuration("primary_students")).toBe(35);

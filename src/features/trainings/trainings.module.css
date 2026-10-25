@@ -25,6 +25,9 @@
   outline:3px solid #b25b2c;
   outline-offset:3px;
 }
+.workspace :is(button,a,input,select,textarea,summary) {
+  scroll-margin-top:108px;
+}
 .workspace button,.workspace a {
   transition:background-color .18s,border-color .18s,box-shadow .18s;
 }
@@ -342,7 +345,7 @@ textarea.input {
 }
 .aside {
   position:sticky;
-  top:24px;
+  top:100px;
 }
 .summary {
   border-radius:18px;
@@ -647,7 +650,7 @@ textarea.input {
 }
 .toc {
   position:sticky;
-  top:16px;
+  top:100px;
   padding:24px 15px;
   font-size:12px;
   display:grid;
@@ -672,7 +675,7 @@ textarea.input {
 .resultSection {
   padding:27px 0;
   border-bottom:1px solid var(--tr-line);
-  scroll-margin-top:20px;
+  scroll-margin-top:108px;
 }
 .resultSection:last-child {
   border-bottom:0;
