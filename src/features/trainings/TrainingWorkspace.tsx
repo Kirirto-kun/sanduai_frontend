@@ -70,6 +70,10 @@ function TrainingSession({ userId }: { userId: string }) {
 
   async function generate() {
     if (submissionLock.current || busy) return;
+    if (input.topic.trim().length < 2 || input.audience.trim().length < 2) {
+      setError(t("Укажите тему встречи и аудиторию: минимум два символа в каждом поле.", "Кездесу тақырыбы мен аудиторияны жазыңыз: әр өрісте кемінде екі таңба болсын."));
+      return;
+    }
     submissionLock.current = true; setSubmitting(true); setError(null);
     try {
       const accepted = await enqueueGenerationJob("training.generate", { ...input, topic: input.topic.trim(), materials: splitItems(input.materials.join(",")), digital_tools: splitItems(input.digital_tools.join(",")) }, { title: input.topic.trim() });
