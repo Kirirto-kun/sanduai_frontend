@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useInfiniteQuery } from "@tanstack/react-query";
 
 import { GenerationMaterialCard } from "../../../components/generations/GenerationMaterialCard";
@@ -15,6 +16,8 @@ import {
 } from "../../../lib/api";
 import { isPrimaryGenerationMaterial } from "../../../lib/generation-history";
 import { teacherFacingErrorMessage } from "../../../lib/teacher-facing-error";
+import { useAuth } from "@/contexts/AuthContext";
+import { canAccessVideoGeneration } from "@/lib/access-policy";
 
 
 const HISTORY_PAGE_SIZE = 30;
@@ -22,6 +25,7 @@ const HISTORY_PAGE_SIZE = 30;
 
 export default function GenerationsPage() {
   const { language } = useLanguage();
+  const { user } = useAuth();
   const [actionError, setActionError] = useState<string | null>(null);
   const [materialFilter, setMaterialFilter] = useState<"all" | "masterclasses">("all");
   const jobs = useInfiniteQuery({
@@ -122,6 +126,11 @@ export default function GenerationsPage() {
             : "Откройте или скачайте готовый материал. Оставаться на странице во время создания не нужно."}
         </p>
       </header>
+
+      {canAccessVideoGeneration(user?.role) && <Link href="/dashboard/media/video" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-white px-5 py-4 text-sm text-slate-700 transition hover:border-teal-500">
+        <span><strong className="text-teal-900">{language === "kk" ? "Менің видео жобаларым" : "Мои видеопроекты"}</strong><span className="mt-1 block text-xs text-slate-500">{language === "kk" ? "Видеолар 24 сағат сақталады. Жоба соңғы өзгерістен кейін 24 сағаттан соң жойылады." : "Видео хранятся 24 часа. Проект удаляется через 24 часа после последнего изменения."}</span></span>
+        <span aria-hidden="true">→</span>
+      </Link>}
 
       <nav aria-label={language === "kk" ? "Материал түрі" : "Тип материалов"} className="flex flex-wrap gap-2">
         {(["all", "masterclasses"] as const).map(value => <button key={value} type="button" aria-pressed={materialFilter === value} onClick={() => setMaterialFilter(value)} className={`rounded-xl border px-4 py-2.5 text-xs font-semibold ${materialFilter === value ? "border-teal-700 bg-teal-700 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{value === "all" ? language === "kk" ? "Барлық материал" : "Все материалы" : language === "kk" ? "Мастер-класстар" : "Мастер-классы"}</button>)}

@@ -457,9 +457,9 @@ export const COMMON_GROUPS: NavGroup[] = [
       },
       {
         key: "video",
-        href: soon("video"),
+        href: "/dashboard/media/video",
         label: { ru: "Генерация видео", kk: "Видео генерациясы" },
-        soon: true,
+        access: "admin",
       },
     ],
   },
@@ -477,4 +477,12 @@ export const SEGMENT_STORAGE_KEY = "sanduai_segment";
 
 export function resolveNavAccess(item: NavItem, group: NavGroup): AccessPolicy {
   return item.access ?? group.access;
+}
+
+/** Apply role visibility before search, on both mobile and desktop. */
+export function filterNavGroupsForRole(groups: NavGroup[], role?: string): NavGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => resolveNavAccess(item, group) !== "admin" || role === "admin"),
+  })).filter((group) => group.items.length > 0);
 }

@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useTranslations } from "../../i18n/LanguageContext";
+import { useLanguage } from "@/i18n/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { canAccessVideoGeneration } from "@/lib/access-policy";
 
 type CardKey = "kmzh" | "aiDocs" | "library" | "media" | "profile" | "sandubot";
 
@@ -16,6 +19,8 @@ const cards: { href: string; key: CardKey }[] = [
 
 export default function DashboardHome() {
   const t = useTranslations();
+  const { language } = useLanguage();
+  const { user } = useAuth();
 
   const getCardTitle = (key: CardKey) => {
     switch (key) {
@@ -60,7 +65,9 @@ export default function DashboardHome() {
                 {getCardTitle(card.key)}
               </h4>
               <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                {t.dashboard.home.cards[card.key]}
+                {card.key === "media" && !canAccessVideoGeneration(user?.role)
+                  ? language === "kk" ? "Фото, цифрлық аватар, ЖИ дыбыстау және QR-кодтар" : "Фото, цифровой аватар, озвучка ИИ и QR-коды"
+                  : t.dashboard.home.cards[card.key]}
               </p>
               <span className="mt-3 inline-flex items-center gap-2 text-[11px] font-semibold text-[color:var(--primary)]">
                 {getCardTitle(card.key)} →

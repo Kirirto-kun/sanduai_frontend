@@ -675,6 +675,17 @@ export default function AdminPage() {
       </div>
 
       <Link
+        href="/dashboard/admin/video"
+        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-white px-5 py-4 transition hover:border-teal-400 hover:shadow-sm"
+      >
+        <div>
+          <p className="text-sm font-bold text-teal-900">{language === "kk" ? "ЖИ видео студиясы" : "Видеостудия ИИ"}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">{language === "kk" ? "Модельдер, тарифтер, кезек және операциялар" : "Модели, тарифы, очередь и операции"}</p>
+        </div>
+        <span aria-hidden="true">→</span>
+      </Link>
+
+      <Link
         href="/dashboard/admin/competitions"
         className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-white px-5 py-4 transition hover:border-teal-400 hover:shadow-sm"
       >

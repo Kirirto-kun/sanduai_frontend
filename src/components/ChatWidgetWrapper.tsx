@@ -6,13 +6,18 @@ import { ChatWidget } from "./ChatWidget";
 
 /**
  * Показывает ChatWidget только для авторизованных пользователей.
- * Скрыт на странице Sandu Bot (чтобы не дублировать).
+ * Скрыт в Sandu Bot и видеостудии, где перекрывал элементы редактора.
  */
 export function ChatWidgetWrapper() {
   const { isAuthenticated } = useAuth();
   const pathname = usePathname();
 
-  if (!isAuthenticated || pathname === "/dashboard/sandubot") return null;
+  if (
+    !isAuthenticated ||
+    pathname === "/dashboard/sandubot" ||
+    pathname === "/dashboard/media/video"
+  )
+    return null;
 
   return <ChatWidget />;
 }
