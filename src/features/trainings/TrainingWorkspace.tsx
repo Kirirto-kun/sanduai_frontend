@@ -9,7 +9,7 @@ import { useTokens, currentSessionUserId } from "@/hooks/useTokens";
 import { cancelGenerationJob, clearGenerationIntentForJob, enqueueGenerationJob, getGenerationJob, listGenerationJobs } from "@/lib/api";
 import { generationJobIdFromSearchParam, isUnavailableGenerationJobError } from "@/lib/generation-history";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
-import { blankTraining, isTrainingDraft, splitItems, TRAINING_PATH } from "./model";
+import { blankTraining, isTrainingDraft, trainingSubmission, TRAINING_PATH } from "./model";
 import type { TrainingResult as Result } from "./types";
 import TrainingForm from "./TrainingForm";
 import TrainingResult from "./TrainingResult";
@@ -76,7 +76,8 @@ function TrainingSession({ userId }: { userId: string }) {
     }
     submissionLock.current = true; setSubmitting(true); setError(null);
     try {
-      const accepted = await enqueueGenerationJob("training.generate", { ...input, topic: input.topic.trim(), materials: splitItems(input.materials.join(",")), digital_tools: splitItems(input.digital_tools.join(",")) }, { title: input.topic.trim() });
+      const submission = trainingSubmission(input);
+      const accepted = await enqueueGenerationJob("training.generate", submission.payload, { title: submission.title });
       if (currentSessionUserId() !== userId) return;
       cache.setQueryData(["training-job", userId, accepted.id], accepted);
       router.replace(`${TRAINING_PATH}?job=${accepted.id}`, { scroll: false });

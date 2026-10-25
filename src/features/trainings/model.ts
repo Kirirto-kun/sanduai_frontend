@@ -67,4 +67,11 @@ export function isTrainingDraft(value: unknown): value is TrainingInput {
     && [...v.materials as string[], ...v.digital_tools as string[]].every(item => item.trim().length >= 1 && item.trim().length <= 1000);
 }
 export const splitItems = (value: string) => value.split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
+export function trainingSubmission(input: TrainingInput): { title: string; payload: TrainingInput } {
+  const topic = input.topic.trim();
+  return {
+    title: Array.from(topic).slice(0, 240).join(""),
+    payload: { ...input, topic, materials: splitItems(input.materials.join(",")), digital_tools: splitItems(input.digital_tools.join(",")) },
+  };
+}
 export const TRAINING_PATH = "/dashboard/ai/trainings";

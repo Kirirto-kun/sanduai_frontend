@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { AUDIENCES, audienceDuration, blankTraining, isTrainingDraft, selectOutput } from "./model";
+import { AUDIENCES, audienceDuration, blankTraining, isTrainingDraft, selectOutput, trainingSubmission } from "./model";
 
 describe("training defaults and recoverable drafts", () => {
+  it("keeps a long topic while respecting the queue title limit and cleaning optional lists", () => {
+    const topic = "Т".repeat(500);
+    const input = { ...blankTraining(), topic: ` ${topic} `, materials: [" Қағаз ", "", "Маркер"], digital_tools: [" ", "Экран "] };
+    const submission = trainingSubmission(input);
+    expect(submission.title).toHaveLength(240);
+    expect(submission.payload.topic).toBe(topic);
+    expect(submission.payload.materials).toEqual(["Қағаз", "Маркер"]);
+    expect(submission.payload.digital_tools).toEqual(["Экран"]);
+    expect(input.materials).toEqual([" Қағаз ", "", "Маркер"]);
+    const unicodeTopic = `Т${"💡".repeat(130)}`;
+    expect(trainingSubmission({ ...input, topic: unicodeTopic }).title).toBe(unicodeTopic);
+  });
   it("starts in Kazakh and uses adult timing for educator audiences", () => {
     expect(blankTraining()).toMatchObject({ language: "kk", duration_minutes: 45, participant_count: 20, output_mode: "full_scenario" });
     expect(audienceDuration("primary_teachers")).toBe(45);
