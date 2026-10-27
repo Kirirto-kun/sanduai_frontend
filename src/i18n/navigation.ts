@@ -122,6 +122,13 @@ const AI_MASTERCLASSES: NavItem = {
   isNew: true,
 };
 
+const AI_TRAININGS: NavItem = {
+  key: "trainings",
+  href: "/dashboard/ai/trainings",
+  label: { ru: "Тренинги и семинары", kk: "Тренингтер мен семинарлар" },
+  isNew: true,
+};
+
 const AI_SCENARIO: NavItem = {
   key: "scenario",
   href: "/dashboard/ai/scenario",
@@ -152,6 +159,7 @@ const SCHOOL: NavSegment = {
         AI_PRESENTATIONS,
         AI_PEDAGOGICAL_IDEAS,
         AI_MASTERCLASSES,
+        AI_TRAININGS,
       ],
     },
     {
@@ -298,6 +306,7 @@ const KINDERGARTEN: NavSegment = {
         },
         AI_SCENARIO,
         AI_MASTERCLASSES,
+        AI_TRAININGS,
         AI_SCIPROJECT,
         AI_WORKSHEET,
         AI_COMICS,
@@ -370,6 +379,7 @@ const LIBRARY: NavSegment = {
         AI_KORNEKILIK,
         AI_COMICS,
         AI_MASTERCLASSES,
+        AI_TRAININGS,
       ],
     },
     {
