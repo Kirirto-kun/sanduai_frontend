@@ -21,6 +21,29 @@ describe("preschool workspace read views", () => {
     const html = renderToStaticMarkup(createElement(ResultView, { result: r, job: {} as GenerationJob, language: "kk" }));
     expect(html).not.toContain("<script>"); expect(html).not.toContain('href="javascript:');
   });
+  it("treats completed status as a user label when no real observations were supplied", () => {
+    const r = { ...projectFixture(), project_status: "completed" as const, actual_results: [] };
+    const html = renderToStaticMarkup(createElement(ResultView, { result: r, job: {} as GenerationJob, language: "ru" }));
+    expect(html).toContain("Отмечен как завершённый");
+    expect(html).not.toContain("Наблюдения завершены");
+    expect(html).toContain("Нақты нәтижелер әлі берілмеген");
+  });
+  it("renders a real twelve-child observation card as an accessible table instead of raw pipes", () => {
+    const r = projectFixture();
+    r.artifacts[0].content = `Бақылау картасы — Жұмсақ матаның түстерін байқау\n\nБала № | Матаға жақындады | Матаны ұстады | Түсті көрсетті | Қызығушылық танытты\n${Array.from({ length: 12 }, (_, i) => `${i + 1} | ☐ | ☐ | ☐ | ☐`).join("\n")}\n\nЕскертпе: ☐ белгісін қойыңыз.`;
+    const html = renderToStaticMarkup(createElement(ResultView, { result: r, job: {} as GenerationJob, language: "kk" }));
+    const artifact = html.split('id="project-artifacts"')[1].split("</section>")[0];
+    expect(artifact).toContain('role="region"'); expect(artifact).toContain('scope="col">Бала №</th>');
+    expect(artifact.match(/<tr>/g)).toHaveLength(13); expect(artifact.match(/<td>/g)).toHaveLength(60);
+    expect(artifact).not.toContain("Бала № | Матаға"); expect(artifact).toContain("Ескертпе");
+  });
+  it("keeps inline Markdown in table cells and ordinary prose around the table", () => {
+    const r = projectFixture();
+    r.sections[0].content = "**Кіріспе**\n\n| **Күн** | Жазба |\n| --- | --- |\n| 1 | *Алғашқы*<br>бақылау |\n\nСоңғы [ескертпе](https://example.com).";
+    const html = renderToStaticMarkup(createElement(ResultView, { result: r, job: {} as GenerationJob, language: "kk" }));
+    expect(html).toContain("<strong>Кіріспе</strong>"); expect(html).toContain('<th scope="col"><strong>Күн</strong></th>');
+    expect(html).toContain("<em>Алғашқы</em><br/>"); expect(html).toContain('href="https://example.com"');
+  });
   it("exposes every age, output and direction with associated form labels", () => {
     const html = renderToStaticMarkup(createElement(ProjectForm, { input: blankProject(), onChange: () => {}, onSubmit: () => {}, language: "ru", cost: 30, balance: 100, busy: false, saved: false, error: null }));
     expect(html.match(/aria-pressed=/g)).toHaveLength(17);

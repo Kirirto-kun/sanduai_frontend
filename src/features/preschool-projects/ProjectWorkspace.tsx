@@ -16,6 +16,12 @@ import { Icon, ProjectArtwork } from "./ui";
 import s from "./projects.module.css";
 
 const TERMINAL = new Set(["completed", "failed", "cancelled", "billing_error"]);
+function focusField(id: string) {
+  const field = document.getElementById(id);
+  const details = field?.closest("details");
+  if (details) details.open = true;
+  field?.focus();
+}
 export default function ProjectWorkspace() {
   const { user } = useAuth();
   return user ? <ProjectSession key={user.userId} userId={user.userId} /> : null;
@@ -61,9 +67,9 @@ function ProjectSession({ userId }: { userId: string }) {
     if (submissionLock.current || busy) return;
     if (input.output_mode !== "ideas" && input.topic.trim().length < 2) {
       setError(t("Напишите тему проекта: минимум два символа.", "Жоба тақырыбын жазыңыз: кемінде екі таңба болсын."));
-      document.getElementById("project-topic")?.focus(); return;
+      focusField("project-topic"); return;
     }
-    if (input.materials.filter(x => x.trim()).length > 25) { setError(t("Укажите не более 25 материалов.", "25 материалдан артық көрсетпеңіз.")); document.getElementById("project-materials")?.focus(); return; }
+    if (input.materials.filter(x => x.trim()).length > 25) { setError(t("Укажите не более 25 материалов.", "25 материалдан артық көрсетпеңіз.")); focusField("project-materials"); return; }
     submissionLock.current = true; setSubmitting(true); setError(null);
     try {
       const submission = projectSubmission(input);
