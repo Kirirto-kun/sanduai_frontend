@@ -10,6 +10,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { SEGMENT_STORAGE_KEY, SegmentKey } from "../i18n/navigation";
+import { readOptionalStorage, writeOptionalStorage } from "../lib/optional-storage";
 
 const DEFAULT_SEGMENT: SegmentKey = "school";
 const VALID: readonly SegmentKey[] = ["school", "kindergarten", "library"];
@@ -30,7 +31,7 @@ function subscribe(listener: () => void) {
 }
 
 function getSnapshot(): SegmentKey {
-  const saved = window.localStorage.getItem(SEGMENT_STORAGE_KEY);
+  const saved = readOptionalStorage(SEGMENT_STORAGE_KEY);
   return VALID.includes(saved as SegmentKey) ? (saved as SegmentKey) : DEFAULT_SEGMENT;
 }
 
@@ -43,7 +44,7 @@ export function useSegment(): [SegmentKey, (segment: SegmentKey) => void] {
   const segment = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const setSegment = useCallback((next: SegmentKey) => {
-    window.localStorage.setItem(SEGMENT_STORAGE_KEY, next);
+    writeOptionalStorage(SEGMENT_STORAGE_KEY, next);
     notify();
   }, []);
 

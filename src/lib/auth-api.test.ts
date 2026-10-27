@@ -375,6 +375,18 @@ describe("email authentication API contract", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("identifies blocked authentication storage before sending credentials", async () => {
+    const { storage } = installBrowser();
+    storage.setItem = () => { throw new DOMException("Blocked", "SecurityError"); };
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(login({ email: "teacher@example.kz", password: "password" })).rejects.toMatchObject({
+      code: "AUTH_STORAGE_UNAVAILABLE",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("rejects unusable or cross-user JWTs from login without committing them", async () => {
     const { storage } = installBrowser();
     const mismatched = accessToken("different-user");

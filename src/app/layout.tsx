@@ -4,6 +4,7 @@ import { LanguageProvider } from "../i18n/LanguageContext";
 import { AuthProvider } from "../contexts/AuthContext";
 import { CookieBanner } from "../components/CookieBanner";
 import { ChatWidgetWrapper } from "../components/ChatWidgetWrapper";
+import { BrowserCompatibilityNotice } from "../components/BrowserCompatibilityNotice";
 
 export const metadata: Metadata = {
   title: "Sandu AI - Образовательная платформа с ИИ",
@@ -16,8 +17,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru">
+    <html lang="ru" suppressHydrationWarning>
+      <head>
+        {/* A native deferred ES5 script works even if Next.js cannot hydrate. */}
+        <script src="/browser-compatibility.js" defer />
+      </head>
       <body className="antialiased">
+        <BrowserCompatibilityNotice />
         <AuthProvider>
           <LanguageProvider>
             {children}

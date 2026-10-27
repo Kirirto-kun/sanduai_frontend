@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+/* Keep recovery guidance independent from modern Tailwind CSS features. */
+.browser-compatibility-notice {
+  display: none;
+}
+
+html[data-sandu-browser="unsupported"] .browser-compatibility-notice {
+  display: block;
+}
+
+.browser-compatibility-message {
+  margin: 16px;
+  padding: 16px;
+  border: 1px solid #b45309;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #78350f;
+  font: 16px/1.5 Arial, sans-serif;
+  overflow-wrap: break-word;
+}
+
+.browser-compatibility-message p + p {
+  margin-top: 12px;
+}
+
 :root {
   --background: #fdfbf7; /* Light Beige background */
   --foreground: #111827; /* Dark Gray text */

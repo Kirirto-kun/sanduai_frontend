@@ -8,6 +8,7 @@ import {
   ReactNode,
 } from "react";
 import { Language, translations } from "./translations";
+import { readOptionalStorage, writeOptionalStorage } from "../lib/optional-storage";
 
 type LanguageContextValue = {
   language: Language;
@@ -30,7 +31,7 @@ export function LanguageProvider({ children }: ProviderProps) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     let active = true;
-    const saved = window.localStorage.getItem(STORAGE_KEY) as Language | null;
+    const saved = readOptionalStorage(STORAGE_KEY) as Language | null;
     if (saved === "ru" || saved === "kk") {
       queueMicrotask(() => {
         if (active) setLanguageState(saved);
@@ -44,7 +45,7 @@ export function LanguageProvider({ children }: ProviderProps) {
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, lang);
+      writeOptionalStorage(STORAGE_KEY, lang);
     }
   };
 
