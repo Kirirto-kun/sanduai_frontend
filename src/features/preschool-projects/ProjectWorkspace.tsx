@@ -9,7 +9,7 @@ import { currentSessionUserId, useTokens } from "@/hooks/useTokens";
 import { cancelGenerationJob, clearGenerationIntentForJob, enqueueGenerationJob, getGenerationJob, listGenerationJobs } from "@/lib/api";
 import { generationJobIdFromSearchParam, isUnavailableGenerationJobError } from "@/lib/generation-history";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
-import { blankProject, isProjectDraft, isProjectResult, projectSubmission, PROJECT_KIND, PROJECT_PATH } from "./model";
+import { blankProject, isProjectDraft, isProjectResult, projectSubmission, selectOutput, PROJECT_KIND, PROJECT_PATH } from "./model";
 import ProjectForm from "./ProjectForm";
 import ProjectResult from "./ProjectResult";
 import { Icon, ProjectArtwork } from "./ui";
@@ -41,7 +41,7 @@ function ProjectSession({ userId }: { userId: string }) {
     let alive = true;
     queueMicrotask(() => {
       if (!alive) return;
-      try { const draft: unknown = JSON.parse(localStorage.getItem(draftKey) ?? "null"); if (isProjectDraft(draft)) { setInput(draft); setSaved(true); } } catch { /* Draft storage is optional; creating a project remains available. */ }
+      try { const draft: unknown = JSON.parse(localStorage.getItem(draftKey) ?? "null"); if (isProjectDraft(draft)) { setInput(selectOutput(draft, draft.output_mode)); setSaved(true); } } catch { /* Draft storage is optional; creating a project remains available. */ }
       loaded.current = true;
     });
     return () => { alive = false; };

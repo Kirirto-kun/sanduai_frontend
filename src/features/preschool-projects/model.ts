@@ -54,20 +54,23 @@ export function blankProject(): ProjectInput {
 export function selectOutput(input: ProjectInput, mode: OutputMode): ProjectInput {
   const typeForMode: Partial<Record<OutputMode, ProjectType>> = { scientific_project: "scientific", ecological_project: "ecological", pedagogical_project: "pedagogical", competition_project: "competition" };
   const next = { ...input, output_mode: mode, project_type: typeForMode[mode] ?? (mode === "stem_project" ? input.project_type === "steam" ? "steam" : "stem" : input.project_type) };
-  if (mode === "weekly_project") next.duration = "week";
+  if (mode === "weekly_project") { next.duration = "week"; if (next.project_type === "long_term") next.project_type = "cognitive"; }
   if (mode === "long_term_project" && !["month", "quarter", "half_year", "year"].includes(next.duration)) next.duration = "month";
+  if (next.project_type === "long_term" && !["month", "quarter", "half_year", "year"].includes(next.duration)) next.duration = "month";
   if (mode === "competition_project") next.is_competition = true;
   return next;
 }
 export function selectProjectType(input: ProjectInput, type: ProjectType): ProjectInput {
   const fixed: Partial<Record<OutputMode, ProjectType[]>> = { scientific_project: ["scientific"], ecological_project: ["ecological"], stem_project: ["stem", "steam"], pedagogical_project: ["pedagogical"], competition_project: ["competition"] };
-  return { ...input, project_type: type, output_mode: fixed[input.output_mode] && !fixed[input.output_mode]!.includes(type) ? "full_package" : input.output_mode, is_competition: type === "competition" || input.is_competition };
+  const next = { ...input, project_type: type, output_mode: fixed[input.output_mode] && !fixed[input.output_mode]!.includes(type) || type === "long_term" && input.output_mode === "weekly_project" ? "full_package" as const : input.output_mode, is_competition: type === "competition" || input.is_competition };
+  return selectOutput(next, next.output_mode);
 }
+export function ageYearsLabel(age: number, language: "ru" | "kk"): string { return `${age} ${language === "kk" ? "жас" : age === 1 ? "год" : age < 5 ? "года" : "лет"}`; }
 const LIMITS = { topic: 500, goal: 1500, problem: 1500, venue: 300, season: 100, expected_product: 1500, author: 250, kindergarten: 300, locality: 200, academic_year: 100, competition_rules: 10000, accessibility_notes: 1500, notes: 2500, observations: 10000 } as const;
 export function isProjectDraft(value: unknown): value is ProjectInput {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
-  if (Object.keys(v).some(key => !(key in blankProject()))) return false;
+  if (Object.keys(v).some(key => !Object.prototype.hasOwnProperty.call(blankProject(), key))) return false;
   if (!Object.entries(LIMITS).every(([key, limit]) => typeof v[key] === "string" && (v[key] as string).length <= limit)) return false;
   return PROJECT_TYPES.some(x => x.id === v.project_type) && OUTPUT_MODES.some(x => x.id === v.output_mode)
     && AGE_GROUPS.some(x => x.id === v.age_group) && DURATIONS.some(x => x.id === v.duration)
