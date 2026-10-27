@@ -10,7 +10,7 @@ describe("training history download", () => {
     vi.unstubAllGlobals();
   });
 
-  function prepareDownload() {
+  function prepareDownload(kind = "training.generate") {
     const anchor = { href: "", download: "", click: vi.fn(), remove: vi.fn() };
     vi.stubGlobal("document", { createElement: vi.fn(() => anchor), body: { appendChild: vi.fn() } });
     vi.stubGlobal("window", { setTimeout: vi.fn() });
@@ -18,7 +18,7 @@ describe("training history download", () => {
     vi.spyOn(api, "getToken").mockReturnValue("test-access-token");
     vi.spyOn(api, "getGenerationJob").mockResolvedValue({
       id: JOB_ID,
-      kind: "training.generate",
+      kind,
       title: "Тренинг: ынтымақтастық",
       content_language: "kk",
       result: { language: "kk", title: "Тренинг" },
@@ -48,5 +48,18 @@ describe("training history download", () => {
 
     await expect(downloadGenerationMaterial({ id: JOB_ID, title: "Тренинг" })).rejects.toMatchObject({ status: 404 });
     expect(anchor.click).not.toHaveBeenCalled();
+  });
+
+  it("downloads preschool projects through their owned Word endpoint", async () => {
+    const anchor = prepareDownload("preschool_project.generate");
+    const fetch = vi.fn().mockResolvedValue(new Response(new Blob(["preschool-docx"])));
+    vi.stubGlobal("fetch", fetch);
+    await downloadGenerationMaterial({ id: JOB_ID, title: "Жоба" });
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining(`/api/v1/preschool-projects/${JOB_ID}/export?format=docx`), expect.objectContaining({
+      credentials: "include",
+      headers: { Authorization: "Bearer test-access-token" },
+    }));
+    expect(anchor.download).toMatch(/\.docx$/);
+    expect(anchor.click).toHaveBeenCalledOnce();
   });
 });

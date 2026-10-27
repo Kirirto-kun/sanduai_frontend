@@ -56,4 +56,14 @@ describe("dashboard navigation language purity", () => {
       expect(resolveNavAccess(item, group!)).toBe("authenticated");
     }
   });
+
+  it("offers preschool projects as an available, authenticated kindergarten tool", () => {
+    const kindergarten = SEGMENTS.find(segment => segment.key === "kindergarten")!;
+    const group = kindergarten.groups.find(group => group.items.some(item => item.key === "preschool-projects"))!;
+    const item = group.items.find(item => item.key === "preschool-projects")!;
+    expect(item.href).toBe("/dashboard/ai/preschool-projects");
+    expect(item.label).toEqual({ ru: "Проекты для детского сада", kk: "Балабақша жоба PRO" });
+    expect(item.soon).not.toBe(true);
+    expect(resolveNavAccess(item, group)).toBe("authenticated");
+  });
 });

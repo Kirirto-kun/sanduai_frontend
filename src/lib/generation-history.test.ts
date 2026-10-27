@@ -24,6 +24,7 @@ const JOB_ID = "30bdc3b2-41e6-4399-877c-cbab8e93a5d9";
 describe("generation history deep links", () => {
   it("opens known module filters and ignores unsupported kind query values", () => {
     expect(generationMaterialFilterFromKind("training.generate")).toBe("trainings");
+    expect(generationMaterialFilterFromKind("preschool_project.generate")).toBe("preschool-projects");
     expect(generationMaterialFilterFromKind("masterclass.generate")).toBe("masterclasses");
     for (const kind of [null, "", "trainings.generate", "__proto__", "https://example.com", "unknown.generate"]) {
       expect(generationMaterialFilterFromKind(kind)).toBe("all");
@@ -37,6 +38,12 @@ describe("generation history deep links", () => {
       source_path: "/dashboard/ai/trainings",
     })).toBe(`/dashboard/ai/trainings?job=${JOB_ID}`);
     expect(isPrimaryGenerationMaterial({ kind: "training.generate" })).toBe(true);
+  });
+
+  it("opens a preschool project in its own workspace", () => {
+    expect(generationSourceHref({ id: JOB_ID, kind: "preschool_project.generate", source_path: "/dashboard/ai/preschool-projects" }))
+      .toBe(`/dashboard/ai/preschool-projects?job=${JOB_ID}`);
+    expect(isPrimaryGenerationMaterial({ kind: "preschool_project.generate" })).toBe(true);
   });
 
   it("restores masterclass jobs and topic suggestions in their own workspace", () => {
