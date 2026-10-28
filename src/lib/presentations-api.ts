@@ -227,20 +227,15 @@ export async function createPresentation(input: CreatePresentationInput): Promis
  * project-creation endpoint, so a stale browser selection cannot bypass them.
  */
 export async function listSavedKmzhSources(signal?: AbortSignal): Promise<SavedKmzhSourceList> {
-  const params = new URLSearchParams({
-    kind: "kmzh.generate",
-    status: "completed",
-    limit: "100",
-    offset: "0",
-  });
-  const payload = await request<SavedKmzhSourceList>(
-    `/api/v1/generations?${params.toString()}`,
-    { signal },
-  );
+  const pages = await Promise.all(["kmzh.generate", "kmzh.classic.generate"].map((kind) => {
+    const params = new URLSearchParams({ kind, status: "completed", limit: "100", offset: "0" });
+    return request<SavedKmzhSourceList>(`/api/v1/generations?${params.toString()}`, { signal });
+  }));
+  const items = new Map(pages.flatMap((page) => Array.isArray(page.items) ? page.items : []).map((item) => [item.id, item]));
   return {
-    items: Array.isArray(payload.items) ? payload.items : [],
-    total: payload.total,
-    has_more: payload.has_more,
+    items: [...items.values()].sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at)),
+    total: pages.every((page) => page.total !== undefined) ? pages.reduce((sum, page) => sum + (page.total ?? 0), 0) : undefined,
+    has_more: pages.some((page) => page.has_more),
   };
 }
 

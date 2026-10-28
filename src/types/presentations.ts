@@ -227,7 +227,7 @@ export type PresentationSourceKind =
 /** A completed, owner-scoped KMJ that can be used as presentation context. */
 export interface SavedKmzhSource {
   id: string;
-  kind: "kmzh.generate";
+  kind: "kmzh.generate" | "kmzh.classic.generate";
   title: string;
   status: "completed";
   created_at: string;

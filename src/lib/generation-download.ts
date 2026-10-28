@@ -111,6 +111,7 @@ async function exportedDocument(
 
   switch (job.kind) {
     case "kmzh.generate":
+    case "kmzh.classic.generate":
       return {
         blob: await exportLessonPlanDocx({
           ...(job.result as LessonPlanResponse),

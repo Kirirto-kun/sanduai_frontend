@@ -155,7 +155,7 @@ describe("presentation lesson-plan sources", () => {
   });
 
   it("requests only completed, unexpired KMJ sources visible to the current user", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
+    const fetchMock = vi.fn().mockImplementation(async () =>
       new Response(JSON.stringify({ items: [], total: 0, has_more: false }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -170,6 +170,8 @@ describe("presentation lesson-plan sources", () => {
     expect(url.searchParams.get("kind")).toBe("kmzh.generate");
     expect(url.searchParams.get("status")).toBe("completed");
     expect(url.searchParams.get("limit")).toBe("100");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(new URL(String(fetchMock.mock.calls[1]?.[0])).searchParams.get("kind")).toBe("kmzh.classic.generate");
   });
 
   it("sends the saved KMJ reference through the protected project contract", async () => {
