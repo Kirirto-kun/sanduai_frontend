@@ -128,6 +128,13 @@ const AI_MASTERCLASSES: NavItem = {
   isNew: true,
 };
 
+const AI_PRESCHOOL_PROJECTS: NavItem = {
+  key: "preschool-projects",
+  href: "/dashboard/ai/preschool-projects",
+  label: { ru: "Проекты для детского сада", kk: "Балабақша жоба PRO" },
+  isNew: true,
+};
+
 const AI_SCENARIO: NavItem = {
   key: "scenario",
   href: "/dashboard/ai/scenario",
@@ -305,6 +312,7 @@ const KINDERGARTEN: NavSegment = {
         },
         AI_SCENARIO,
         AI_MASTERCLASSES,
+        AI_PRESCHOOL_PROJECTS,
         AI_SCIPROJECT,
         AI_WORKSHEET,
         AI_COMICS,

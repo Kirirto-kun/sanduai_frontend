@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useInfiniteQuery } from "@tanstack/react-query";
 
 import { GenerationMaterialCard } from "../../../components/generations/GenerationMaterialCard";
@@ -14,7 +15,7 @@ import {
   type GenerationJobSummary,
   type ScienceProjectListItem,
 } from "../../../lib/api";
-import { isPrimaryGenerationMaterial } from "../../../lib/generation-history";
+import { generationMaterialFilterFromKind, isPrimaryGenerationMaterial, type GenerationMaterialFilter } from "../../../lib/generation-history";
 import { teacherFacingErrorMessage } from "../../../lib/teacher-facing-error";
 import { useAuth } from "@/contexts/AuthContext";
 import { canAccessVideoGeneration } from "@/lib/access-policy";
@@ -23,11 +24,21 @@ import { canAccessVideoGeneration } from "@/lib/access-policy";
 const HISTORY_PAGE_SIZE = 30;
 
 
-export default function GenerationsPage() {
+export default function Page() {
+  return <Suspense fallback={<div className="h-72 animate-pulse rounded-3xl bg-white" />}><GenerationHistoryFromQuery /></Suspense>;
+}
+
+function GenerationHistoryFromQuery() {
+  const params = useSearchParams();
+  const initialFilter = generationMaterialFilterFromKind(params.get("kind"));
+  return <GenerationsPage key={initialFilter} initialFilter={initialFilter} />;
+}
+
+function GenerationsPage({ initialFilter }: { initialFilter: GenerationMaterialFilter }) {
   const { language } = useLanguage();
   const { user } = useAuth();
   const [actionError, setActionError] = useState<string | null>(null);
-  const [materialFilter, setMaterialFilter] = useState<"all" | "masterclasses">("all");
+  const [materialFilter, setMaterialFilter] = useState<GenerationMaterialFilter>(initialFilter);
   const jobs = useInfiniteQuery({
     queryKey: [...generationJobsQueryKey, "history"],
     queryFn: ({ pageParam }) => listGenerationJobs({
@@ -95,7 +106,12 @@ export default function GenerationsPage() {
     return (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
   }), [items, projectItems]);
   const hasMaterials = materialItems.length > 0;
-  const visibleMaterials = materialFilter === "masterclasses" ? materialItems.filter(item => item.job?.kind === "masterclass.generate") : materialItems;
+  const visibleMaterials = materialFilter === "all"
+    ? materialItems
+    : materialItems.filter(item => item.job?.kind === ({
+      masterclasses: "masterclass.generate",
+      "preschool-projects": "preschool_project.generate",
+    }[materialFilter]));
   const initialLoading = jobs.isLoading || scienceProjects.isLoading;
   const queryError = jobs.error ?? scienceProjects.error;
 
@@ -133,7 +149,11 @@ export default function GenerationsPage() {
       </Link>}
 
       <nav aria-label={language === "kk" ? "Материал түрі" : "Тип материалов"} className="flex flex-wrap gap-2">
-        {(["all", "masterclasses"] as const).map(value => <button key={value} type="button" aria-pressed={materialFilter === value} onClick={() => setMaterialFilter(value)} className={`rounded-xl border px-4 py-2.5 text-xs font-semibold ${materialFilter === value ? "border-teal-700 bg-teal-700 text-white" : "border-slate-200 bg-white text-slate-500"}`}>{value === "all" ? language === "kk" ? "Барлық материал" : "Все материалы" : language === "kk" ? "Мастер-класстар" : "Мастер-классы"}</button>)}
+        {(["all", "masterclasses", "preschool-projects"] as const).map(value => <button key={value} type="button" aria-pressed={materialFilter === value} onClick={() => setMaterialFilter(value)} className={`min-h-11 rounded-xl border px-4 py-2.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${materialFilter === value ? "border-teal-700 bg-teal-700 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-teal-300 hover:bg-teal-50"}`}>{({
+          all: language === "kk" ? "Барлық материал" : "Все материалы",
+          masterclasses: language === "kk" ? "Мастер-класстар" : "Мастер-классы",
+          "preschool-projects": language === "kk" ? "Балабақша жобалары" : "Дошкольные проекты",
+        })[value]}</button>)}
       </nav>
 
       {actionError ? (
@@ -186,6 +206,7 @@ export default function GenerationsPage() {
             </div>
           ) : null}
           {materialFilter === "masterclasses" && !visibleMaterials.length && <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">{language === "kk" ? "Осы бетте мастер-класс табылмады. Жаңа мастер-класс жасаңыз немесе басқа материалдарды жүктеңіз." : "На этой странице пока нет мастер-классов. Создайте первый или загрузите следующие материалы."}</p>}
+          {materialFilter === "preschool-projects" && !visibleMaterials.length && <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600"><p>{language === "kk" ? "Жүктелген материалдар арасында балабақша жобалары жоқ. Алғашқы жобаңызды жасаңыз немесе келесі материалдарды көрсетіңіз." : "Среди загруженных материалов пока нет дошкольных проектов. Создайте первый или покажите следующие материалы."}</p><Link href="/dashboard/ai/preschool-projects" className="mt-3 inline-flex min-h-11 items-center font-semibold text-teal-800 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">{language === "kk" ? "Жоба жасау" : "Создать проект"}</Link></div>}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {visibleMaterials.map(({ key, job, project }) => job ? (
               <GenerationMaterialCard
