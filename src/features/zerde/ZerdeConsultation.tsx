@@ -5,7 +5,7 @@ import { currentSessionUserId, useTokens } from "@/hooks/useTokens";
 import { cancelGenerationJob, getGenerationJob } from "@/lib/api";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
 import { zerdeApi } from "./api";
-import { isAssessment } from "./model";
+import { isAssessment, requestFingerprint } from "./model";
 import { Icon } from "./ui";
 import type { Assessment, Language, ZerdeRequest } from "./types";
 import s from "./zerde.module.css";
@@ -17,7 +17,7 @@ export default function ZerdeConsultation({ request, projectId, userId, cost, la
   const [jobId, setJobId] = useState<string | null>(null); const [submitting, setSubmitting] = useState(false); const [error, setError] = useState<string | null>(null); const [cancelling, setCancelling] = useState(false);
   const [loaded, setLoaded] = useState(false); const lock = useRef(false); const handled = useRef<string | null>(null); const alive = useRef(true);
   const [anonymized, setAnonymized] = useState(false);
-  const key = `sanduai:zerde:consult:v1:${userId}:${projectId}`; const fingerprint = JSON.stringify(request);
+  const key = `sanduai:zerde:consult:v1:${userId}:${projectId}`; const fingerprint = requestFingerprint(request);
   const intentKey = useRef<string | null>(null);
   const query = useQuery({ queryKey: ["zerde-consult", userId, jobId], queryFn: () => getGenerationJob(jobId!), enabled: !!jobId, retry: 1, refetchInterval: q => q.state.status === "error" || (q.state.data && TERMINAL.has(q.state.data.status)) ? false : 1800 });
   const job = query.data?.kind === "zerde.consult" ? query.data : null;

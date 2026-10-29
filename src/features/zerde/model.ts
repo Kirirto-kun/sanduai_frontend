@@ -60,6 +60,9 @@ export function parseData(text: string): { data: { label: string; value: number 
   return { data, invalidLines };
 }
 export function wordCount(text: string) { return text.trim() ? text.trim().split(/\s+/u).length : 0; }
+export function requestFingerprint(r: ZerdeRequest) {
+  return JSON.stringify({ ...r, title: r.title.trim(), authored_text: r.authored_text.trim(), research_question: r.research_question.trim(), goal: r.goal.trim(), methods: r.methods.map(x => x.trim()), sources: r.sources.map(x => x.trim()).filter(Boolean), data: r.data.map(d => ({ label: d.label.trim(), value: d.value })), registration_code: r.registration_code.trim(), document_ids: [...new Set(r.document_ids)].sort() });
+}
 export function barGeometry(value: number, maximum: number) {
   const width = Math.abs(value) / Math.max(maximum, 1) * 50;
   return { width: `${width}%`, left: `${value < 0 ? 50 - width : 50}%` };

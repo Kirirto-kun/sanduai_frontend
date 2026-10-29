@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barGeometry, blankRequest, eligibility, isAssessment, isDraft, MODES, parseData, SECTION_FALLBACK, wordCount } from "./model";
+import { barGeometry, blankRequest, eligibility, isAssessment, isDraft, MODES, parseData, requestFingerprint, SECTION_FALLBACK, wordCount } from "./model";
 
 describe("Zerde participation and evidence", () => {
   it("only admits classes 2–8 and at most two authors", () => {
@@ -39,5 +39,11 @@ describe("Zerde participation and evidence", () => {
     expect(new Set(MODES.map(m => m.id)).size).toBe(14);
     expect(SECTION_FALLBACK.map(s => s.id)).toEqual(["mathematics", "physics", "tourism", "chemistry", "informatics", "ecology", "kazakh", "russian", "languages", "history", "heritage", "design"]);
     expect(wordCount("  Зерттеу\n сұрағы  бар ")).toBe(3); expect(wordCount("  ")).toBe(0);
+  });
+  it("recovers the same consultation after the server trims input and reorders evidence", () => {
+    const local = { ...blankRequest(), title: " Өз зерттеуім ", sources: [" source ", ""], document_ids: ["b", "a"], data: [{ label: " Day 1 ", value: 0 }] };
+    const restored = { ...local, title: "Өз зерттеуім", sources: ["source"], document_ids: ["a", "b"], data: [{ label: "Day 1", value: 0 }] };
+    expect(requestFingerprint(local)).toBe(requestFingerprint(restored));
+    expect(requestFingerprint({ ...restored, authored_text: "new evidence" })).not.toBe(requestFingerprint(local));
   });
 });

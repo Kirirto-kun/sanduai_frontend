@@ -48,3 +48,10 @@
 .usageEntry>.hint{margin:12px 0 18px}
 .usageEntry .field{margin-bottom:15px}
 .usageEntry .field label{font-size:12px}
+.inspection{margin-top:8px;font-size:12px}
+.inspection>summary{min-height:44px;display:flex;align-items:center;text-decoration:underline;color:var(--z-green);font-weight:500}
+.inspection>div{padding:12px 0;border-top:1px solid var(--z-line)}
+.inspection strong{font-size:12px;margin-bottom:7px}
+.inspection p{font-size:12px;color:var(--z-muted);line-height:1.8;margin-top:7px;overflow-wrap:anywhere}
+.unresolvedDocuments{background:#f8f1df;border:1px solid #e2d1aa;border-radius:9px;padding:13px;margin:14px 0}
+.unresolvedDocuments p{font-size:12px;color:#715a2a;line-height:1.8;margin-bottom:10px}

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Icon as BaseIcon } from "@/features/pedagogical-competitions/ui";
 import s from "./zerde.module.css";
+import type { CheckStatus, Language, UploadedDocument } from "./types";
 
 export function Icon({ name }: { name: string }) {
   const paths: Record<string, ReactNode> = {
@@ -30,4 +31,9 @@ export function Artwork() {
     <path d="m245 135 3 9 9 3-9 3-3 9-3-9-9-3 9-3 3-9Z" fill="#bc8855"/>
     <circle cx="48" cy="49" r="4" fill="#bc8855"/><path d="M55 181h190" stroke="#cdd6c8"/>
   </svg>;
+}
+export function DocumentInspection({ document, language }: { document: UploadedDocument; language: Language }) {
+  const t = (kk: string, ru: string) => language === "kk" ? kk : ru;
+  const statuses: Record<CheckStatus, string> = { matches: t("Сәйкес", "Соответствует"), needs_information: t("Толықтыру қажет", "Нужно дополнить"), does_not_match: t("Сәйкес емес", "Не соответствует"), not_provided: t("Ұсынылмаған", "Не предоставлено"), cannot_verify: t("Тексеру мүмкін емес", "Невозможно проверить") };
+  return <details className={s.inspection}><summary>{t("Файлдан не тексерілді?", "Что проверено в файле?")}</summary>{document.format_checks.map((check, i) => <div key={i}><strong>{check.id === "pagination" ? t("Беттерді санау", "Количество страниц") : check.id.startsWith("margins_") ? t("Жиектер: сол / оң / жоғары / төмен", "Поля: слева / справа / сверху / снизу") : check.title}</strong><span className={`${s.status} ${check.status === "matches" ? s.good : check.status === "does_not_match" ? s.bad : s.pending}`}>{statuses[check.status]}</span><p>{check.id === "pdf_layout" ? t("Тек бет өлшемі тексерілді. Қаріп, жиектер, қолтаңба және дараланбау қолмен тексеріледі.", "Проверен размер страницы. Шрифт, поля, подписи и обезличивание требуют ручной проверки.") : check.id === "pagination" ? t("DOCX бет саны құжатты көрнекі ашқаннан кейін тексеріледі; сөз санынан болжанбайды.", "Число страниц DOCX проверяется после отображения документа; оно не оценивается по количеству слов.") : check.detail}</p></div>)}{document.extracted_text && <div><strong>{t("Оқылған мәтіннің басы", "Начало прочитанного текста")}</strong><p className={s.preWrap}>{document.extracted_text.slice(0, 1500)}{document.extracted_text.length > 1500 ? "…" : ""}</p></div>}{!document.format_checks.length && <p>{t("Бұл файл түрі үшін рәсімдеу параметрлері автоматты түрде расталмайды.", "Параметры оформления для этого типа файла автоматически не подтверждаются.")}</p>}</details>;
 }
