@@ -8,6 +8,8 @@ import { zerdeApi } from "./api";
 import { blankRequest, DOCUMENT_KINDS, eligibility, isDraft, MODES, parseData, SECTION_FALLBACK, wordCount } from "./model";
 import { Artwork, Field, Icon } from "./ui";
 import ZerdeResult, { DataChart } from "./ZerdeResult";
+import ZerdeConsultation from "./ZerdeConsultation";
+import ZerdeUsage from "./ZerdeUsage";
 import type { Assessment, Catalog, DocumentKind, Draft, SavedProject, UploadedDocument, ZerdeRequest } from "./types";
 import s from "./zerde.module.css";
 
@@ -69,6 +71,15 @@ function Session({ userId }: { userId: string }) {
     catch (reason) { if (ownSession()) setError(teacherFacingErrorMessage(reason, language)); }
     finally { lock.current = false; if (ownSession()) setBusy(null); }
   }
+  async function newProject() {
+    if (lock.current) return; lock.current = true; setBusy("new"); setError(null);
+    try {
+      if (request.title.trim() || request.authored_text.trim() || request.research_question.trim() || documents.length || projectId) await zerdeApi.save(body(), projectId);
+      if (!ownSession()) return;
+      setRequest(blankRequest(language)); setProjectId(null); setDocuments([]); setResult(null); setResultRequest(null); setDataText(""); setCloudSaved(false); setHistoryOpen(false); setStep(0);
+    } catch (reason) { if (ownSession()) setError(teacherFacingErrorMessage(reason, language)); }
+    finally { lock.current = false; if (ownSession()) setBusy(null); }
+  }
   async function assess() {
     if (lock.current) return;
     if (!eligible.eligible) { setError(eligible.message); go(0); setError(eligible.message); return; }
@@ -78,8 +89,7 @@ function Session({ userId }: { userId: string }) {
       const snapshot = body(); const saved = await zerdeApi.save(snapshot, projectId); if (!ownSession()) return;
       setProjectId(saved.id); setCloudSaved(true);
       const checked = await zerdeApi.assessProject(saved.id); if (!ownSession()) return;
-      if (!checked.result) throw new Error("Missing assessment");
-      setResult(checked.result); setResultRequest(snapshot); setStep(3);
+      setResult(checked); setResultRequest(snapshot); setStep(3);
       window.setTimeout(() => resultHeading.current?.focus(), 0);
     } catch (reason) { if (ownSession()) setError(teacherFacingErrorMessage(reason, language)); }
     finally { lock.current = false; if (ownSession()) setBusy(null); }
@@ -115,11 +125,12 @@ function Session({ userId }: { userId: string }) {
   const providedCount = requiredDocs.filter(([kind]) => documents.some(d => d.kind === kind)).length;
   return <div className={s.workspace} aria-busy={busy === "assess"}>
     <header className={s.hero}><div className={s.heroCopy}><p className={s.eyebrow}>SANDUAI RESEARCH STUDIO · 2026–2027</p><h1>{t("Әр жаңалық", "Каждое открытие")}<br/>{t("өз сұрағыңнан басталады.", "начинается с твоего вопроса.")}</h1><p className={s.intro}>{t("«Зерде» жобасына арналған әдістемелік кеңістік. Идеяны нақтылаңыз, өз зерттеуіңізді жүргізіңіз және нәтижені сеніммен таныстырыңыз.", "Методическое пространство для проекта «Зерде». Уточните идею, проведите своё исследование и уверенно представьте результат.")}</p><div className={s.heroMeta}><span><Icon name="people" />{t("2–8-сынып", "2–8 классы")}</span><span><Icon name="layers" />{t("14 көмек түрі", "14 видов помощи")}</span><span><Icon name="shield" />{t("Авторлық еңбек сақталады", "Авторство сохраняется")}</span></div></div><div className={s.heroVisual}><div className={s.brand}>Зерде<span>PRO</span></div><Artwork/><span className={s.artCaption}>{t("Қызығушылықтан — жаңалыққа", "От любопытства — к открытию")}</span></div></header>
-    <div className={s.toolbar}><div className={s.saveStatus} role="status"><span className={localSaved || cloudSaved ? s.savedDot : s.unsavedDot}/>{cloudSaved ? t("Жоба аккаунтта сақталды", "Проект сохранён в аккаунте") : localSaved ? t("Нобай осы браузерде сақталды", "Черновик сохранён в этом браузере") : t("Жоба нобайы", "Черновик проекта")}</div><div className={s.toolbarActions}><button type="button" className={s.secondary} disabled={!!busy} onClick={() => void loadHistory()} aria-expanded={historyOpen} aria-controls="zerde-projects"><Icon name="clock"/>{t("Менің жобаларым", "Мои проекты")}</button><button type="button" className={s.secondary} disabled={!!busy || !hydrated} onClick={() => void save()}><Icon name="file"/>{busy === "save" ? t("Сақталуда…", "Сохранение…") : t("Аккаунтқа сақтау", "Сохранить в аккаунте")}</button></div></div>
+    <div className={s.toolbar}><div className={s.saveStatus} role="status"><span className={localSaved || cloudSaved ? s.savedDot : s.unsavedDot}/>{cloudSaved ? t("Жоба аккаунтта сақталды", "Проект сохранён в аккаунте") : localSaved ? t("Нобай осы браузерде сақталды", "Черновик сохранён в этом браузере") : t("Жоба нобайы", "Черновик проекта")}</div><div className={s.toolbarActions}>{(projectId || request.title || request.authored_text) && <button type="button" className={s.secondary} disabled={!!busy || !hydrated} onClick={() => void newProject()}><Icon name="plus"/>{t("Жаңа жоба", "Новый проект")}</button>}<button type="button" className={s.secondary} disabled={!!busy} onClick={() => void loadHistory()} aria-expanded={historyOpen} aria-controls="zerde-projects"><Icon name="clock"/>{t("Менің жобаларым", "Мои проекты")}</button><button type="button" className={s.secondary} disabled={!!busy || !hydrated} onClick={() => void save()}><Icon name="file"/>{busy === "save" ? t("Сақталуда…", "Сохранение…") : t("Аккаунтқа сақтау", "Сохранить в аккаунте")}</button></div></div>
     {historyOpen && <section className={s.history} id="zerde-projects"><h2>{t("Менің жобаларым", "Мои проекты")}</h2>{historyLoading ? <p role="status">{t("Жүктелуде…", "Загрузка…")}</p> : projects.length ? <div className={s.historyGrid}>{projects.map(project => <button className={s.historyItem} key={project.id} disabled={!!busy} type="button" onClick={() => void openProject(project.id)}><Icon name="book"/><strong>{project.title}</strong><small>{new Date(project.updated_at).toLocaleDateString(language === "kk" ? "kk-KZ" : "ru-RU")} · {project.result ? t("Тексеріс бар", "Есть проверка") : t("Нобай", "Черновик")}</small></button>)}</div> : <p className={s.hint}>{t("Сақталған жобалар осында көрсетіледі.", "Здесь появятся сохранённые проекты.")}</p>}</section>}
     <nav className={s.steps} aria-label={t("Жоба қадамдары", "Шаги проекта")}>{stepLabels.map((label, i) => <button key={label} type="button" className={step === i ? s.activeStep : ""} aria-current={step === i ? "step" : undefined} disabled={!!busy || (i === 3 && !result)} onClick={() => go(i)}><span>{i + 1 < step + 1 ? <Icon name="check"/> : String(i + 1).padStart(2, "0")}</span><strong>{label}</strong></button>)}</nav>
     {error && <div className={s.error} role="alert">{error}</div>}
-    {busy === "assess" ? <section className={s.loading} role="status" aria-live="polite"><div className={s.loader}/><h2>{t("Жобаңыздың келесі қадамын анықтаудамыз", "Определяем следующий шаг проекта")}</h2><p>{t("Қатысуды, материалдарды және таңдалған көмек түрін тексерудеміз.", "Проверяем участие, материалы и выбранный вид помощи.")}</p></section> : step === 3 && result && resultRequest ? <div ref={resultHeading} tabIndex={-1}><ZerdeResult key={`${projectId}-${result.mode}-${result.title}`} result={result} request={resultRequest} language={language} onEdit={() => go(2)}/></div> : <div className={s.columns}><div className={s.main}>
+    {busy === "assess" ? <section className={s.loading} role="status" aria-live="polite"><div className={s.loader}/><h2>{t("Жобаңыздың келесі қадамын анықтаудамыз", "Определяем следующий шаг проекта")}</h2><p>{t("Қатысуды, материалдарды және таңдалған көмек түрін тексерудеміз.", "Проверяем участие, материалы и выбранный вид помощи.")}</p></section> : step === 3 && result && resultRequest ? <div ref={resultHeading} tabIndex={-1}>{projectId && <ZerdeConsultation key={`${projectId}-${JSON.stringify(resultRequest)}`} request={resultRequest} projectId={projectId} userId={userId} cost={catalog?.ai_cost_tokens ?? null} language={language} onResult={setResult}/>}
+{projectId && <ZerdeUsage projectId={projectId} userId={userId} language={language} refreshKey={result.ai_generated}/>}<ZerdeResult key={`${projectId}-${result.mode}-${result.title}`} result={result} request={resultRequest} projectId={projectId} userId={userId} language={language} onEdit={() => go(2)}/></div> : <div className={s.columns}><div className={s.main}>
       {step === 0 && <section className={s.panel}><div className={s.panelHeading}><span className={s.sectionNumber}>01</span><div><p className={s.eyebrow}>{t("Алдымен танысайық", "Начнём со знакомства")}</p><h2 id="zerde-step-title" tabIndex={-1}>{stepLabels[0]}</h2><p>{t("Жеке деректерді енгізудің қажеті жоқ. Тек зерттеу туралы мәліметтер жеткілікті.", "Личные данные вводить не нужно. Достаточно информации об исследовании.")}</p></div></div>
         <Field id="zerde-title" label={t("Жобаның жұмыс тақырыбы", "Рабочая тема проекта")} hint={t("Тақырыпты кейін өзгертуге болады.", "Тему можно изменить позже.")}><input id="zerde-title" maxLength={300} value={request.title} onChange={e => update({ title: e.target.value })} placeholder={t("Нені зерттегіңіз келеді?", "Что вы хотите исследовать?")} /></Field>
         <fieldset className={s.fieldset}><legend>{t("Жоба авторлары", "Авторы проекта")}</legend><div className={s.segmented}>{[1, 2].map(count => <button key={count} type="button" aria-pressed={request.grades.length === count} className={request.grades.length === count ? s.selected : ""} onClick={() => update({ grades: count === 1 ? [request.grades[0]] : [request.grades[0], request.grades[0]] })}><Icon name={count === 1 ? "edit" : "people"}/>{count === 1 ? t("Жеке жоба", "Индивидуальный") : t("Екі автор", "Два автора")}</button>)}</div></fieldset>

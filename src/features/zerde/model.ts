@@ -1,4 +1,4 @@
-import type { Draft, Language, ModeId, Template, ZerdeRequest } from "./types";
+import type { Assessment, Draft, Language, ModeId, Template, ZerdeRequest } from "./types";
 
 export const MODES: { id: ModeId; kk: string; ru: string; hintKk: string; hintRu: string; icon: string; group: number }[] = [
   { id: "idea", kk: "Идеяны нақтылау", ru: "Уточнить идею", hintKk: "Өз сұрағыңызды зерттеуге айналдырыңыз", hintRu: "Превратите свой вопрос в исследование", icon: "spark", group: 0 },
@@ -60,8 +60,17 @@ export function parseData(text: string): { data: { label: string; value: number 
   return { data, invalidLines };
 }
 export function wordCount(text: string) { return text.trim() ? text.trim().split(/\s+/u).length : 0; }
+export function barGeometry(value: number, maximum: number) {
+  const width = Math.abs(value) / Math.max(maximum, 1) * 50;
+  return { width: `${width}%`, left: `${value < 0 ? 50 - width : 50}%` };
+}
+export function isAssessment(value: unknown): value is Assessment {
+  if (!value || typeof value !== "object") return false;
+  const r = value as Partial<Assessment>;
+  return typeof r.title === "string" && MODES.some(m => m.id === r.mode) && Array.isArray(r.sections) && r.sections.every(s => !!s && typeof s.id === "string" && typeof s.title === "string" && typeof s.body === "string" && Array.isArray(s.questions)) && Array.isArray(r.checks) && r.checks.every(c => !!c && typeof c.title === "string" && typeof c.detail === "string" && ["matches", "needs_information", "does_not_match", "not_provided", "cannot_verify"].includes(c.status)) && Array.isArray(r.next_steps) && typeof r.ai_generated === "boolean" && !!r.eligibility && !!r.provenance;
+}
 export function isDraft(value: unknown): value is Draft {
   if (!value || typeof value !== "object") return false;
   const draft = value as Partial<Draft>; const r = draft.request;
-  return !!r && MODES.some(m => m.id === r.mode) && ["kk", "ru"].includes(r.language) && typeof r.title === "string" && Array.isArray(r.grades) && r.grades.length >= 1 && r.grades.length <= 2 && r.grades.every(Number.isInteger) && typeof r.authored_text === "string" && typeof r.research_question === "string" && typeof r.goal === "string" && typeof r.section === "string" && ["research", "engineering", "digital", "social", "creative"].includes(r.project_type) && Number.isInteger(r.stage) && r.stage >= 1 && r.stage <= 4 && [r.methods, r.sources, r.document_ids].every(a => Array.isArray(a) && a.every(s => typeof s === "string")) && Array.isArray(r.data) && r.data.every(d => typeof d.label === "string" && Number.isFinite(d.value)) && typeof r.registration_code === "string" && typeof draft.dataText === "string" && Array.isArray(draft.documents) && draft.documents.every(d => typeof d.id === "string" && typeof d.name === "string" && typeof d.kind === "string" && ["readable", "partial", "unreadable"].includes(d.inspection_status) && Array.isArray(d.format_checks)) && (draft.projectId === null || typeof draft.projectId === "string");
+  return !!r && MODES.some(m => m.id === r.mode) && ["kk", "ru"].includes(r.language) && typeof r.title === "string" && Array.isArray(r.grades) && r.grades.length >= 1 && r.grades.length <= 2 && r.grades.every(Number.isInteger) && typeof r.authored_text === "string" && typeof r.research_question === "string" && typeof r.goal === "string" && typeof r.section === "string" && ["research", "engineering", "digital", "social", "creative"].includes(r.project_type) && Number.isInteger(r.stage) && r.stage >= 1 && r.stage <= 4 && [r.methods, r.sources, r.document_ids].every(a => Array.isArray(a) && a.every(s => typeof s === "string")) && Array.isArray(r.data) && r.data.every(d => !!d && typeof d.label === "string" && Number.isFinite(d.value)) && typeof r.registration_code === "string" && typeof draft.dataText === "string" && Array.isArray(draft.documents) && draft.documents.every(d => !!d && typeof d.id === "string" && typeof d.name === "string" && typeof d.kind === "string" && ["readable", "partial", "unreadable"].includes(d.inspection_status) && Array.isArray(d.format_checks)) && (draft.projectId === null || typeof draft.projectId === "string");
 }

@@ -1,7 +1,7 @@
 import { getToken, type GenerationJob } from "@/lib/api";
 import { getApiBase } from "@/lib/api-base";
-import { fetchWithPolicy, requestJson } from "@/lib/http-client";
-import type { Assessment, Catalog, DocumentKind, SavedProject, Template, UploadedDocument, ZerdeRequest } from "./types";
+import { ApiRequestError, fetchWithPolicy, requestJson } from "@/lib/http-client";
+import type { AiUsage, Assessment, Catalog, DocumentKind, SavedProject, Template, UploadedDocument, ZerdeRequest } from "./types";
 
 const PREFIX = "/api/v1/zerde";
 function headers(json = true) {
@@ -19,13 +19,20 @@ export const zerdeApi = {
   save: (body: ZerdeRequest, id: string | null) => request<SavedProject>(id ? `/projects/${encodeURIComponent(id)}` : "/projects", id ? "PUT" : "POST", { title: body.title.trim() || "Зерде", request: body }),
   open: (id: string) => request<SavedProject>(`/projects/${encodeURIComponent(id)}`),
   document: (id: string) => request<UploadedDocument>(`/uploads/${encodeURIComponent(id)}`),
-  assessProject: (id: string) => request<SavedProject>(`/projects/${encodeURIComponent(id)}/assess`, "POST"),
+  usage: (id: string) => request<{ items: AiUsage[] }>(`/projects/${encodeURIComponent(id)}/ai-usage`),
+  updateUsage: (projectId: string, id: string, body: Pick<AiUsage, "output_use_location" | "author_verification" | "author_changes">) => request<AiUsage>(`/projects/${encodeURIComponent(projectId)}/ai-usage/${encodeURIComponent(id)}`, "PATCH", body),
+  assessProject: (id: string) => request<Assessment>(`/projects/${encodeURIComponent(id)}/assess`, "POST"),
   async upload(file: File, kind: DocumentKind): Promise<UploadedDocument> {
     const body = new FormData(); body.append("file", file); body.append("kind", kind);
     return requestJson<UploadedDocument>(`${getApiBase()}${PREFIX}/uploads`, { method: "POST", headers: headers(false), body, cache: "no-store" }, { timeoutMs: 90_000 });
   },
-  async export(body: ZerdeRequest, template: Template, format: "docx" | "pdf", audience: "jury" | "administrative"): Promise<Blob> {
-    const response = await fetchWithPolicy(`${getApiBase()}${PREFIX}/export`, { method: "POST", headers: headers(), body: JSON.stringify({ request: body, template, format, audience }) }, { timeoutMs: 90_000 });
-    return response.blob();
+  async export(body: ZerdeRequest, template: Template, format: "docx" | "pdf", audience: "jury" | "administrative", projectId?: string): Promise<Blob> {
+    const response = await fetchWithPolicy(`${getApiBase()}${PREFIX}/export`, { method: "POST", headers: headers(), body: JSON.stringify({ request: body, template, format, audience, ...(projectId ? { project_id: projectId } : {}) }) }, { timeoutMs: 90_000 });
+    if (!response.ok) throw new ApiRequestError("Document export failed", response.status);
+    const expected = format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    if (!response.headers.get("Content-Type")?.includes(expected)) throw new ApiRequestError("Unexpected document response", 502);
+    const blob = await response.blob();
+    if (!blob.size) throw new ApiRequestError("Empty document response", 502);
+    return blob;
   },
 };
