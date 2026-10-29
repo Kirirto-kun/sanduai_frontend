@@ -68,6 +68,13 @@ const AI_SCIPROJECT: NavItem = {
   label: { ru: "Научный проект", kk: "Ғылыми жоба" },
 };
 
+const AI_ZERDE: NavItem = {
+  key: "zerde",
+  href: "/dashboard/ai/zerde",
+  label: { ru: "Зерде PRO · 2–8 классы", kk: "Зерде PRO · 2–8 сынып" },
+  isNew: true,
+};
+
 const AI_WORKSHEET: NavItem = {
   key: "worksheet",
   href: "/dashboard/ai/worksheets",
@@ -159,6 +166,7 @@ const SCHOOL: NavSegment = {
         AI_KMZH,
         AI_BJB,
         AI_SCIPROJECT,
+        AI_ZERDE,
         AI_WORKSHEET,
         AI_COMICS,
         AI_KORNEKILIK,
