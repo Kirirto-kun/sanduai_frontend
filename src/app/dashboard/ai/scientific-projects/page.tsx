@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ScientificProjectHistory } from "../../../../components/generations/ScientificProjectHistory";
+import { ZerdeEntryCard } from "@/components/ZerdeEntryCard";
 import { useLanguage, useTranslations } from "../../../../i18n/LanguageContext";
 import {
   enqueueProjectPlan,
@@ -192,6 +193,8 @@ function ScientificProjectContent() {
         <h1 className="mb-6 text-3xl font-bold text-slate-900">
           {t.scientificProject.form.title}
         </h1>
+
+        <ZerdeEntryCard />
 
         {showJobProgress ? (
           <section
