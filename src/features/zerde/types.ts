@@ -10,7 +10,7 @@ export interface ZerdeRequest {
   methods: string[]; sources: string[]; data: { label: string; value: number }[]; registration_code: string; document_ids: string[];
 }
 export interface Check { id: string; title: string; status: CheckStatus; detail: string; location?: string; reference?: string }
-export interface Provenance { status: string; official_rules_verified: boolean; notice: string }
+export interface Provenance { status: string; official_rules_verified: boolean; notice: string; official_rule_url?: string; source_notes?: string[]; academic_year?: string; order?: string; verified_at?: string }
 export interface Assessment {
   mode: ModeId; title: string; eligibility: { eligible: boolean; age_category: string; effective_grade: number; abstract_word_limit: number; recommended_pages: number; issues: string[] };
   sections: { id: string; title: string; body: string; questions: string[]; table?: { columns: string[]; rows: string[][] } | null }[];
@@ -28,4 +28,5 @@ export interface UploadedDocument {
   format_checks: Check[]; official_rules_verified: boolean;
 }
 export interface SavedProject { id: string; title: string; request: ZerdeRequest; result: Assessment | null; created_at: string; updated_at: string }
+export interface AiUsage { id: string; project_id: string; job_id: string; used_at: string; tool: string; model_version: string | null; stage: string; purpose: string; prompt_summary: string; output_use_location: string; author_verification: string; author_changes: string }
 export interface Draft { request: ZerdeRequest; dataText: string; projectId: string | null; documents: UploadedDocument[] }
