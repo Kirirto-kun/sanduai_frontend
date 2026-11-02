@@ -109,13 +109,13 @@ export function GenerationMaterialCard({
       )}
 
       <div className="mt-auto grid grid-cols-2 gap-2 pt-5">
-        <Link
+        {job.kind !== "zerde.consult" && <Link
           href={openHref}
           className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
         >
           {language === "kk" ? "Ашу" : "Открыть"}
-        </Link>
-        <button
+        </Link>}
+        {job.kind === "zerde.consult" ? <Link href={openHref} className="col-span-2 inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-3 text-sm font-bold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500">{language === "kk" ? "Кеңес пен үлгілер" : "Консультация и шаблоны"}</Link> : <button
           type="button"
           onClick={() => void download()}
           disabled={!downloadable || downloading}
@@ -124,7 +124,7 @@ export function GenerationMaterialCard({
           {downloading
             ? language === "kk" ? "Жүктелуде…" : "Скачиваем…"
             : language === "kk" ? "Жүктеу" : "Скачать"}
-        </button>
+          </button>}
       </div>
     </article>
   );
