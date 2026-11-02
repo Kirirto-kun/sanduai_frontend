@@ -8,6 +8,7 @@ describe("coaching input and retained result contracts", () => {
     expect(input).toMatchObject({ language: "kk", duration_minutes: 45, participant_count: 20, group_count: 4, format: "offline", defaults_accepted: false });
     expect(isCoachingDraft(input)).toBe(true);
     expect(() => coachingSubmission({ ...input, topic: "Feedback" })).toThrow("INVALID_COACHING_INPUT");
+    expect(isCoachingDraft({ ...input, ...JSON.parse('{"__proto__": {"topic": "Injected"}}') })).toBe(false);
   });
   it("retains in-progress list typing and submits the latest normalized values", () => {
     const input = { ...blankCoaching(), topic: ` ${"Т".repeat(500)} `, defaults_accepted: true, resources: [" Paper", "", "Pens; screen\nCards "], methods: [" Case", " Role play", ""] };

@@ -20,7 +20,7 @@ const integer = (value: unknown, min: number, max: number) => Number.isInteger(v
 export function isCoachingDraft(value: unknown): value is CoachingInput {
   if (!isRecord(value)) return false;
   const defaults = blankCoaching();
-  return Object.keys(value).every(key => key in defaults)
+  return Object.keys(value).every(key => Object.prototype.hasOwnProperty.call(defaults, key))
     && Object.entries(defaults).every(([key, sample]) => Array.isArray(sample) ? texts(value[key]) : typeof value[key] === typeof sample)
     && CONTENT_LANGUAGE_CODES.includes(value.language as CoachingInput["language"])
     && ["offline", "online", "hybrid"].includes(String(value.format))
