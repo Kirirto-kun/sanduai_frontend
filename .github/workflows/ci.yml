@@ -3,7 +3,7 @@ name: frontend-ci
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, codex/science-pro-release-20261103]
 
 concurrency:
   group: frontend-${{ github.workflow }}-${{ github.ref }}

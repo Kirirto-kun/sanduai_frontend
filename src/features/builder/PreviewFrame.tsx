@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { HandLandmarker, HandLandmarkerResult } from "@mediapipe/tasks-vision";
 import { getApiBase } from "@/lib/api-base";
 import { BUILDER_THREE_RUNTIME_PATH, compilePreview, needsThreeRuntime } from "./preview";
@@ -163,8 +163,11 @@ export default function PreviewFrame({ files, assets = [], device, language, ref
     return result;
   }, [apiBase, assets]);
   const allowedAssetsRef = useRef(allowedAssets);
-  allowedAssetsRef.current = allowedAssets;
-  onConsoleRef.current = onConsole;
+  useLayoutEffect(() => {
+    // Publish only committed props, before the iframe can send message events.
+    allowedAssetsRef.current = allowedAssets;
+    onConsoleRef.current = onConsole;
+  }, [allowedAssets, onConsole]);
 
   useEffect(() => {
     let active = true;

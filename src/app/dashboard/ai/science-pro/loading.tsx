@@ -1,0 +1,1 @@
+export default function Loading() { return <div className="mx-auto flex min-h-72 max-w-5xl items-center justify-center rounded-2xl border border-[#d8e0d4] bg-[#fffefa] p-8 text-sm text-[#285c4b]" role="status">Ғылыми жоба PRO · Жүктелуде… / Загрузка…</div>; }

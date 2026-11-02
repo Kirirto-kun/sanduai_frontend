@@ -16,4 +16,8 @@ describe("Zerde history actions", () => {
     const html = renderToStaticMarkup(createElement(GenerationMaterialCard, { job: { ...JOB, kind: "kmzh.classic.generate", source_path: "/dashboard/ai/kmzh-classic" }, language: "ru" }));
     expect(html).toContain("Скачать"); expect(html).toContain(`/dashboard/ai/kmzh-classic?job=${JOB.id}`);
   });
+  it("opens a Science consultation's actual workspace exports without a generic unsupported download", () => {
+    const html = renderToStaticMarkup(createElement(GenerationMaterialCard, { job: { ...JOB, kind: "science_pro.consult", source_path: "/dashboard/ai/science-pro" }, language: "ru" }));
+    expect(html).toContain(`/dashboard/ai/science-pro?job=${JOB.id}`); expect(html).toContain("Консультация и шаблоны"); expect(html).not.toContain("Скачать"); expect(html).not.toContain("<button");
+  });
 });
