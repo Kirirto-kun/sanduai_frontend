@@ -35,10 +35,11 @@ export function generationResultHref(jobId: string): string {
   return `/dashboard/generations?job=${encodeURIComponent(jobId)}`;
 }
 
-export type GenerationMaterialFilter = "all" | "masterclasses" | "trainings" | "preschool-projects";
+export type GenerationMaterialFilter = "all" | "masterclasses" | "trainings" | "coaching" | "preschool-projects";
 
 /** Only known module kinds may initialize the history's visible filters. */
 export function generationMaterialFilterFromKind(kind: string | null): GenerationMaterialFilter {
+  if (kind === "coaching.generate") return "coaching";
   if (kind === "training.generate") return "trainings";
   if (kind === "preschool_project.generate") return "preschool-projects";
   if (kind === "masterclass.generate") return "masterclasses";
