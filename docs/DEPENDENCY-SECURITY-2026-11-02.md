@@ -9,7 +9,7 @@
 | `next` / `eslint-config-next` | 16.3.5 | 16.4.4 |
 | `sharp`, override | 0.35.4 | 0.35.5 |
 | `vitest` | ^4.1.11 | 4.1.12 |
-| `vite`, lockfile | 8.2.2 | 8.3.5 |
+| `vite`, lockfile | 8.2.0 | 8.3.5 |
 | `brace-expansion`, lockfile | уязвимая 1.x | 1.1.21 |
 | `source-map-js`, lockfile | 1.2.1 | 1.2.2 |
 | `zod`, lockfile | уязвимая версия | 4.6.7 |
