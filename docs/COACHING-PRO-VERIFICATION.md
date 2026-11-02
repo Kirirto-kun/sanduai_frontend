@@ -15,7 +15,11 @@ Date: 3 November 2026. Feature branch: `codex/coaching-pro`. No production deplo
 
 Verified authenticated local navigation, RU/KK form labels, topic presets, advanced details, explicit parameter confirmation, draft saving, native invalid-group-count validation, and recovery after restarting the development server. The actual queued jobs render progress and cancellation controls without browser errors.
 
-Final checks of completed AI results, mobile layout, copying, history reopening and Word downloads are in progress. Their evidence will be added before handoff.
+An actual completed Russian online coaching with AI was opened from the user history and general coaching filter. All nine sections render in order, keyboard Enter opens practical tasks, copying returns the complete 29,643-character document, and the Word button downloads a real DOCX. The API rejects another user's access with 404.
+
+The completed screen was inspected at desktop width and 375 px mobile width. Page width equals viewport width; only the timeline and mobile contents strip scroll horizontally. Content, speeches and examples wrap without clipping.
+
+Browser QA found that horizontal overflow containers prevented sticky positioning. Body/dashboard clipping and the result card now use `clip`, preserving horizontal containment while keeping the header and desktop contents at their intended scroll position. A direct browser measurement confirms contents top = 100 px after navigating to the timeline. Long generated titles also wrap safely. The final production build and full 753-test suite passed after these changes.
 
 ## Data and external services
 
