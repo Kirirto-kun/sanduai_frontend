@@ -48,3 +48,18 @@ Validation on this isolated candidate:
 
 The frontend image build, closed production acceptance and ingress cutover
 remain separate operator steps. These local checks do not claim deployment.
+
+Production acceptance follow-up: a fresh one-hour token-cost cache from the
+previous Science release can legitimately omit `coaching_generate`. Coaching
+now opts into the generic `useTokens({ requiredOperation })` revalidation path:
+the required server price must exist even when the cache is fresh. Known cached
+operations retain their existing fast path and fallback, concurrent requests
+remain deduplicated, and no operation price is hardcoded. If pricing cannot be
+loaded, creation stays disabled with a localized error and an explicit pricing
+retry; the retry does not submit or replay a generation. Regression tests cover
+the fresh missing-key cache, real changed prices, cached operations, failure and
+retry, invalid prices, deduplication, and RU/KK recovery UI. Existing accepted
+backend jobs and production QA state are unaffected by preparing this change.
+The follow-up passed **723 tests /111 files**, TypeScript, full ESLint
+(0 errors /74 existing warnings), diff checks, and the production Next build
+(77 routes). Independent pricing/cache review found no material issue.

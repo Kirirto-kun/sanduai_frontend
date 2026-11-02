@@ -11,9 +11,7 @@ import {
 import { decodeJwtPayload, isUsableJwt } from "../lib/auth-token";
 import {
   getCachedCosts,
-  setCachedCosts,
-  isCacheValid,
-  getOrCreateFetchPromise,
+  loadTokenCosts,
   getCachedBalance,
   setCachedBalance,
   isBalanceCacheValid,
@@ -36,11 +34,13 @@ export function currentSessionUserId(): string | null {
   return typeof subject === "string" && subject.length > 0 ? subject : null;
 }
 
-export function useTokens() {
+export function useTokens({ requiredOperation }: { requiredOperation?: string } = {}) {
   const [balance, setBalance] = useState<number | null>(null);
   const [costs, setCosts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [costsError, setCostsError] = useState<string | null>(null);
+  const [costsLoading, setCostsLoading] = useState(false);
   const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [subscriptionPlan, setSubscriptionPlan] = useState<"free" | "premium" | null>(null);
@@ -137,35 +137,29 @@ export function useTokens() {
     }
   }, []);
 
-  const fetchCosts = useCallback(async () => {
+  const fetchCosts = useCallback(async (force = false) => {
     // Сначала загружаем из кэша для мгновенного отображения
     const cachedCosts = getCachedCosts();
     if (cachedCosts && Object.keys(cachedCosts).length > 0) {
       setCosts(cachedCosts);
-      
-      // Если кэш актуален (не старше TTL), не делаем запрос к серверу
-      if (isCacheValid()) {
-        return;
-      }
     }
-
-    // Если кэша нет или он устарел, загружаем с сервера
-    // Используем глобальный промис, чтобы избежать множественных одновременных запросов
+    setCostsLoading(true);
     try {
-      const costs = await getOrCreateFetchPromise(async () => {
+      const costs = await loadTokenCosts(async () => {
         const data: TokenCosts = await getTokenCosts();
         return data.costs;
-      });
-      
+      }, { requiredOperation, force });
       setCosts(costs);
-      // Сохраняем в кэш для следующего раза
-      setCachedCosts(costs);
-    } catch (err) {
-      // Costs are optional, fail silently
-      // Если fetch не удался, используем кэш (если он есть)
-      console.error("Failed to fetch token costs:", err);
+      setCostsError(null);
+    } catch {
+      // Preserve known cached prices; a missing required price stays unavailable.
+      setCostsError("costs_unavailable");
+    } finally {
+      setCostsLoading(false);
     }
-  }, []);
+  }, [requiredOperation]);
+
+  const refreshCosts = useCallback(() => fetchCosts(true), [fetchCosts]);
 
   useEffect(() => {
     const sessionUserId = currentSessionUserId();
@@ -281,6 +275,9 @@ export function useTokens() {
     costs,
     loading,
     error,
+    costsError,
+    costsLoading,
+    refreshCosts,
     refreshBalance,
     refreshBalanceIfStale,
     checkBalance,

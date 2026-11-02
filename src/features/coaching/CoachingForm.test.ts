@@ -16,4 +16,17 @@ describe("coaching balance recovery", () => {
     expect(html).toMatch(/<button[^>]*type="submit"[^>]*disabled=""/);
     expect(html).toContain(language === "ru" ? "Недостаточно токенов" : "Токендер жеткіліксіз");
   });
+
+  it.each(["ru", "kk"] as const)("shows an actionable pricing error and keeps creation disabled for %s", language => {
+    const html = renderToStaticMarkup(createElement(CoachingForm, {
+      input: { ...blankCoaching(), topic: "Feedback", defaults_accepted: true },
+      onChange: () => {}, onSubmit: () => {}, language, cost: null, balance: 100,
+      busy: false, saved: false, error: null, costsUnavailable: true,
+      costsLoading: false, onRetryCosts: () => {},
+    }));
+    expect(html).toContain('role="alert"');
+    expect(html).toMatch(/<button[^>]*type="submit"[^>]*disabled=""/);
+    expect(html).toContain(language === "ru" ? "Повторить загрузку стоимости" : "Құнын қайта жүктеу");
+    expect(html).not.toContain(language === "ru" ? "Уточняем стоимость…" : "Құны анықталуда…");
+  });
 });

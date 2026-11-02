@@ -25,7 +25,7 @@ export default function CoachingWorkspace() {
 function CoachingSession({ userId }: { userId: string }) {
   const { language } = useLanguage(); const router = useRouter(); const params = useSearchParams(); const cache = useQueryClient();
   const t = (ru: string, kk: string) => language === "kk" ? kk : ru;
-  const { balance, costs, refreshBalance } = useTokens();
+  const { balance, costs, refreshBalance, costsError, costsLoading, refreshCosts } = useTokens({ requiredOperation: "coaching_generate" });
   const [input, setInput] = useState(blankCoaching); const [saved, setSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false); const [error, setError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false); const [cancelling, setCancelling] = useState(false);
@@ -38,7 +38,8 @@ function CoachingSession({ userId }: { userId: string }) {
   const result = current && ["completed", "billing_error"].includes(current.status) && isCoachingResult(current.result) ? current.result : null;
   const active = Boolean(current && !TERMINAL.has(current.status));
   const busy = submitting || active || Boolean(jobId && job.isPending);
-  const cost = costs.coaching_generate ?? null;
+  const listedCost = costs.coaching_generate;
+  const cost = Number.isFinite(listedCost) && listedCost >= 0 ? listedCost : null;
 
   useEffect(() => {
     let alive = true;
@@ -62,7 +63,7 @@ function CoachingSession({ userId }: { userId: string }) {
   }, [current, refreshBalance, cache, userId]);
 
   async function generate() {
-    if (submissionLock.current || busy) return;
+    if (submissionLock.current || busy || cost === null) return;
     if (!isCoachingDraft(input) || input.topic.trim().length < 2 || input.audience.trim().length < 2 || !input.defaults_accepted) {
       setError(t("Проверьте тему, аудиторию, длительность и количество групп. Подтвердите выбранные параметры.", "Тақырыпты, аудиторияны, ұзақтықты және топ санын тексеріп, параметрлерді растаңыз."));
       return;
@@ -96,6 +97,6 @@ function CoachingSession({ userId }: { userId: string }) {
     {current && TERMINAL.has(current.status) && !result && <div role="alert" className={s.error}><strong>{statusLabel(current.status)}</strong><p>{current.status === "failed" ? t("Попробуйте ещё раз. Статус возврата токенов доступен в общей истории.", "Қайталап көріңіз. Токендердің қайтарылу күйі жалпы тарихта көрсетіледі.") : current.status === "cancelled" ? t("Можно изменить параметры и создать новую встречу.", "Параметрлерді өзгертіп, жаңа кездесу жасауға болады.") : t("Результат пока недоступен. Откройте общую историю.", "Нәтиже әзірге қолжетімсіз. Жалпы тарихты ашыңыз.")}</p></div>}
     {busy ? <section className={s.loading} role="status" aria-live="polite"><div className={s.loader} aria-hidden="true" /><h2>{submitting ? t("Передаём вашу идею…", "Идеяңызды жіберудеміз…") : t("Создаём вашу следующую встречу", "Келесі кездесуіңізді жасаудамыз")}</h2><p>{submitting ? t("Дождитесь подтверждения приёма задания.", "Тапсырманың қабылдануын күтіңіз.") : current ? t("Задание принято. Можно закрыть страницу: работа продолжится, а материал останется в истории.", "Тапсырма қабылданды. Бетті жабуға болады: жұмыс жалғасып, материал тарихта сақталады.") : t("Загружаем сохранённое задание…", "Сақталған тапсырма жүктелуде…")}</p><div className={s.loadingSteps}><span><Icon name="book" />{t("Концепция", "Концепция")}</span><span><Icon name="file" />{t("Сценарий и задания", "Сценарий мен тапсырмалар")}</span><span><Icon name="shield" />{t("Проверка качества", "Сапаны тексеру")}</span></div>{current && <p>{current.status === "queued" ? t("Коучинг в очереди на подготовку.", "Коучинг дайындау кезегінде.") : current.status === "refunding" ? t("Подготовка не завершена. Возвращаем токены.", "Дайындау аяқталмады. Токендер қайтарылуда.") : current.status === "settling" ? t("Сохраняем материал и завершаем расчёт.", "Материалды сақтап, есеп айырысуды аяқтаудамыз.") : t("Пишем задания и проверяем структуру. Подготовка может занять несколько минут.", "Тапсырмаларды жазып, құрылымды тексерудеміз. Дайындау бірнеше минут алуы мүмкін.")}</p>}{error && <p role="alert" className={s.error}>{error}</p>}{current && ["queued", "running"].includes(current.status) && <button type="button" className={`${s.secondary} mt-6`} disabled={cancelling || current.cancel_requested} onClick={() => void cancel()}>{cancelling || current.cancel_requested ? t("Отмена запрошена…", "Бас тарту сұралды…") : t("Отменить подготовку", "Дайындаудан бас тарту")}</button>}</section>
       : result && current ? <CoachingResult key={current.id} result={result} job={current} language={language} />
-      : <CoachingForm input={input} onChange={next => { setInput(next); setSaved(false); setError(null); }} onSubmit={() => void generate()} language={language} cost={cost} balance={balance} busy={submitting} saved={saved} error={error} />}
+      : <CoachingForm input={input} onChange={next => { setInput(next); setSaved(false); setError(null); }} onSubmit={() => void generate()} language={language} cost={cost} balance={balance} busy={submitting} saved={saved} error={error} costsUnavailable={Boolean(costsError)} costsLoading={costsLoading} onRetryCosts={() => void refreshCosts()} />}
   </div>;
 }

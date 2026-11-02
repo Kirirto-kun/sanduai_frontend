@@ -5,8 +5,8 @@ import type { CoachingInput } from "./types";
 import { Field, Icon, Section } from "./ui";
 import s from "./coaching.module.css";
 
-type Props = { input: CoachingInput; onChange: (value: CoachingInput) => void; onSubmit: () => void; language: "ru" | "kk"; cost: number | null; balance: number | null; busy: boolean; saved: boolean; error: string | null };
-export default function CoachingForm({ input, onChange, onSubmit, language, cost, balance, busy, saved, error }: Props) {
+type Props = { input: CoachingInput; onChange: (value: CoachingInput) => void; onSubmit: () => void; language: "ru" | "kk"; cost: number | null; balance: number | null; busy: boolean; saved: boolean; error: string | null; costsUnavailable?: boolean; costsLoading?: boolean; onRetryCosts?: () => void };
+export default function CoachingForm({ input, onChange, onSubmit, language, cost, balance, busy, saved, error, costsUnavailable = false, costsLoading = false, onRetryCosts }: Props) {
   const t = (ru: string, kk: string) => language === "kk" ? kk : ru;
   const update = <K extends keyof CoachingInput>(key: K, value: CoachingInput[K]) => onChange({ ...input, [key]: value });
   const insufficient = cost !== null && balance !== null && balance < cost;
@@ -80,7 +80,8 @@ export default function CoachingForm({ input, onChange, onSubmit, language, cost
         ].map(item => <li key={item}><Icon name="check" />{item}</li>)}</ul></div>
         {insufficient && <p className={s.hint}>{t("Недостаточно токенов.", "Токендер жеткіліксіз.")} <Link href="/dashboard/profile">{t("Профиль и баланс", "Профиль және баланс")}</Link></p>}
         <button type="submit" className={s.primary} disabled={busy || insufficient || cost === null || !input.defaults_accepted}><Icon name="spark" />{busy ? t("Отправляем…", "Жіберілуде…") : t("Создать коучинг", "Коучинг жасау")}</button>
-        <div className={s.cost}><span>{cost === null ? t("Уточняем стоимость…", "Құны анықталуда…") : `${cost} ${t("токенов", "токен")}`}</span><span>{t("Баланс", "Баланс")}: {balance ?? "—"}</span></div>
+        <div className={s.cost}><span>{cost === null ? costsUnavailable && !costsLoading ? t("Стоимость недоступна", "Құны қолжетімсіз") : t("Уточняем стоимость…", "Құны анықталуда…") : `${cost} ${t("токенов", "токен")}`}</span><span>{t("Баланс", "Баланс")}: {balance ?? "—"}</span></div>
+        {cost === null && costsUnavailable && <div className={s.error} role="alert"><p>{t("Не удалось загрузить стоимость. Повторите запрос, чтобы создать коучинг.", "Құнын жүктеу мүмкін болмады. Коучинг жасау үшін сұрауды қайталаңыз.")}</p><button type="button" className={s.secondary} disabled={costsLoading} onClick={onRetryCosts}>{costsLoading ? t("Проверяем стоимость…", "Құны тексерілуде…") : t("Повторить загрузку стоимости", "Құнын қайта жүктеу")}</button></div>}
         <p role="status" className={s.draft}>{saved ? t("Черновик сохранён на этом устройстве", "Жоба осы құрылғыда сақталды") : t("Изменения сохраняются автоматически", "Өзгерістер автоматты түрде сақталады")}</p>
       </div></section>
       <div className={s.ratioCard}><strong>{t("Больше действий, больше пользы", "Көп әрекет — көп пайда")}</strong><div className={s.ratioBar} aria-hidden="true"><span /></div><div className={s.ratioLegend}><span>70% {t("участники", "қатысушылар")}</span><span>30% {t("коуч", "коуч")}</span></div><p>{t("Ориентир для планирования: участники исследуют, пробуют и создают собственный педагогический продукт.", "Жоспарлау бағдары: қатысушылар зерттейді, тәжірибе жасайды және өз педагогикалық өнімін әзірлейді.")}</p></div>
