@@ -7,7 +7,7 @@ import type { ConsultationSeed } from "./types";
 /** Read the selected job's owner/TTL/hash-verified input, never a newer draft. */
 export async function loadScienceConsultation(jobId: string): Promise<ConsultationSeed> {
   const [context, job] = await Promise.all([scienceApi.consultation(jobId), getGenerationJob(jobId)]);
-  if (job.kind !== "science_pro.consult") throw new ApiRequestError("Consultation not found", 404);
+  if (job.kind !== "science_pro.consult" || job.id.toLowerCase() !== jobId.toLowerCase()) throw new ApiRequestError("Consultation not found", 404);
   const finished = job.status === "completed" || job.status === "billing_error";
   if (finished && !isAssessment(job.result)) throw new ApiRequestError("Consultation result is unavailable", 502);
   const [result, documents] = await Promise.all([

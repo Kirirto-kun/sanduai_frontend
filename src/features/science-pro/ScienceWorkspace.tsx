@@ -28,8 +28,8 @@ export default function ScienceWorkspace() {
 function LinkedSession({ userId, jobId }: { userId: string; jobId: string | null }) {
   const { language } = useLanguage(); const t = (kk: string, ru: string) => language === "kk" ? kk : ru;
   const query = useQuery({ queryKey: ["science-linked-consultation", userId, jobId], queryFn: () => loadScienceConsultation(jobId!), enabled: !!jobId, retry: false, refetchOnWindowFocus: false });
-  if (jobId && query.isPending) return <section className={s.workspace} role="status"><p className={s.notice}>{t("Бастапқы сұраныс пен сақталған кеңес ашылуда…", "Открываем исходный запрос и сохранённую консультацию…")}</p></section>;
-  if (query.data) return <Session userId={userId} initial={query.data}/>;
+  if (jobId && (query.isPending || query.isFetching)) return <section className={s.workspace} role="status"><p className={s.notice}>{t("Бастапқы сұраныс пен сақталған кеңес ашылуда…", "Открываем исходный запрос и сохранённую консультацию…")}</p></section>;
+  if (query.data && !query.isError) return <Session userId={userId} initial={query.data}/>;
   return <section className={s.workspace}><p className={s.error} role="alert">{jobId ? teacherFacingErrorMessage(query.error, language) : t("Кеңес сілтемесі қате.", "Некорректная ссылка на консультацию.")}</p>{jobId && <button className={s.secondary} type="button" onClick={() => void query.refetch()}>{t("Қайталау", "Повторить")}</button>}<Link className={s.secondary} href="/dashboard/ai/science-pro">{t("Жоба кабинетіне оралу", "Вернуться в кабинет проекта")}</Link></section>;
 }
 function Session({ userId, initial }: { userId: string; initial?: ConsultationSeed }) {

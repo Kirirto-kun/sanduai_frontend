@@ -5,7 +5,7 @@ import ScienceWorkspace from "./ScienceWorkspace";
 import { blankRequest } from "./model";
 import type { ConsultationSeed } from "./types";
 
-const state = vi.hoisted(() => ({ id: "30bdc3b2-41e6-4399-877c-cbab8e93a5d9", query: { isPending: true, data: undefined as unknown, error: null as unknown, refetch: vi.fn() }, options: vi.fn() }));
+const state = vi.hoisted(() => ({ id: "30bdc3b2-41e6-4399-877c-cbab8e93a5d9", query: { isPending: true, isFetching: false, isError: false, data: undefined as unknown, error: null as unknown, refetch: vi.fn() }, options: vi.fn() }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams({ job: state.id }), useRouter: () => ({ replace: vi.fn() }) }));
 vi.mock("@tanstack/react-query", () => ({ useQuery: (options: unknown) => { state.options(options); return state.query; } }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { userId: "owner" } }) }));
@@ -14,7 +14,7 @@ vi.mock("./ScienceResult", () => ({ default: ({ request, result }: ConsultationS
 vi.mock("./ScienceConsultation", () => ({ default: ({ initialJobId }: { initialJobId: string }) => createElement("div", { "data-poll-job": initialJobId }) }));
 vi.mock("./ScienceUsage", () => ({ default: () => null }));
 vi.mock("./ScienceMaterials", () => ({ default: () => null }));
-beforeEach(() => { state.id = "30bdc3b2-41e6-4399-877c-cbab8e93a5d9"; state.query = { isPending: true, data: undefined, error: null, refetch: vi.fn() }; state.options.mockClear(); });
+beforeEach(() => { state.id = "30bdc3b2-41e6-4399-877c-cbab8e93a5d9"; state.query = { isPending: true, isFetching: false, isError: false, data: undefined, error: null, refetch: vi.fn() }; state.options.mockClear(); });
 
 describe("Science history URL boundary", () => {
   it("loads exactly the selected owner-scoped job before displaying a workspace", () => {
@@ -32,5 +32,11 @@ describe("Science history URL boundary", () => {
     state.id = "not-a-job-id";
     expect(renderToStaticMarkup(createElement(ScienceWorkspace))).toContain("Некорректная ссылка");
     expect(state.options).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: false }));
+  });
+  it("revalidates cached history and does not display it after an expiry error", () => {
+    state.query = { ...state.query, isPending: false, isFetching: true, data: { request: blankRequest(), result: { title: "Expired cached advice" }, jobId: state.id } };
+    expect(renderToStaticMarkup(createElement(ScienceWorkspace))).not.toContain("Expired cached advice");
+    state.query = { ...state.query, isFetching: false, isError: true, error: { status: 410 } };
+    const html = renderToStaticMarkup(createElement(ScienceWorkspace)); expect(html).toContain('role="alert"'); expect(html).not.toContain("Expired cached advice");
   });
 });
