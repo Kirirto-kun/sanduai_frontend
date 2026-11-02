@@ -255,3 +255,25 @@ export function getOrCreateFetchPromise(
   costsFetchPromise = request;
   return request;
 }
+
+/** A fresh cache from an older release may not know a newly added operation. */
+export async function loadTokenCosts(
+  fetchFn: () => Promise<Record<string, number>>,
+  { requiredOperation, force = false }: { requiredOperation?: string; force?: boolean } = {},
+): Promise<Record<string, number>> {
+  const cached = getCachedCosts();
+  const hasRequiredPrice = (prices: Record<string, number>) => !requiredOperation || (
+    Object.prototype.hasOwnProperty.call(prices, requiredOperation)
+    && Number.isFinite(prices[requiredOperation])
+    && prices[requiredOperation] >= 0
+  );
+  if (!force && cached && Object.keys(cached).length > 0 && isCacheValid() && hasRequiredPrice(cached)) {
+    return cached;
+  }
+
+  const current = await getOrCreateFetchPromise(fetchFn);
+  if (!hasRequiredPrice(current)) throw new Error("Required operation price is unavailable.");
+  const costs = { ...cached, ...current };
+  setCachedCosts(costs);
+  return costs;
+}

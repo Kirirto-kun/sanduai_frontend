@@ -515,7 +515,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,_#fff7ed,_#fdfbf7_40%,_#f5e6d3_80%)]">
+      <div className="min-h-screen overflow-x-clip bg-[radial-gradient(circle_at_top_left,_#fff7ed,_#fdfbf7_40%,_#f5e6d3_80%)]">
         <aside
           id="dashboard-sidebar"
           inert={!isDesktop && !mobileOpen ? true : undefined}
