@@ -135,9 +135,24 @@ export type ArticleRevisePayload = {
 
 // Lesson Plan (Short-term КМЖ) types
 export type LessonPlanLanguage = "kazakh" | "russian" | "english" | "kyrgyz" | "uzbek";
+export type LessonTeachingLanguage = "kazakh" | "russian" | "uzbek" | "uyghur" | "tajik";
+export type LessonAssessmentMode = "feedback" | "recorded_formative";
 export type LessonPlanType = "new_lesson" | "consolidation" | "review";
 
 export type LessonPlanRequest = {
+  planner_version?: "open_lesson_v1";
+  schema_version?: "v1" | "v2";
+  school_name?: string;
+  duration?: number;
+  student_count?: number | null;
+  teaching_language?: string;
+  assessment_mode?: LessonAssessmentMode;
+  lesson_score_max?: number | null;
+  inclusive_support?: string;
+  resources?: string[];
+  additional_requirements?: string;
+  selected_objective_ids?: string[];
+  program_id?: string;
   subject: string;
   grade: string;
   topic: string;
@@ -154,6 +169,14 @@ export type LessonPlanRequest = {
 };
 
 export type LessonMeta = {
+  school_name?: string;
+  duration?: number;
+  student_count?: number | null;
+  teaching_language?: string;
+  program_id?: string;
+  assessment_mode?: LessonAssessmentMode;
+  lesson_score_max?: number | null;
+  answer_keys_required?: boolean;
   section_name: string;
   subject: string;
   teacher_name: string;
@@ -163,7 +186,7 @@ export type LessonMeta = {
   students_absent: string;
   topic: string;
   learning_objectives: string[];
-  lesson_objectives: string[];
+  lesson_objectives: string[] | string;
 };
 
 export type LessonTask = {
@@ -178,15 +201,92 @@ export type LessonTask = {
 
 export type NeuroExercise = string | { name: string; description?: string } | null;
 
+export type LessonTemplateTable = { caption: string; columns: string[]; rows: string[][] };
+export type LessonSubBlock = {
+  time: string;
+  phase_name: string;
+  work_type?: string | null;
+  method_name?: string | null;
+  teacher_activity: string;
+  student_activity: string;
+  free_text_content?: string | null;
+  quiz?: { text: string; options: string[]; correct: string }[] | null;
+  template_table?: LessonTemplateTable | null;
+  descriptors: { text: string; points: number }[];
+  assessment_note?: string | null;
+  resource_urls: string[];
+  resource_materials: string[];
+  interesting_fact?: string | null;
+  neuro_exercise?: string | null;
+  task_objective?: string | null;
+  task_id?: string;
+  objective_ids?: string[];
+  expected_result?: string;
+  assessment_criteria?: string;
+  inclusive_support?: string;
+  offline_alternative?: string;
+  minutes?: number | null;
+  individual_check?: boolean;
+  is_main_task?: boolean;
+  total_points?: number | null;
+  reflection_questions?: string[];
+};
+
+export type LessonKnowledge = {
+  version: string;
+  status: "verified" | "partial" | "unverified";
+  objectives: CurriculumObjective[];
+  sources: { title: string; url: string; version?: string; checked_at?: string }[];
+  warnings: string[];
+  checked_at?: string;
+};
+
+export type CurriculumRichFragment = { type: "text"; text: string } | {
+  type: "image"; asset_id: string; source_url: string; sha256: string; mime_type: string; alt?: string;
+};
+export type CurriculumObjective = {
+  context_id?: string;
+  id: string; program_id: string; program_title: string; subject: string; grade: string;
+  teaching_language: string; code: string; text: string; section: string;
+  source_url: string; source_locator: string; source_version: string;
+  verified_at?: string; verification_status: string;
+  display?: string;
+  rich_fragments?: CurriculumRichFragment[];
+  quality_state?: "ready" | "needs_review" | "blocked";
+  selectable?: boolean;
+  quality_issues?: string[];
+};
+export type CurriculumProgram = {
+  id?: string; program_id?: string; title?: string; program_title?: string;
+  school_type?: "general" | "abai_specialized" | "specialized";
+  stream?: "all" | "natural_science_math" | "social_humanities";
+  workload?: "standard" | "reduced";
+};
+export type CurriculumSearchResponse = {
+  items: CurriculumObjective[];
+  review_items?: CurriculumObjective[];
+  programs: CurriculumProgram[];
+  total: number; knowledge_version: string;
+  coverage: { ready_objectives?: number; review_objectives?: number; blocked_objectives?: number; source_checked_at?: string; [key: string]: unknown };
+  warnings: string[];
+};
+
 export type LessonStage = {
   stage_id?: "start" | "middle" | "end";
   stage_name: string;
-  time: string;
-  neuro_exercise: NeuroExercise;
-  tasks: LessonTask[];
+  time?: string;
+  neuro_exercise?: NeuroExercise;
+  tasks?: LessonTask[];
+  sub_blocks?: LessonSubBlock[];
+  homework?: string | null;
 };
 
 export type LessonPlanResponse = {
+  planner_version?: string;
+  schema_version?: string;
+  knowledge?: LessonKnowledge;
+  quality_review?: { status: "passed" | "corrected" | "needs_review" | "edited"; corrections?: number; concerns?: string[]; [key: string]: unknown } | null;
+  answer_keys?: { task_ref: string; content: string; table?: LessonTemplateTable | null }[];
   language?: LessonPlanLanguage;
   meta: LessonMeta;
   flow: LessonStage[];
@@ -1896,6 +1996,17 @@ export function chatWithYbyraiStream(
 }
 
 // Lesson Plan (Short-term КМЖ) API functions
+export async function searchLessonCurriculum(
+  filters: { subject: string; grade: string; teaching_language: string; query?: string; program_id?: string; limit?: number },
+  signal?: AbortSignal,
+): Promise<CurriculumSearchResponse> {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") params.set(key, String(value));
+  });
+  return request<CurriculumSearchResponse>(`/api/kmzh/curriculum?${params}`, { signal, auth: true });
+}
+
 export async function generateLessonPlan(
   payload: LessonPlanRequest,
 ): Promise<LessonPlanResponse> {
@@ -1926,6 +2037,12 @@ export async function exportLessonPlanDocx(
     throw requestErrorFromResponse(res.status, data);
   }
   return res.blob();
+}
+
+/** Only bundled curriculum assets are displayed; source URLs are never image fetch targets. */
+export function lessonCurriculumAssetUrl(assetId: string): string | undefined {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,159}(?:\.(?:png|jpe?g|gif|webp|svg))?$/.test(assetId)) return undefined;
+  return `${API_BASE}/api/kmzh/curriculum-assets/${encodeURIComponent(assetId)}`;
 }
 
 // Scientific Project API functions (legacy - removed, use wizard instead)

@@ -43,4 +43,27 @@ describe("dashboard navigation language purity", () => {
       expect(resolveNavAccess(item, group!)).toBe("authenticated");
     }
   });
+
+  it("makes trainings available to every educational segment without a subscription", () => {
+    for (const segment of SEGMENTS) {
+      const group = segment.groups.find(entry => entry.items.some(item => item.key === "trainings"));
+      expect(group, segment.key).toBeDefined();
+      const item = group!.items.find(entry => entry.key === "trainings")!;
+      expect(item.href).toBe("/dashboard/ai/trainings");
+      expect(item.label).toEqual({ ru: "Тренинги и семинары", kk: "Тренингтер мен семинарлар" });
+      expect(item.isNew).toBe(true);
+      expect(item.soon).not.toBe(true);
+      expect(resolveNavAccess(item, group!)).toBe("authenticated");
+    }
+  });
+
+  it("offers preschool projects as an available, authenticated kindergarten tool", () => {
+    const kindergarten = SEGMENTS.find(segment => segment.key === "kindergarten")!;
+    const group = kindergarten.groups.find(group => group.items.some(item => item.key === "preschool-projects"))!;
+    const item = group.items.find(item => item.key === "preschool-projects")!;
+    expect(item.href).toBe("/dashboard/ai/preschool-projects");
+    expect(item.label).toEqual({ ru: "Проекты для детского сада", kk: "Балабақша жоба PRO" });
+    expect(item.soon).not.toBe(true);
+    expect(resolveNavAccess(item, group)).toBe("authenticated");
+  });
 });

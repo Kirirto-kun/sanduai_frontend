@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { canAccessVideoGeneration } from "@/lib/access-policy";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { AdminSettings } from "./AdminSettings";
 import { AdminAudit, AdminReconcile } from "./AdminOperations";
@@ -118,7 +119,7 @@ export function VideoAdmin() {
   const kk = language === "kk";
   const t = (ru: string, kz: string) => (kk ? kz : ru);
   const { user } = useAuth();
-  const allowed = user?.role === "admin" || user?.role === "super_admin";
+  const allowed = canAccessVideoGeneration(user?.role);
   const config = useQuery({
     queryKey: ["video-admin-config", user?.userId],
     queryFn: videoApi.adminConfig,
