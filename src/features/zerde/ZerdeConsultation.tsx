@@ -11,10 +11,10 @@ import type { Assessment, Language, ZerdeRequest } from "./types";
 import s from "./zerde.module.css";
 
 const TERMINAL = new Set(["completed", "failed", "cancelled", "billing_error"]);
-export default function ZerdeConsultation({ request, projectId, userId, cost, language, onResult }: { request: ZerdeRequest; projectId: string; userId: string; cost: number | null; language: Language; onResult: (result: Assessment) => void }) {
+export default function ZerdeConsultation({ request, projectId, userId, cost, language, onResult, initialJobId }: { request: ZerdeRequest; projectId: string | null; userId: string; cost: number | null; language: Language; onResult: (result: Assessment) => void; initialJobId?: string }) {
   const t = (kk: string, ru: string) => language === "kk" ? kk : ru;
   const { balance, refreshBalance } = useTokens();
-  const [jobId, setJobId] = useState<string | null>(null); const [submitting, setSubmitting] = useState(false); const [error, setError] = useState<string | null>(null); const [cancelling, setCancelling] = useState(false);
+  const [jobId, setJobId] = useState<string | null>(initialJobId ?? null); const [submitting, setSubmitting] = useState(false); const [error, setError] = useState<string | null>(null); const [cancelling, setCancelling] = useState(false);
   const [loaded, setLoaded] = useState(false); const lock = useRef(false); const handled = useRef<string | null>(null); const alive = useRef(true);
   const [anonymized, setAnonymized] = useState(false);
   const key = `sanduai:zerde:consult:v1:${userId}:${projectId}`; const fingerprint = requestFingerprint(request);
@@ -30,12 +30,12 @@ export default function ZerdeConsultation({ request, projectId, userId, cost, la
       if (stopped) return;
       try {
         const stored: unknown = JSON.parse(localStorage.getItem(key) ?? "null");
-        if (stored && typeof stored === "object") { const entry = stored as Record<string, unknown>; if (entry.fingerprint === fingerprint && typeof entry.intent === "string") { intentKey.current = entry.intent; if (typeof entry.jobId === "string") setJobId(entry.jobId); } }
+        if (stored && typeof stored === "object") { const entry = stored as Record<string, unknown>; if (!initialJobId && entry.fingerprint === fingerprint && typeof entry.intent === "string") { intentKey.current = entry.intent; if (typeof entry.jobId === "string") setJobId(entry.jobId); } }
       } catch { /* Optional recovery storage. */ }
       setLoaded(true);
     });
     return () => { stopped = true; };
-  }, [key, fingerprint]);
+  }, [key, fingerprint, initialJobId]);
   useEffect(() => {
     if (!job || !TERMINAL.has(job.status) || handled.current === job.id || currentSessionUserId() !== userId) return;
     handled.current = job.id; void refreshBalance();

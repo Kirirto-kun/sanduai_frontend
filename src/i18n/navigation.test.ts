@@ -15,6 +15,17 @@ describe("dashboard navigation language purity", () => {
     expect(items.find((item) => item.key === "games")?.label.ru).toBe("Игра «Скачки»");
   });
 
+  it("offers the two lesson planner versions as distinct available school tools", () => {
+    const school = SEGMENTS.find((segment) => segment.key === "school")!;
+    const group = school.groups.find((group) => group.items.some((item) => item.key === "kmzh"))!;
+    expect(group.items.find((item) => item.key === "kmzh")?.href).toBe("/dashboard/ai/kmzh");
+    const classic = group.items.find((item) => item.key === "kmzh-classic")!;
+    expect(classic.href).toBe("/dashboard/ai/kmzh-classic");
+    expect(classic.label).toEqual({ ru: "Классический КСП", kk: "Классикалық ҚМЖ" });
+    expect(resolveNavAccess(classic, group)).toBe("authenticated");
+    expect(classic.soon).not.toBe(true);
+  });
+
   it("does not leak Kazakh-specific letters into Russian navigation labels", () => {
     const russianCopy = [
       ...SEGMENTS.flatMap((segment) => [segment.label.ru, segment.hint.ru]),

@@ -130,6 +130,7 @@ async function exportedDocument(
       return { blob, extension: "docx" };
     }
     case "kmzh.generate":
+    case "kmzh.classic.generate":
       return {
         blob: await exportLessonPlanDocx({
           ...(job.result as LessonPlanResponse),

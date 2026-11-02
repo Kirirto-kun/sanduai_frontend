@@ -1,7 +1,7 @@
 import { getToken, type GenerationJob } from "@/lib/api";
 import { getApiBase } from "@/lib/api-base";
 import { ApiRequestError, fetchWithPolicy, requestJson } from "@/lib/http-client";
-import type { AiUsage, Assessment, Catalog, DocumentKind, SavedProject, Template, UploadedDocument, ZerdeRequest } from "./types";
+import type { AiUsage, Assessment, Catalog, ConsultationContext, DocumentKind, SavedProject, Template, UploadedDocument, ZerdeRequest } from "./types";
 
 const PREFIX = "/api/v1/zerde";
 function headers(json = true) {
@@ -13,8 +13,9 @@ function request<T>(path: string, method = "GET", body?: unknown, signal?: Abort
 }
 export const zerdeApi = {
   catalog: (signal?: AbortSignal) => request<Catalog>("/catalog", "GET", undefined, signal),
+  consultation: (id: string) => request<ConsultationContext>(`/consultations/${encodeURIComponent(id)}`),
   assess: (body: ZerdeRequest) => request<Assessment>("/assess", "POST", body),
-  consult: (body: ZerdeRequest, projectId: string, key: string) => requestJson<GenerationJob>(`${getApiBase()}${PREFIX}/consult`, { method: "POST", headers: new Headers([...headers().entries(), ["Idempotency-Key", key]]), body: JSON.stringify({ request: body, project_id: projectId }) }, { timeoutMs: 30_000 }),
+  consult: (body: ZerdeRequest, projectId: string | null, key: string) => requestJson<GenerationJob>(`${getApiBase()}${PREFIX}/consult`, { method: "POST", headers: new Headers([...headers().entries(), ["Idempotency-Key", key]]), body: JSON.stringify({ request: body, project_id: projectId }) }, { timeoutMs: 30_000 }),
   projects: () => request<{ items: SavedProject[] }>("/projects"),
   save: (body: ZerdeRequest, id: string | null) => request<SavedProject>(id ? `/projects/${encodeURIComponent(id)}` : "/projects", id ? "PUT" : "POST", { title: body.title.trim() || "Зерде", request: body }),
   open: (id: string) => request<SavedProject>(`/projects/${encodeURIComponent(id)}`),

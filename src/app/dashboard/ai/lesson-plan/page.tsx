@@ -11,6 +11,8 @@ import { generationJobIdFromSearchParam, generationServerStatusCopy, isAcknowled
 import { useTokens } from "@/hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { PlannerForm } from "@/features/lesson-plan/PlannerForm";
+import { PlannerVersions } from "@/features/lesson-plan/PlannerVersions";
+import { CLASSIC_LESSON_KIND, CLASSIC_LESSON_PATH, isClassicLessonResult } from "@/features/lesson-plan-classic/model";
 import { PlannerEditor } from "@/features/lesson-plan/PlannerEditor";
 import { buttonClass } from "@/features/lesson-plan/Fields";
 import { cleanLessonRequest, createLessonDraft, editableLessonPlan, lessonExportPayload, validStudentCount, lessonValidationIssues, lessonApiErrorMessage, type EditableLessonPlan, type LessonPlanDraft } from "@/features/lesson-plan/model";
@@ -76,7 +78,11 @@ function LessonPlanner({ userId }: { userId: string | null }) {
   useEffect(() => {
     if (storageReady !== persistenceScope) return;
     const value = job.data;
-    if (!value || loadedJobId.current === value.id) return;
+    if (!value) return;
+    if (value.kind === CLASSIC_LESSON_KIND || (value.kind === "kmzh.generate" && isClassicLessonResult(value.result))) {
+      router.replace(`${CLASSIC_LESSON_PATH}?job=${encodeURIComponent(value.id)}`, { scroll: false }); return;
+    }
+    if (loadedJobId.current === value.id) return;
     if (value.kind !== "kmzh.generate") {
       loadedJobId.current = value.id; setPlan(null);
       setError(kk ? "Бұл сілтеме ҚМЖ материалына жатпайды." : "Эта ссылка ведёт не на материал КМЖ."); return;
@@ -97,7 +103,7 @@ function LessonPlanner({ userId }: { userId: string | null }) {
       setError(kk ? "ҚМЖ жасау аяқталмады. Монеталар қайтарылды — деректерді тексеріп, қайталап көріңіз." : "Создание КМЖ не завершилось. Монеты возвращены — проверьте данные и попробуйте снова.");
       void refreshBalance();
     }
-  }, [job.data, kk, persistenceScope, refreshBalance, storageReady, teacherError]);
+  }, [job.data, kk, persistenceScope, refreshBalance, router, storageReady, teacherError]);
 
   useEffect(() => {
     if (!job.error) return;
@@ -168,6 +174,7 @@ function LessonPlanner({ userId }: { userId: string | null }) {
 
   return <div className="min-h-screen bg-gradient-to-br from-orange-50 via-beige to-green-50 p-4 sm:p-6">
     <div className="mx-auto max-w-7xl space-y-6">
+      <PlannerVersions active="open" kk={kk} />
       <header><h1 className="text-3xl font-bold text-slate-900">{kk ? "Ашық сабаққа ҚМЖ" : "КМЖ открытого урока"}</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{kk ? "Оқу мақсатына сәйкес нақты тапсырмалар, бағалау және қолдау. Дайын жоспарды өңдеп, Word форматында жүктеңіз." : "Конкретные задания, оценивание и поддержка по учебным целям. Готовый план можно отредактировать и скачать в Word."}</p></header>
       {storageFailed ? <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">{kk ? "Браузер деректерді осы қойындыда сақтай алмады. Бетті жаппас бұрын дайын жоспарды жүктеп алыңыз." : "Браузер не смог сохранить данные в этой вкладке. Скачайте готовый план перед закрытием страницы."}</p> : restoredNotice ? <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">{restoredNotice === "images" ? (kk ? "Мәтіндік деректер қалпына келтірілді. Оқулық суреттерін қайта тіркеңіз." : "Текстовые данные восстановлены. Прикрепите изображения учебника повторно.") : restoredNotice === "edits" ? (kk ? "Осы қойындыда сақталған жоспар түзетулері қалпына келтірілді." : "Восстановлены правки плана, сохранённые в этой вкладке.") : (kk ? "Осы қойындыдағы ҚМЖ жобасы қалпына келтірілді." : "Восстановлен черновик КМЖ из этой вкладки.")}</p> : null}
       {progress ? <section aria-live="polite" className="rounded-3xl border border-sky-200 bg-white p-8 text-center shadow-sm"><h2 className="text-xl font-bold">{kk ? "ҚМЖ жасалып жатыр" : "Создаём КМЖ"}</h2><p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-600">{generationServerStatusCopy(language, acknowledged)}</p><div className="mx-auto mt-6 h-2 max-w-xl overflow-hidden rounded-full bg-sky-100"><div className="h-full w-1/2 rounded-full bg-sky-500 motion-safe:animate-pulse" /></div>{error ? <div className="mt-4"><p role="alert" className="text-sm text-red-700">{error}</p><button type="button" onClick={() => void job.refetch()} className={`${buttonClass} mt-3`}>{kk ? "Күйін қайта тексеру" : "Проверить состояние снова"}</button></div> : null}</section>

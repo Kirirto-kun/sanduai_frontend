@@ -56,6 +56,12 @@ const AI_KMZH: NavItem = {
   label: { ru: "КСП (краткосрочный план)", kk: "ҚМЖ жазу" },
 };
 
+const AI_KMZH_CLASSIC: NavItem = {
+  key: "kmzh-classic",
+  href: "/dashboard/ai/kmzh-classic",
+  label: { ru: "Классический КСП", kk: "Классикалық ҚМЖ" },
+};
+
 const AI_BJB: NavItem = {
   key: "bjb",
   href: "/dashboard/ai/bjb-tjb",
@@ -171,6 +177,7 @@ const SCHOOL: NavSegment = {
       label: { ru: "ИИ-функции", kk: "ЖИ функциялар" },
       items: [
         AI_KMZH,
+        AI_KMZH_CLASSIC,
         AI_BJB,
         AI_SCIPROJECT,
         AI_SCIENCE_PRO,

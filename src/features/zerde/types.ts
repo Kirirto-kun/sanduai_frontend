@@ -30,3 +30,5 @@ export interface UploadedDocument {
 export interface SavedProject { id: string; title: string; request: ZerdeRequest; result: Assessment | null; created_at: string; updated_at: string }
 export interface AiUsage { id: string; project_id: string; job_id: string; used_at: string; tool: string; model_version: string | null; stage: string; purpose: string; prompt_summary: string; output_use_location: string; author_verification: string; author_changes: string }
 export interface Draft { request: ZerdeRequest; dataText: string; projectId: string | null; documents: UploadedDocument[] }
+export interface ConsultationContext { project_id: string | null; request: ZerdeRequest }
+export interface ConsultationSeed { request: ZerdeRequest; result: Assessment; projectId: string | null; documents: UploadedDocument[]; jobId: string }
