@@ -16,6 +16,35 @@ const model: VideoModel = {
   aspect_ratios: ["16:9"],
 };
 describe("video administrator settings contract", () => {
+  it("uses the single-job and 20 GiB deployment defaults when optional settings are absent", () => {
+    const draft = adminSettingsDraft({
+      models: [model], disabled_models: [], user_concurrency: 1,
+      upload_limit_mb: 20, tariffs: {},
+    });
+    expect(draft).toMatchObject({
+      user_concurrency: 1,
+      worker_concurrency: 1,
+      xai_concurrency: 1,
+      fal_concurrency: 1,
+      export_concurrency: 1,
+      storage_limit_mb: 20480,
+      user_storage_limit_mb: 2048,
+    });
+  });
+
+  it("preserves the server's explicitly configured smaller storage allowance", () => {
+    const draft = adminSettingsDraft({
+      models: [model],
+      disabled_models: [], user_concurrency: 1, upload_limit_mb: 20, tariffs: {},
+      storage_limit_mb: 10240,
+      user_storage_limit_mb: 1024,
+      deployment_limits: { storage_limit_mb: 20480, worker_concurrency: 1 },
+    });
+    expect(draft.storage_limit_mb).toBe(10240);
+    expect(draft.user_storage_limit_mb).toBe(1024);
+    expect(draft).not.toHaveProperty("deployment_limits");
+  });
+
   it("sends revision and editable fields while keeping server/secret metadata out of a patch", () => {
     const config = {
       revision: 7,

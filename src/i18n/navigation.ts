@@ -56,6 +56,12 @@ const AI_KMZH: NavItem = {
   label: { ru: "КСП (краткосрочный план)", kk: "ҚМЖ жазу" },
 };
 
+const AI_KMZH_CLASSIC: NavItem = {
+  key: "kmzh-classic",
+  href: "/dashboard/ai/kmzh-classic",
+  label: { ru: "Классический КСП", kk: "Классикалық ҚМЖ" },
+};
+
 const AI_BJB: NavItem = {
   key: "bjb",
   href: "/dashboard/ai/bjb-tjb",
@@ -66,6 +72,20 @@ const AI_SCIPROJECT: NavItem = {
   key: "sciproject",
   href: "/dashboard/ai/scientific-projects",
   label: { ru: "Научный проект", kk: "Ғылыми жоба" },
+};
+
+const AI_ZERDE: NavItem = {
+  key: "zerde",
+  href: "/dashboard/ai/zerde",
+  label: { ru: "Зерде PRO · 2–8 классы", kk: "Зерде PRO · 2–8 сынып" },
+  isNew: true,
+};
+
+const AI_SCIENCE_PRO: NavItem = {
+  key: "science-pro",
+  href: "/dashboard/ai/science-pro",
+  label: { ru: "Научный проект PRO · 8–12 классы", kk: "Ғылыми жоба PRO · 8–12 сынып" },
+  isNew: true,
 };
 
 const AI_WORKSHEET: NavItem = {
@@ -122,6 +142,20 @@ const AI_MASTERCLASSES: NavItem = {
   isNew: true,
 };
 
+const AI_TRAININGS: NavItem = {
+  key: "trainings",
+  href: "/dashboard/ai/trainings",
+  label: { ru: "Тренинги и семинары", kk: "Тренингтер мен семинарлар" },
+  isNew: true,
+};
+
+const AI_PRESCHOOL_PROJECTS: NavItem = {
+  key: "preschool-projects",
+  href: "/dashboard/ai/preschool-projects",
+  label: { ru: "Проекты для детского сада", kk: "Балабақша жоба PRO" },
+  isNew: true,
+};
+
 const AI_SCENARIO: NavItem = {
   key: "scenario",
   href: "/dashboard/ai/scenario",
@@ -143,8 +177,11 @@ const SCHOOL: NavSegment = {
       label: { ru: "ИИ-функции", kk: "ЖИ функциялар" },
       items: [
         AI_KMZH,
+        AI_KMZH_CLASSIC,
         AI_BJB,
         AI_SCIPROJECT,
+        AI_SCIENCE_PRO,
+        AI_ZERDE,
         AI_WORKSHEET,
         AI_COMICS,
         AI_KORNEKILIK,
@@ -152,6 +189,7 @@ const SCHOOL: NavSegment = {
         AI_PRESENTATIONS,
         AI_PEDAGOGICAL_IDEAS,
         AI_MASTERCLASSES,
+        AI_TRAININGS,
       ],
     },
     {
@@ -298,6 +336,8 @@ const KINDERGARTEN: NavSegment = {
         },
         AI_SCENARIO,
         AI_MASTERCLASSES,
+        AI_TRAININGS,
+        AI_PRESCHOOL_PROJECTS,
         AI_SCIPROJECT,
         AI_WORKSHEET,
         AI_COMICS,
@@ -370,6 +410,7 @@ const LIBRARY: NavSegment = {
         AI_KORNEKILIK,
         AI_COMICS,
         AI_MASTERCLASSES,
+        AI_TRAININGS,
       ],
     },
     {
@@ -459,6 +500,7 @@ export const COMMON_GROUPS: NavGroup[] = [
         key: "video",
         href: "/dashboard/media/video",
         label: { ru: "Генерация видео", kk: "Видео генерациясы" },
+        access: "admin",
       },
     ],
   },
@@ -476,4 +518,12 @@ export const SEGMENT_STORAGE_KEY = "sanduai_segment";
 
 export function resolveNavAccess(item: NavItem, group: NavGroup): AccessPolicy {
   return item.access ?? group.access;
+}
+
+/** Apply role visibility before search, on both mobile and desktop. */
+export function filterNavGroupsForRole(groups: NavGroup[], role?: string): NavGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => resolveNavAccess(item, group) !== "admin" || role === "admin"),
+  })).filter((group) => group.items.length > 0);
 }

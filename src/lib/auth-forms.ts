@@ -87,7 +87,8 @@ export const AUTH_FORM_COPY = {
       rateLimited: "Слишком много попыток. Подождите немного и попробуйте снова.",
       deliveryUnavailable: "Сейчас не удалось отправить письмо. Попробуйте ещё раз через несколько минут.",
       network: "Не удалось связаться с сервисом. Подождите немного и попробуйте снова.",
-      coordination: "Для безопасного входа разрешите сайту сохранять данные и откройте его в обновлённом браузере.",
+      coordination: "Для безопасного входа откройте сайт в обновлённом браузере Chrome, Edge, Firefox или Safari. На рабочем ноутбуке попросите администратора проверить ограничения браузера.",
+      storage: "Браузер запрещает сохранять данные для входа. Разрешите cookies и данные сайта для Sandu AI, затем перезагрузите страницу. Если настройка заблокирована, обратитесь к администратору ноутбука.",
       service: "Сервис временно недоступен. Попробуйте ещё раз через несколько минут.",
       invalidFields: "Проверьте введённые данные и попробуйте снова.",
       generic: "Не удалось выполнить действие. Попробуйте ещё раз.",
@@ -168,7 +169,8 @@ export const AUTH_FORM_COPY = {
       rateLimited: "Әрекет тым көп жасалды. Біраз күтіп, қайта көріңіз.",
       deliveryUnavailable: "Қазір хат жіберілмеді. Бірнеше минуттан кейін қайта көріңіз.",
       network: "Сервиске қосылу мүмкін болмады. Сәлден кейін қайта көріңіз.",
-      coordination: "Қауіпсіз кіру үшін сайтқа деректерді сақтауға рұқсат беріп, жаңартылған браузерді қолданыңыз.",
+      coordination: "Қауіпсіз кіру үшін сайтты жаңартылған Chrome, Edge, Firefox немесе Safari браузерінде ашыңыз. Жұмыс ноутбугында әкімшіден браузер шектеулерін тексеруді сұраңыз.",
+      storage: "Браузер кіру деректерін сақтауға тыйым салады. Sandu AI үшін cookies пен сайт деректерін сақтауға рұқсат беріп, бетті қайта жүктеңіз. Баптау бұғатталған болса, ноутбук әкімшісіне хабарласыңыз.",
       service: "Сервис уақытша қолжетімсіз. Бірнеше минуттан кейін қайта көріңіз.",
       invalidFields: "Енгізілген деректерді тексеріп, қайта көріңіз.",
       generic: "Әрекетті орындау мүмкін болмады. Қайта көріңіз.",
@@ -274,6 +276,7 @@ export function authErrorMessage(
   if (code === "REGISTRATION_CODE_RATE_LIMITED") return copy.errors.rateLimited;
   if (code === "EMAIL_DELIVERY_UNAVAILABLE") return copy.errors.deliveryUnavailable;
   if (code === "AUTH_SESSION_COORDINATION_UNAVAILABLE") return copy.errors.coordination;
+  if (code === "AUTH_STORAGE_UNAVAILABLE") return copy.errors.storage;
 
   if (error instanceof ApiRequestError) {
     if (error.status === 0 || error.code === API_ERROR_CODES.NETWORK_ERROR || error.code === API_ERROR_CODES.TIMEOUT) {

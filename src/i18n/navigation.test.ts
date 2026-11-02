@@ -15,6 +15,17 @@ describe("dashboard navigation language purity", () => {
     expect(items.find((item) => item.key === "games")?.label.ru).toBe("Игра «Скачки»");
   });
 
+  it("offers the two lesson planner versions as distinct available school tools", () => {
+    const school = SEGMENTS.find((segment) => segment.key === "school")!;
+    const group = school.groups.find((group) => group.items.some((item) => item.key === "kmzh"))!;
+    expect(group.items.find((item) => item.key === "kmzh")?.href).toBe("/dashboard/ai/kmzh");
+    const classic = group.items.find((item) => item.key === "kmzh-classic")!;
+    expect(classic.href).toBe("/dashboard/ai/kmzh-classic");
+    expect(classic.label).toEqual({ ru: "Классический КСП", kk: "Классикалық ҚМЖ" });
+    expect(resolveNavAccess(classic, group)).toBe("authenticated");
+    expect(classic.soon).not.toBe(true);
+  });
+
   it("does not leak Kazakh-specific letters into Russian navigation labels", () => {
     const russianCopy = [
       ...SEGMENTS.flatMap((segment) => [segment.label.ru, segment.hint.ru]),
@@ -42,5 +53,28 @@ describe("dashboard navigation language purity", () => {
       expect(item.label).toEqual({ ru: "Мастер-классы", kk: "Шебер сынып ұйымдастыру" });
       expect(resolveNavAccess(item, group!)).toBe("authenticated");
     }
+  });
+
+  it("makes trainings available to every educational segment without a subscription", () => {
+    for (const segment of SEGMENTS) {
+      const group = segment.groups.find(entry => entry.items.some(item => item.key === "trainings"));
+      expect(group, segment.key).toBeDefined();
+      const item = group!.items.find(entry => entry.key === "trainings")!;
+      expect(item.href).toBe("/dashboard/ai/trainings");
+      expect(item.label).toEqual({ ru: "Тренинги и семинары", kk: "Тренингтер мен семинарлар" });
+      expect(item.isNew).toBe(true);
+      expect(item.soon).not.toBe(true);
+      expect(resolveNavAccess(item, group!)).toBe("authenticated");
+    }
+  });
+
+  it("offers preschool projects as an available, authenticated kindergarten tool", () => {
+    const kindergarten = SEGMENTS.find(segment => segment.key === "kindergarten")!;
+    const group = kindergarten.groups.find(group => group.items.some(item => item.key === "preschool-projects"))!;
+    const item = group.items.find(item => item.key === "preschool-projects")!;
+    expect(item.href).toBe("/dashboard/ai/preschool-projects");
+    expect(item.label).toEqual({ ru: "Проекты для детского сада", kk: "Балабақша жоба PRO" });
+    expect(item.soon).not.toBe(true);
+    expect(resolveNavAccess(item, group)).toBe("authenticated");
   });
 });

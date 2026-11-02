@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 
+import { canAccessVideoGeneration } from "@/lib/access-policy";
 import { useTokens } from "@/hooks/useTokens";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -642,6 +643,7 @@ function TaskCard({
   onInstructionChange: (value: string) => void;
   onTransform: () => void;
 }) {
+  const { user } = useAuth();
   const language = tryNormalizeContentLanguage(document.language) ?? "kk";
   const documentCopy = preschoolDocumentCopy[language];
   const visualPrompt = taskVisualPrompt(task);
@@ -695,7 +697,7 @@ function TaskCard({
 
       <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
         <Link href={taskIntegrationHref("visual", visualPrompt, language)} className="inline-flex min-h-10 items-center rounded-xl border border-violet-200 bg-violet-50 px-3 text-xs font-black text-violet-700 hover:bg-violet-100">🎨 {copy.visual}</Link>
-        {task.video_query ? <Link href={taskIntegrationHref("video", task.video_query, language)} className="inline-flex min-h-10 items-center rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-black text-sky-700 hover:bg-sky-100">🎬 {copy.video}</Link> : null}
+        {canAccessVideoGeneration(user?.role) && task.video_query ? <Link href={taskIntegrationHref("video", task.video_query, language)} className="inline-flex min-h-10 items-center rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-black text-sky-700 hover:bg-sky-100">🎬 {copy.video}</Link> : null}
         <Link href={taskIntegrationHref("builder", builderPrompt, language)} className="inline-flex min-h-10 items-center rounded-xl border border-orange-200 bg-orange-50 px-3 text-xs font-black text-orange-700 hover:bg-orange-100">✦ {copy.vibe}</Link>
       </div>
       <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">

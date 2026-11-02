@@ -96,7 +96,7 @@ export const videoApi = {
       max_project_duration:
         raw.max_project_duration ?? raw.limits?.project_duration_limit ?? 300,
       max_concurrent_jobs:
-        raw.max_concurrent_jobs ?? raw.limits?.user_concurrency ?? 2,
+        raw.max_concurrent_jobs ?? raw.limits?.user_concurrency ?? 1,
       max_image_mb: raw.max_image_mb ?? raw.limits?.upload_limit_mb ?? 20,
       models: raw.models.map((m) => ({
         ...m,

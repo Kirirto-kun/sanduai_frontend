@@ -1,0 +1,77 @@
+import type { Assessment, DiaryEntry, Draft, EvidenceStatus, Language, ModeId, ScienceRequest, Template } from "./types";
+
+export const GROUPS = [["Барлығы", "Все"], ["Идея және жоспар", "Идея и план"], ["Зерттеу", "Исследование"], ["Сапа және дәлел", "Качество и доказательства"], ["Қорғау", "Защита"]] as const;
+export const MODES: { id: ModeId; kk: string; ru: string; hintKk: string; hintRu: string; icon: string; group: number }[] = [
+  { id: "idea", kk: "Ғылыми идеялар зертханасы", ru: "Лаборатория научных идей", hintKk: "Қызығушылықтан зерттеу сұрағына", hintRu: "От интереса к исследовательскому вопросу", icon: "spark", group: 1 },
+  { id: "passport", kk: "Ғылыми жоба паспорты", ru: "Паспорт научного проекта", hintKk: "Мәселе, мақсат және авторлық үлес", hintRu: "Проблема, цель и авторский вклад", icon: "file", group: 1 },
+  { id: "methods", kk: "Зерттеу әдістемесі", ru: "Методология исследования", hintKk: "Тексерілетін және қайталанатын әдіс", hintRu: "Проверяемый и воспроизводимый метод", icon: "flask", group: 1 },
+  { id: "plan", kk: "Практикалық зерттеу жоспары", ru: "План практического исследования", hintKk: "Кезеңдер, ресурстар және қауіпсіздік", hintRu: "Этапы, ресурсы и безопасность", icon: "layers", group: 1 },
+  { id: "literature", kk: "Ғылыми әдебиеттерге шолу", ru: "Обзор научной литературы", hintKk: "Дереккөздерді іздеу және салыстыру", hintRu: "Поиск и сопоставление источников", icon: "book", group: 2 },
+  { id: "editing", kk: "Авторлық мәтінді редакциялау", ru: "Редактирование авторского текста", hintKk: "Өз мәтініңіздің дәлдігі мен құрылымы", hintRu: "Точность и структура вашего текста", icon: "edit", group: 2 },
+  { id: "visualization", kk: "Нәтижелер және диаграммалар", ru: "Результаты и диаграммы", hintKk: "Нақты өлшеулерден түсінікті көрнекілік", hintRu: "Наглядность на основе реальных измерений", icon: "chart", group: 2 },
+  { id: "diary", kk: "Зерттеу күнделігі", ru: "Дневник исследования", hintKk: "Нақты әрекеттер мен өзгерістердің ізі", hintRu: "История реальных действий и изменений", icon: "calendar", group: 2 },
+  { id: "novelty", kk: "Ғылыми жаңалық аудиті", ru: "Аудит научной новизны", hintKk: "Өзіндік үлесті дәлелдермен салыстыру", hintRu: "Сопоставление вклада и доказательств", icon: "search", group: 3 },
+  { id: "antiplagiarism", kk: "Антиплагиатқа дайындық", ru: "Подготовка к антиплагиату", hintKk: "Дәйексөздер, сілтемелер және адалдық", hintRu: "Цитаты, ссылки и добросовестность", icon: "shield", group: 3 },
+  { id: "regional_audit", kk: "Облыстық сараптама", ru: "Областная экспертиза", hintKk: "Талаптар мен ғылыми сапаны бөлек тексеру", hintRu: "Отдельная проверка правил и качества", icon: "check", group: 3 },
+  { id: "republican_audit", kk: "Республикалық сараптама", ru: "Республиканская экспертиза", hintKk: "Әдіс, жаңалық және дәлелді терең талдау", hintRu: "Глубокий анализ метода, новизны и доказательств", icon: "award", group: 3 },
+  { id: "stand", kk: "Презентация және стенд", ru: "Презентация и стенд", hintKk: "Зерттеу нәтижесін көрнекі таныстыру", hintRu: "Наглядное представление исследования", icon: "slides", group: 4 },
+  { id: "defense", kk: "Қазылар сұрақтары", ru: "Вопросы жюри", hintKk: "Үш деңгейлі ғылыми пікірталас", hintRu: "Научная дискуссия на трёх уровнях", icon: "mic", group: 4 },
+  { id: "package", kk: "Құжаттарды рәсімдеу", ru: "Оформление документов", hintKk: "Авторлық материалдан Word және PDF", hintRu: "Из авторских материалов в Word и PDF", icon: "download", group: 4 },
+];
+export const DOCUMENT_KINDS = [
+  ["project", "Ғылыми жұмыс", "Научная работа"], ["abstract", "Аннотация", "Аннотация"], ["review", "Жетекшінің пікірі", "Отзыв руководителя"],
+  ["antiplagiarism", "Антиплагиат нәтижесі", "Результат антиплагиата"], ["ai_declaration", "ЖИ көмегінің декларациясы", "Декларация помощи ИИ"],
+  ["ethics", "Этика және келісімдер", "Этика и согласия"], ["diary", "Зерттеу күнделігі", "Дневник исследования"],
+  ["contribution", "Авторлық үлес", "Вклад авторов"], ["application", "Өтінім", "Заявка"], ["official_rules", "Ресми ереже / ақпараттық хат", "Официальные правила / информационное письмо"],
+] as const;
+export const TEMPLATES: [Template, string, string][] = [["passport", "Жоба паспорты", "Паспорт проекта"], ["structure", "Ғылыми жұмыс құрылымы", "Структура научной работы"], ["plan", "Зерттеу жоспары", "План исследования"], ["diary", "Зерттеу күнделігі", "Дневник исследования"], ["literature", "Әдебиеттерді салыстыру", "Сравнение литературы"], ["ai_declaration", "ЖИ көмегінің декларациясы", "Декларация помощи ИИ"], ["review", "Жетекші пікірінің құрылымы", "Структура отзыва руководителя"], ["stand", "Презентация және стенд", "Презентация и стенд"], ["audit", "Сараптама есебі", "Отчёт экспертизы"]];
+export const MODE_TEMPLATE: Record<ModeId, Template> = { idea: "passport", passport: "passport", methods: "plan", plan: "plan", literature: "literature", editing: "structure", visualization: "structure", novelty: "audit", antiplagiarism: "structure", diary: "diary", stand: "stand", defense: "stand", regional_audit: "audit", republican_audit: "audit", package: "structure" };
+export const METHODS = [["observation", "Бақылау", "Наблюдение"], ["measurement", "Өлшеу", "Измерение"], ["comparison", "Салыстыру", "Сравнение"], ["experiment", "Эксперимент", "Эксперимент"], ["survey", "Сауалнама / сұхбат", "Опрос / интервью"], ["modeling", "Модельдеу", "Моделирование"], ["engineering", "Инженерлік сынақ", "Инженерное испытание"], ["content_analysis", "Мәтін / контент талдауы", "Анализ текста / контента"], ["historical", "Тарихи дерек талдауы", "Анализ исторических источников"], ["algorithmic", "Алгоритмді тестілеу", "Тестирование алгоритма"]] as const;
+export const EVIDENCE_STATUSES: [EvidenceStatus, string, string][] = [["measured", "Нақты өлшенген", "Измерено"], ["observed", "Бақылаумен расталған", "Подтверждено наблюдением"], ["documented", "Құжатпен расталған", "Подтверждено документом"], ["calculated", "Есептеу арқылы алынған", "Вычислено"], ["preliminary", "Алдын ала", "Предварительное"], ["needs_verification", "Тексеруді қажет етеді", "Требует проверки"], ["planned", "Жоспарланған", "Запланировано"]];
+export const SECTION_FALLBACK = [
+  ["mathematics", "Математика. Қолданбалы математика", "Математика. Прикладная математика"], ["economics", "Экономика және қаржы", "Экономика и финансы"], ["physics", "Физика. Инженерлік ғылымдар", "Физика. Инженерные науки"], ["robotics", "Робототехника. STEM", "Робототехника. STEM"], ["earth_space", "Жер және ғарыш туралы ғылымдар. Астрономия", "Науки о Земле и космосе. Астрономия"], ["information_systems", "Ақпараттық жүйелер мен технологиялар. Есептеу нейроғылымы", "Информационные системы и технологии. Вычислительная нейронаука"], ["creative_industry", "Креативті индустрия", "Креативная индустрия"], ["chemistry", "Химия. Экологиялық химия", "Химия. Экологическая химия"], ["biology", "Биология және тіршілік туралы ғылымдар. Биохимия", "Биология и науки о жизни. Биохимия"], ["ecology", "Экология", "Экология"], ["geography", "География және туризм", "География и туризм"], ["kazakh_language", "Тіл білімі — қазақ тілі", "Языкознание — казахский язык"], ["russian_language", "Тіл білімі — орыс тілі", "Языкознание — русский язык"], ["english_language", "Тіл білімі — ағылшын тілі", "Языкознание — английский язык"], ["kazakh_literature", "Әдебиет — қазақ әдебиеті", "Литература — казахская литература"], ["russian_literature", "Әдебиет — орыс әдебиеті", "Литература — русская литература"], ["cultural_heritage", "Әлемдік мәдени мұра, түркітілдес халықтар мен қазақ халқының мәдениеті, әлем халықтарының этнографиясы", "Мировое культурное наследие, культура тюркоязычных народов и казахского народа, этнография народов мира"], ["social_marketing", "Әлеуметтік желілер және маркетинг", "Социальные сети и маркетинг"], ["history", "Тарих. Адам және қоғам", "История. Человек и общество"],
+].map(([id, title_kk, title_ru], i) => ({ id, title_kk, title_ru, direction: i < 11 ? "science" : "humanities" }));
+export function blankRequest(language: Language = "kk"): ScienceRequest {
+  return { mode: "idea", language, title: "", academic_year: "2026–2027", competition: "", grades: [9], section: "ecology", project_type: "research", stage: 1, direction: "", idea: "", problem: "", relevance: "", research_question: "", goal: "", tasks: [], object: "", subject: "", hypothesis: "", methods: [], sources: [], region: "", supervisor: null, materials: "", equipment: "", deadline: "", data_status: "not_started", existing_results: "", authored_text: "", abstract_text: "", english_abstract: "", data: [], data_order: "comparison", percent_change_meaningful: false, diary: [], contributions: [], novelty: "", practical_significance: "", safety: "", limitations: "", stages: "", recording: "", expert_level: 1, expert_question: "", expert_answer: "", document_ids: [] };
+}
+export function blankDiaryEntry(): DiaryEntry { return { date: "", stage: "", goal: "", action: "", data: "", difficulties: "", changes: "", evidence: "", author: "" }; }
+export function wordCount(text: string) { return text.trim() ? text.trim().split(/\s+/u).length : 0; }
+export function parseData(text: string) {
+  const data: ScienceRequest["data"] = []; const invalidLines: number[] = [];
+  text.split(/\r?\n/).forEach((line, index) => {
+    if (!line.trim()) return;
+    const parts = line.split(/[;\t]/); const label = parts[0]?.trim(); const raw = parts[1]?.trim().replace(",", "."); const value = raw ? Number(raw) : NaN;
+    const status = parts[2]?.trim() || "measured";
+    const unit = parts[3]?.trim() || "";
+    if (parts.length < 2 || parts.length > 4 || !label || label.length > 150 || !Number.isFinite(value) || !EVIDENCE_STATUSES.some(([id]) => id === status) || unit.length > 50) invalidLines.push(index + 1); else data.push({ label, value, status: status as EvidenceStatus, unit });
+  });
+  return { data, invalidLines, tooMany: data.length > 500 };
+}
+export function eligibility(grades: number[], language: Language) {
+  const valid = grades.length > 0 && grades.length <= 2 && grades.every(g => Number.isInteger(g) && g >= 8 && g <= 12);
+  return { eligible: valid, message: !valid ? language === "kk" ? "8–12-сынып, бір немесе екі автор таңдаңыз." : "Выберите 8–12 класс и одного или двух авторов." : grades.includes(12) ? language === "kk" ? "12-сыныптың қатысуын нақты конкурс ережесімен тексеріңіз." : "Допуск 12 класса уточните по правилам выбранного конкурса." : language === "kk" ? "Қатысуға жарамдылық нақты конкурс ережесімен тексеріледі." : "Допуск проверяется по правилам конкретного конкурса." };
+}
+export function barGeometry(value: number, maximum: number) { const width = Math.abs(value) / Math.max(maximum, 1) * 50; return { width: `${width}%`, left: `${value < 0 ? 50 - width : 50}%` }; }
+export function requestFingerprint(request: ScienceRequest) { return JSON.stringify({ ...request, document_ids: [...new Set(request.document_ids)].sort() }); }
+export function hasResearchContext(request: ScienceRequest) {
+  const texts = [request.title, request.idea, request.problem, request.relevance, request.research_question, request.goal, request.object, request.subject, request.hypothesis, request.materials, request.equipment, request.existing_results, request.authored_text, request.abstract_text, request.english_abstract, request.novelty, request.practical_significance, request.safety, request.limitations, request.stages, request.recording, request.expert_answer];
+  return texts.some(text => text.trim()) || [request.tasks, request.methods, request.sources, request.contributions].some(items => items.some(item => item.trim())) || request.data.length > 0 || request.document_ids.length > 0 || request.diary.some(entry => Object.values(entry).some(value => value.trim()));
+}
+export function isAssessment(value: unknown): value is Assessment {
+  if (!value || typeof value !== "object") return false; const r = value as Partial<Assessment>;
+  return MODES.some(m => m.id === r.mode) && typeof r.title === "string" && Array.isArray(r.sections) && r.sections.every(s => !!s && typeof s.id === "string" && typeof s.title === "string" && typeof s.body === "string" && Array.isArray(s.questions)) && Array.isArray(r.checks) && Array.isArray(r.next_steps) && !!r.provenance && typeof r.ai_generated === "boolean";
+}
+export function isDraft(value: unknown): value is Draft {
+  if (!value || typeof value !== "object") return false; const d = value as Partial<Draft>; const r = d.request;
+  if (d.version !== 1 || !r || !MODES.some(m => m.id === r.mode) || !["kk", "ru"].includes(r.language) || !Array.isArray(r.grades) || !eligibility(r.grades, "kk").eligible) return false;
+  const blank = blankRequest();
+  return Object.entries(blank).every(([key, original]) => { const v = r[key as keyof ScienceRequest]; return Array.isArray(original) ? Array.isArray(v) : original === null ? v === null || typeof v === "boolean" : typeof v === typeof original; }) && [r.tasks, r.methods, r.sources, r.contributions, r.document_ids].every(items => items.every(item => typeof item === "string")) && r.data.every(item => item && typeof item.label === "string" && Number.isFinite(item.value) && (!item.status || EVIDENCE_STATUSES.some(([id]) => id === item.status)) && (!item.unit || typeof item.unit === "string")) && r.diary.every(item => item && Object.keys(blankDiaryEntry()).every(key => typeof item[key as keyof DiaryEntry] === "string")) && [1, 2, 3, 4].includes(r.stage) && [1, 2, 3].includes(r.expert_level) && ["research", "engineering", "digital", "social", "humanities"].includes(r.project_type) && ["not_started", "collecting", "collected"].includes(r.data_status) && SECTION_FALLBACK.some(section => section.id === r.section) && typeof d.dataText === "string" && (d.projectId === null || typeof d.projectId === "string") && Array.isArray(d.documents) && d.documents.every(doc => doc && typeof doc.id === "string" && typeof doc.name === "string" && typeof doc.kind === "string" && typeof doc.extracted_text === "string" && Number.isFinite(doc.size_bytes) && Array.isArray(doc.format_checks) && ["readable", "partial", "unreadable"].includes(doc.inspection_status));
+}
+export function restoreDraft(value: unknown): Draft | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<Draft>; if (!candidate.request || typeof candidate.request !== "object") return null;
+  const defaults = blankRequest();
+  if (Object.keys(candidate.request).some(key => !(key in defaults))) return null;
+  const normalized = { ...candidate, request: { ...defaults, ...candidate.request } };
+  return isDraft(normalized) ? normalized : null;
+}

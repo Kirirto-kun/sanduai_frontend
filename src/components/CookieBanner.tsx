@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useTranslations } from "../i18n/LanguageContext";
+import { readOptionalStorage, writeOptionalStorage } from "../lib/optional-storage";
 
 const COOKIE_CONSENT_KEY = "sanduai_cookie_consent";
 
@@ -13,7 +14,7 @@ export function CookieBanner() {
   useEffect(() => {
     // Check if user has already accepted cookies
     if (typeof window !== "undefined") {
-      const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
+      const consent = readOptionalStorage(COOKIE_CONSENT_KEY);
       if (!consent) {
         // Show banner after a small delay for better UX
         const timer = setTimeout(() => {
@@ -26,7 +27,7 @@ export function CookieBanner() {
 
   const handleAccept = () => {
     if (typeof window !== "undefined") {
-      localStorage.setItem(COOKIE_CONSENT_KEY, "accepted");
+      writeOptionalStorage(COOKIE_CONSENT_KEY, "accepted");
       setIsVisible(false);
     }
   };

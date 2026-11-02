@@ -6,6 +6,11 @@ function matchesSegment(pathname: string, base: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);
 }
 
+/** Video generation is in an administrator-only rollout. */
+export function canAccessVideoGeneration(role: string | undefined | null): boolean {
+  return role === "admin";
+}
+
 /**
  * Classify dashboard pages independently from coin balance. AI generation is
  * authenticated and paid with coins; ready/static library content requires a
@@ -14,6 +19,7 @@ function matchesSegment(pathname: string, base: string): boolean {
  */
 export function classifyRouteAccess(pathname: string): AccessPolicy {
   if (matchesSegment(pathname, "/dashboard/admin")) return "admin";
+  if (matchesSegment(pathname, "/dashboard/media/video")) return "admin";
   if (pathname === "/dashboard/library/games" || pathname === "/dashboard/library/games/") {
     return "authenticated";
   }

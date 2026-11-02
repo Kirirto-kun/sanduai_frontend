@@ -1,0 +1,193 @@
+{
+  "release": "zerde-20261102",
+  "production_url": "https://sanduai.kz/dashboard/ai/zerde",
+  "backend": "2226c33265e8488c4392062cd95b900c2608352d",
+  "frontend": "2acb11d14cbd9eced5ca75aeca584023d05b5959",
+  "schema": "20261030_zerde_usage",
+  "public_opened_at_utc": "2026-11-02T13:10:29.503280+00:00",
+  "maintenance_started_at_utc": "2026-11-02T11:02:24.434677+00:00",
+  "last_observed_at_utc": "2026-11-02T13:15:04.955889+00:00",
+  "passed": true,
+  "https": [
+    {
+      "url": "https://api.sanduai.kz/health/live",
+      "status": 200
+    },
+    {
+      "url": "https://api.sanduai.kz/health/ready",
+      "status": 200
+    },
+    {
+      "url": "https://api.sanduai.kz/api/v1/zerde/catalog",
+      "status": 200
+    },
+    {
+      "url": "https://sanduai.kz/login",
+      "status": 200
+    },
+    {
+      "url": "https://sanduai.kz/dashboard/ai/zerde",
+      "status": 200
+    },
+    {
+      "url": "https://sanduai.kz/dashboard/ai/kmzh-classic",
+      "status": 200
+    },
+    {
+      "url": "https://sanduai.kz/dashboard/ai/kmzh",
+      "status": 200
+    },
+    {
+      "url": "https://sanduai.kz/dashboard/ai/preschool-projects",
+      "status": 200
+    },
+    {
+      "url": "https://sanduai.kz/dashboard/ai/presentations",
+      "status": 200
+    },
+    {
+      "url": "https://sanduai.kz/dashboard/media/video",
+      "status": 200
+    }
+  ],
+  "readiness_checks_ok": 10,
+  "healthy_services": 8,
+  "oom_killed": false,
+  "browser_checks": [
+    {
+      "check": "ordinary_login",
+      "passed": true
+    },
+    {
+      "check": "school_navigation_zerde",
+      "passed": true
+    },
+    {
+      "check": "passport_materials_upload_txt",
+      "passed": true
+    },
+    {
+      "check": "free_assessment_save_cloud_reopen_after_reload",
+      "passed": true
+    },
+    {
+      "check": "docx_pdf_download",
+      "passed": true
+    },
+    {
+      "check": "mobile_390_ru_kk_no_horizontal_overflow",
+      "passed": true
+    },
+    {
+      "check": "classic_presence",
+      "passed": true,
+      "url": "https://sanduai.kz/dashboard/ai/kmzh-classic"
+    },
+    {
+      "check": "open_lesson_presence_and_curriculum_metadata",
+      "passed": true,
+      "url": "https://sanduai.kz/dashboard/ai/kmzh",
+      "grade": 4,
+      "subject": "Математика",
+      "availableObjectives": 69
+    },
+    {
+      "check": "preschool_presence",
+      "passed": true,
+      "url": "https://sanduai.kz/dashboard/ai/preschool-projects"
+    },
+    {
+      "check": "paid_ui_consultation_10_coins_reload_cloud_recovery",
+      "passed": true
+    },
+    {
+      "check": "actual_personalized_guidance_and_ai_usage_one",
+      "passed": true
+    },
+    {
+      "check": "ui_author_notes_saved",
+      "passed": true
+    },
+    {
+      "check": "generic_history_exact_job_deep_link_restores_original_request_result",
+      "passed": true,
+      "job": "ae3c4734-ff6d-4b6b-a8d9-c104079ca11a"
+    },
+    {
+      "check": "browser_ai_declaration_pdf_actual_usage_and_saved_author_notes",
+      "passed": true
+    }
+  ],
+  "browser_errors_or_warnings": 0,
+  "paid_acceptance": {
+    "completed_jobs": 3,
+    "captures": 3,
+    "debits": 3,
+    "coins_each": 10,
+    "duplicate_charge": false
+  },
+  "owned_qa_cleaned": true,
+  "original_users_and_finances_unchanged_before_public_open": true,
+  "original_qa_jobs_reservations_and_zerde_rows_removed": true,
+  "native_parallel_pdf_peak_bytes": 187547648,
+  "backups": [
+    {
+      "timestamp": "20261102T110248Z",
+      "scope": "postgresql-only",
+      "restore_rehearsal": true,
+      "authenticated_offsite": true,
+      "offsite_package_sha256": "214e70368b77f890cb379f2b94f44c79a48d5876bfe75b2cccd3ac3ca937a0d7"
+    },
+    {
+      "timestamp": "20261102T124213Z",
+      "scope": "postgresql-only",
+      "restore_rehearsal": true,
+      "authenticated_offsite": true,
+      "offsite_package_sha256": "f92c49368545df5e8a1c4f92436f211fd743d2f64f4e0c4d049854e5cd274be5"
+    }
+  ],
+  "post_open": {
+    "observed_at_utc": "2026-11-02T13:15:04.955889+00:00",
+    "nginx_5xx_since_open": 0,
+    "app_error_lines_since_open": {
+      "sanduai_backend-api-1": 0,
+      "sanduai_backend-document-worker-1": 0,
+      "sanduai_backend-presentation-worker-1": 0,
+      "sanduai_backend-generation-worker-1": 0,
+      "sanduai_backend-video-worker-1": 0,
+      "sanduai_frontend-frontend-1": 0
+    },
+    "postgres": {
+      "connections": 12,
+      "max_connections": 50,
+      "waiting_locks": 0,
+      "long_active_transactions": 0
+    },
+    "redis": {
+      "rejected_connections": 0,
+      "evicted_keys": 0
+    },
+    "memory_kib": {
+      "MemTotal": 8132676,
+      "MemAvailable": 6479176,
+      "SwapTotal": 4194300,
+      "SwapFree": 4193000
+    },
+    "root_disk_available_bytes": 65705484288,
+    "backup_timer": "active"
+  },
+  "private_operator_evidence_sha256": {
+    "FEATURE-QA-VERIFIED.json": "f8b8e857865aa5f000cd90cca50e145eaedbb38ff5c8ac2edfc03a279d716cdf",
+    "PUBLIC-PRODUCTION-VERIFIED.json": "60cb3c26c7aebe83d38908ecb3f5066d226215d9ba72abb17695355392cc6b61",
+    "POST-OPEN-OBSERVATION.json": "15d60bef86ba4201fc8bccee37c9bef73cd8456b44c6b9b55865ba45eb7c035f",
+    "qa-artifacts/API-VERIFIED.json": "1f42a93faaa1895f15013ac29264dcdada9e47bcc12253d4b5a205947c59e34a",
+    "qa-artifacts/LEDGER-VERIFIED.json": "606dd114896ffafd4a035d211e3d50bca9d081b7d87a2fb44cea235164f138e7",
+    "qa-artifacts/CLEANUP-VERIFIED.json": "468aa903cbafed99ec4a7d6c3a0d0d34f7befa735a540443a402dba444d2ede5",
+    "browser-proof.json": "b4b25e89e49c193b374fadbfb6d923894e6bd8e73d185de844720a8945e3af78",
+    "browser-paid-history.png": "3de0ec23bc7d9801d072788e8f36e7f89abae950a982c44cef9dc9e29511a22f",
+    "browser-ai-declaration.pdf": "3357417e997d6f8c666c575d88ec9bf2329189be0ee0ab23025adb15a392eda0",
+    "forwardfix/INGRESS-REOPENED.json": "f91192600a823aa5b14c4f77bcb8a79a8acda0dc2e109984bede8b6feb66b591",
+    "forwardfix/POINTER-VERIFIED.json": "2e29ddaad60a6ccef7557d345d93f2b6a10b1f7c5ee0514fa34abf2c35a120d3"
+  },
+  "limits": "Classic, Open lesson and Preschool browser checks cover existing forms/navigation/metadata; extra paid generations for these products were not run. Post-open metrics are a bounded observation, not a continuous monitor."
+}

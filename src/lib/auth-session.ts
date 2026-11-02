@@ -20,6 +20,15 @@ export class AuthSessionCoordinationError extends Error {
   }
 }
 
+export class AuthStorageUnavailableError extends Error {
+  readonly code = "AUTH_STORAGE_UNAVAILABLE";
+
+  constructor() {
+    super("This browser does not allow the site to store authentication data.");
+    this.name = "AuthStorageUnavailableError";
+  }
+}
+
 function notifyAuthSessionChangeListeners(): void {
   authSessionChangeListeners.forEach((listener) => listener());
 }
