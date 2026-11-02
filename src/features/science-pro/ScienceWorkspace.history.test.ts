@@ -19,7 +19,7 @@ beforeEach(() => { state.id = "30bdc3b2-41e6-4399-877c-cbab8e93a5d9"; state.quer
 describe("Science history URL boundary", () => {
   it("loads exactly the selected owner-scoped job before displaying a workspace", () => {
     expect(renderToStaticMarkup(createElement(ScienceWorkspace))).toContain("Открываем исходный запрос");
-    expect(state.options).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["science-linked-consultation", "owner", state.id], enabled: true, retry: false }));
+    expect(state.options).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["science-linked-consultation", "owner", state.id], enabled: true, retry: false, staleTime: 0, refetchOnMount: "always" }));
   });
   it("shows the historical request/result and resumes only that job's polling", () => {
     state.query = { ...state.query, isPending: false, data: { request: { ...blankRequest("ru"), title: "Original selected research" }, result: { mode: "idea", title: "Original selected advice", ai_generated: true }, jobId: state.id, projectId: "project", documents: [] } };

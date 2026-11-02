@@ -40,6 +40,8 @@ describe("retained Science consultation input", () => {
     vi.mocked(scienceApi.consultation).mockResolvedValue({ project_id: null, request: blankRequest() });
     vi.mocked(getGenerationJob).mockResolvedValue({ id: jobId, kind: "zerde.consult", status: "completed", result } as unknown as GenerationJob);
     await expect(loadScienceConsultation(jobId)).rejects.toMatchObject({ status: 404 });
+    vi.mocked(getGenerationJob).mockResolvedValue({ id: "40bdc3b2-41e6-4399-877c-cbab8e93a5d9", kind: "science_pro.consult", status: "completed", result } as unknown as GenerationJob);
+    await expect(loadScienceConsultation(jobId)).rejects.toMatchObject({ status: 404 });
     vi.mocked(getGenerationJob).mockResolvedValue({ id: jobId, kind: "science_pro.consult", status: "completed", result: null } as GenerationJob);
     await expect(loadScienceConsultation(jobId)).rejects.toMatchObject({ status: 502 }); expect(scienceApi.assess).not.toHaveBeenCalled();
   });
