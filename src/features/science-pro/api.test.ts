@@ -6,6 +6,10 @@ vi.mock("@/lib/api", () => ({ getToken: () => "private-token", validateGeneratio
 const fetchMock = vi.fn<typeof fetch>(); beforeEach(() => vi.stubGlobal("fetch", fetchMock)); afterEach(() => { vi.unstubAllGlobals(); fetchMock.mockReset(); });
 function json(value: unknown, status = 200) { return new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } }); }
 describe("Scientific PRO private API", () => {
+  it("reads the selected private consultation snapshot with authentication and no cache", async () => {
+    fetchMock.mockResolvedValue(json({ project_id: "original-project", request: blankRequest() })); await scienceApi.consultation("selected-job");
+    const [url, init] = fetchMock.mock.calls[0]; expect(url).toContain("/api/v1/science-pro/consultations/selected-job"); expect(init?.method).toBe("GET"); expect(init?.cache).toBe("no-store"); expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer private-token");
+  });
   it("saves the full scientific context with owner authentication and evidence IDs", async () => {
     fetchMock.mockResolvedValue(json({ id: "saved" })); const request = { ...blankRequest(), grades: [8, 12], contributions: ["", "Second author's own work"], document_ids: ["rules", "research"] }; await scienceApi.save(request, "existing");
     const [url, init] = fetchMock.mock.calls[0]; expect(url).toContain("/api/v1/science-pro/projects/existing"); expect(init?.method).toBe("PUT"); expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer private-token"); expect(JSON.parse(init?.body as string).request).toMatchObject(request);

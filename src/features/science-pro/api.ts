@@ -9,6 +9,7 @@ function request<T>(path: string, method = "GET", body?: unknown, signal?: Abort
 export const scienceApi = {
   catalog: (signal?: AbortSignal) => request<Catalog>("/catalog", "GET", undefined, signal),
   assess: (body: ScienceRequest) => request<Assessment>("/assess", "POST", body),
+  consultation: (jobId: string) => request<{ project_id: string | null; request: ScienceRequest }>(`/consultations/${encodeURIComponent(jobId)}`),
   async consult(body: ScienceRequest, projectId: string, key: string): Promise<GenerationJob> { const h = headers(); h.set("Idempotency-Key", key); const value = await requestJson<unknown>(`${getApiBase()}${PREFIX}/consult`, { method: "POST", headers: h, body: JSON.stringify({ request: body, project_id: projectId }) }, { timeoutMs: 30_000 }); return validateGenerationJobAcknowledgement(value, "science_pro.consult"); },
   projects: () => request<{ items: SavedProject[]; total?: number }>("/projects"),
   save: (body: ScienceRequest, id: string | null) => request<SavedProject>(id ? `/projects/${encodeURIComponent(id)}` : "/projects", id ? "PUT" : "POST", { title: body.title.trim() || "Ғылыми жоба PRO", request: body }),

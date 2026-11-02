@@ -42,6 +42,7 @@ export function GenerationMaterialCard({
 }: GenerationMaterialCardProps) {
   const [downloading, setDownloading] = useState(false);
   const active = isActiveGenerationJob(job);
+  const consultation = job.kind === "zerde.consult" || job.kind === "science_pro.consult";
   const downloadable = job.status === "completed" || job.status === "billing_error";
   const current = Math.max(0, Number(job.progress.current ?? 0));
   const total = Math.max(1, Number(job.progress.total ?? 1));
@@ -109,13 +110,13 @@ export function GenerationMaterialCard({
       )}
 
       <div className="mt-auto grid grid-cols-2 gap-2 pt-5">
-        {job.kind !== "zerde.consult" && <Link
+        {!consultation && <Link
           href={openHref}
           className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
         >
           {language === "kk" ? "Ашу" : "Открыть"}
         </Link>}
-        {job.kind === "zerde.consult" ? <Link href={openHref} className="col-span-2 inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-3 text-sm font-bold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500">{language === "kk" ? "Кеңес пен үлгілер" : "Консультация и шаблоны"}</Link> : <button
+        {consultation ? <Link href={openHref} className="col-span-2 inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-3 text-sm font-bold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500">{language === "kk" ? "Кеңес пен үлгілер" : "Консультация и шаблоны"}</Link> : <button
           type="button"
           onClick={() => void download()}
           disabled={!downloadable || downloading}

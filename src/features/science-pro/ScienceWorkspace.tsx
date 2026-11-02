@@ -1,33 +1,50 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { currentSessionUserId } from "@/hooks/useTokens";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
 import { scienceApi } from "./api";
+import { generationJobIdFromSearchParam } from "@/lib/generation-history";
+import { loadScienceConsultation } from "./recovery";
 import { blankRequest, DOCUMENT_KINDS, eligibility, GROUPS, MODES, parseData, requestFingerprint, restoreDraft, SECTION_FALLBACK } from "./model";
 import { Artwork, DocumentInspection, Field, Icon } from "./ui";
 import ScienceMaterials from "./ScienceMaterials";
 import ScienceResult from "./ScienceResult";
 import ScienceConsultation from "./ScienceConsultation";
 import ScienceUsage from "./ScienceUsage";
-import type { Assessment, Catalog, DocumentKind, Draft, Language, SavedProject, ScienceRequest, UploadedDocument } from "./types";
+import type { Assessment, Catalog, ConsultationSeed, DocumentKind, Draft, Language, SavedProject, ScienceRequest, UploadedDocument } from "./types";
 import s from "./science-pro.module.css";
 
 export default function ScienceWorkspace() {
   const { user } = useAuth();
+  const params = useSearchParams(); const rawJobId = params.get("job"); const jobId = generationJobIdFromSearchParam(rawJobId);
+  if (user && rawJobId !== null) return <LinkedSession key={`${user.userId}:${rawJobId}`} userId={user.userId} jobId={jobId}/>;
   return user ? <Session key={user.userId} userId={user.userId}/> : null;
 }
-function Session({ userId }: { userId: string }) {
-  const [request, setRequest] = useState<ScienceRequest>(() => blankRequest()); const language = request.language; const t = (kk: string, ru: string) => language === "kk" ? kk : ru;
-  const [step, setStep] = useState(0); const [group, setGroup] = useState(0); const [catalog, setCatalog] = useState<Catalog | null>(null); const [catalogError, setCatalogError] = useState(false);
-  const [documents, setDocuments] = useState<UploadedDocument[]>([]); const [dataText, setDataText] = useState(""); const [projectId, setProjectId] = useState<string | null>(null);
-  const [result, setResult] = useState<Assessment | null>(null); const [resultRequest, setResultRequest] = useState<ScienceRequest | null>(null);
+function LinkedSession({ userId, jobId }: { userId: string; jobId: string | null }) {
+  const { language } = useLanguage(); const t = (kk: string, ru: string) => language === "kk" ? kk : ru;
+  const query = useQuery({ queryKey: ["science-linked-consultation", userId, jobId], queryFn: () => loadScienceConsultation(jobId!), enabled: !!jobId, retry: false, refetchOnWindowFocus: false });
+  if (jobId && query.isPending) return <section className={s.workspace} role="status"><p className={s.notice}>{t("Бастапқы сұраныс пен сақталған кеңес ашылуда…", "Открываем исходный запрос и сохранённую консультацию…")}</p></section>;
+  if (query.data) return <Session userId={userId} initial={query.data}/>;
+  return <section className={s.workspace}><p className={s.error} role="alert">{jobId ? teacherFacingErrorMessage(query.error, language) : t("Кеңес сілтемесі қате.", "Некорректная ссылка на консультацию.")}</p>{jobId && <button className={s.secondary} type="button" onClick={() => void query.refetch()}>{t("Қайталау", "Повторить")}</button>}<Link className={s.secondary} href="/dashboard/ai/science-pro">{t("Жоба кабинетіне оралу", "Вернуться в кабинет проекта")}</Link></section>;
+}
+function Session({ userId, initial }: { userId: string; initial?: ConsultationSeed }) {
+  const router = useRouter();
+  const [request, setRequest] = useState<ScienceRequest>(() => initial?.request ?? blankRequest()); const language = request.language; const t = (kk: string, ru: string) => language === "kk" ? kk : ru;
+  const [step, setStep] = useState(initial ? 3 : 0); const [group, setGroup] = useState(0); const [catalog, setCatalog] = useState<Catalog | null>(null); const [catalogError, setCatalogError] = useState(false);
+  const [documents, setDocuments] = useState<UploadedDocument[]>(initial?.documents ?? []); const [dataText, setDataText] = useState(() => initial?.request.data.map(p => `${p.label}; ${p.value}; ${p.status ?? "measured"}; ${p.unit ?? ""}`).join("\n") ?? ""); const [projectId, setProjectId] = useState<string | null>(initial?.projectId ?? null);
+  const [result, setResult] = useState<Assessment | null>(initial?.result ?? null); const [resultRequest, setResultRequest] = useState<ScienceRequest | null>(initial?.request ?? null);
   const [hydrated, setHydrated] = useState(false); const [localSaved, setLocalSaved] = useState(false); const [cloudSaved, setCloudSaved] = useState(false); const [storageError, setStorageError] = useState(false);
   const [busy, setBusy] = useState<string | null>(null); const [error, setError] = useState<string | null>(null); const [uploadError, setUploadError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false); const [projects, setProjects] = useState<SavedProject[]>([]); const [historyLoading, setHistoryLoading] = useState(false); const [deleting, setDeleting] = useState<string | null>(null);
   const [uploadKind, setUploadKind] = useState<DocumentKind>("project"); const alive = useRef(true); const lock = useRef(false); const fileInput = useRef<HTMLInputElement>(null); const resultHeading = useRef<HTMLDivElement>(null);
   const draftKey = `sanduai:science-pro:draft:v1:${userId}`; const parsed = parseData(dataText); const eligible = eligibility(request.grades, language); const mode = MODES.find(m => m.id === request.mode)!; const sections = catalog?.sections?.length ? catalog.sections : SECTION_FALLBACK;
   const unresolvedIds = request.document_ids.filter(id => !documents.some(doc => doc.id === id));
+  const restoredJobId = initial && projectId === initial.projectId && resultRequest && requestFingerprint(initial.request) === requestFingerprint(resultRequest) ? initial.jobId : undefined;
   const dataError = parsed.tooMany ? t("500 жолдан артық емес енгізіңіз.", "Введите не больше 500 строк.") : parsed.invalidLines.length ? t(`Жолдарды тексеріңіз: ${parsed.invalidLines.join(", ")}. Пішім: белгі; сан; мәртебе (міндетті емес).`, `Проверьте строки: ${parsed.invalidLines.join(", ")}. Формат: метка; число; статус (необязательно).`) : null;
   const ownSession = () => alive.current && currentSessionUserId() === userId;
   const body = (): ScienceRequest => ({ ...request, tasks: request.tasks.map(x => x.trim()).filter(Boolean), sources: request.sources.map(x => x.trim()).filter(Boolean), data: parsed.data, document_ids: [...new Set([...request.document_ids, ...documents.map(d => d.id)])] });
@@ -42,18 +59,18 @@ function Session({ userId }: { userId: string }) {
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      try { const value = restoreDraft(JSON.parse(localStorage.getItem(draftKey) ?? "null")); if (value) { setRequest(value.request); setDataText(value.dataText); setDocuments(value.documents); setProjectId(value.projectId); setLocalSaved(true); } } catch { /* Draft storage is optional; the account copy remains available. */ }
+      if (!initial) try { const value = restoreDraft(JSON.parse(localStorage.getItem(draftKey) ?? "null")); if (value) { setRequest(value.request); setDataText(value.dataText); setDocuments(value.documents); setProjectId(value.projectId); setLocalSaved(true); } } catch { /* Draft storage is optional; the account copy remains available. */ }
       setHydrated(true);
     }); return () => { cancelled = true; };
-  }, [draftKey]);
+  }, [draftKey, initial]);
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || initial && requestFingerprint(request) === requestFingerprint(initial.request)) return;
     const timer = setTimeout(() => {
       if (currentSessionUserId() !== userId) return;
       const draft: Draft = { version: 1, request, dataText, documents, projectId };
       try { localStorage.setItem(draftKey, JSON.stringify(draft)); setLocalSaved(true); setStorageError(false); } catch { setLocalSaved(false); setStorageError(true); }
     }, 500); return () => clearTimeout(timer);
-  }, [request, dataText, documents, projectId, draftKey, hydrated, userId]);
+  }, [request, dataText, documents, projectId, draftKey, hydrated, userId, initial]);
   function validateData() { if (!dataError) return true; setError(dataError); setStep(2); window.setTimeout(() => document.getElementById("science-data")?.focus(), 0); return false; }
   async function save() {
     if (lock.current || !validateData()) return; lock.current = true; setBusy("save"); setError(null);
@@ -76,9 +93,10 @@ function Session({ userId }: { userId: string }) {
   async function newProject() {
     if (lock.current || !validateData()) return; lock.current = true; setBusy("new"); setError(null);
     try {
-      if (projectId || requestFingerprint(body()) !== requestFingerprint(blankRequest(language))) await scienceApi.save(body(), projectId);
+      if (!(initial && requestFingerprint(body()) === requestFingerprint(initial.request)) && (projectId || requestFingerprint(body()) !== requestFingerprint(blankRequest(language)))) await scienceApi.save(body(), projectId);
       if (!ownSession()) return;
       setRequest(blankRequest(language)); setProjectId(null); setDocuments([]); setResult(null); setResultRequest(null); setDataText(""); setCloudSaved(false); setHistoryOpen(false); setDeleting(null); setStep(0);
+      if (initial) { try { localStorage.setItem(draftKey, JSON.stringify({ version: 1, request: blankRequest(language), dataText: "", documents: [], projectId: null })); } catch { /* Optional local draft. */ } router.replace("/dashboard/ai/science-pro"); }
     } catch (reason) { if (ownSession()) setError(teacherFacingErrorMessage(reason, language)); }
     finally { lock.current = false; if (ownSession()) setBusy(null); }
   }
@@ -91,7 +109,7 @@ function Session({ userId }: { userId: string }) {
   async function openProject(id: string) {
     if (lock.current || !validateData()) return; lock.current = true; setBusy("open"); setError(null);
     try {
-      if (!cloudSaved && requestFingerprint(body()) !== requestFingerprint(blankRequest(language))) await scienceApi.save(body(), projectId);
+      if (!cloudSaved && !(initial && requestFingerprint(body()) === requestFingerprint(initial.request)) && requestFingerprint(body()) !== requestFingerprint(blankRequest(language))) await scienceApi.save(body(), projectId);
       const project = await scienceApi.open(id); if (!ownSession()) return;
       const recovered = await Promise.allSettled(project.request.document_ids.map(id => scienceApi.document(id))); if (!ownSession()) return;
       const restored = { ...blankRequest(), ...project.request }; setRequest(restored); setDataText(restored.data.map(p => `${p.label}; ${p.value}; ${p.status ?? "measured"}; ${p.unit ?? ""}`).join("\n")); setProjectId(project.id); setDocuments(recovered.flatMap(item => item.status === "fulfilled" ? [item.value] : [])); setResult(project.result); setResultRequest(project.result ? restored : null); setCloudSaved(true); setHistoryOpen(false); setDeleting(null); setStep(project.result ? 3 : 0);
@@ -122,13 +140,14 @@ function Session({ userId }: { userId: string }) {
   const isResult = step === 3 && result && resultRequest;
   return <div className={s.workspace} lang={language}>
     <header className={s.hero}><div><p className={s.eyebrow}>SanduAI · Scientific Research <span>PRO</span></p><h1>{t("Ғылыми жоба", "Научный проект")} <em>PRO</em></h1><p className={s.intro}>{t("Идеяңызды дәлелге негізделген зерттеуге айналдырыңыз. Ғылыми сұрақтан — облыстық және республикалық қорғауға дайындыққа дейін.", "Превратите свою идею в исследование с доказательствами. От научного вопроса — к подготовке к областной и республиканской защите.")}</p><div className={s.heroMeta}><span><Icon name="people"/>{t("8–12-сынып · 1–2 автор", "8–12 класс · 1–2 автора")}</span><span><Icon name="layers"/>{t("19 секция", "19 секций")}</span><span><Icon name="shield"/>{t("Өз зерттеуіңіз. Нақты дәлел.", "Ваше исследование. Реальные доказательства.")}</span></div></div><div className={s.heroVisual}><Artwork/><span className={s.artCaption}>{t("Сұрақ · Әдіс · Дәлел · Нәтиже", "Вопрос · Метод · Доказательства · Результат")}</span></div></header>
-    <div className={s.toolbar}><p className={s.statusLine} role="status"><span className={`${s.statusDot} ${!localSaved && !cloudSaved ? s.unsaved : ""}`}/>{!hydrated ? t("Жоба жүктелуде…", "Загружаем проект…") : busy === "save" ? t("Аккаунтқа сақталуда…", "Сохраняем в аккаунт…") : cloudSaved ? t("Аккаунтта сақталған", "Сохранено в аккаунте") : storageError ? t("Құрылғыға автосақтау қолжетімсіз. Аккаунтқа сақтаңыз.", "Автосохранение на устройстве недоступно. Сохраните в аккаунт.") : localSaved ? t("Құрылғыда автосақталды", "Автоматически сохранено на устройстве") : t("Өзгерістер сақталуда…", "Сохраняем изменения…")}</p><div className={s.toolbarActions}><label className={s.srOnly} htmlFor="science-language">{t("Жауап тілі", "Язык ответа")}</label><select id="science-language" value={language} disabled={!!busy} onChange={e => { update({ language: e.target.value as Language }); if (step === 3) go(2); }}><option value="kk">Қазақша</option><option value="ru">Русский</option></select><button type="button" className={s.secondary} disabled={!!busy || !hydrated} onClick={() => void loadHistory()} aria-expanded={historyOpen}><Icon name="history"/>{t("Жобаларым", "Мои проекты")}</button><button type="button" className={s.secondary} disabled={!!busy || !hydrated} onClick={() => void save()}><Icon name="check"/>{t("Сақтау", "Сохранить")}</button><button type="button" className={s.secondary} disabled={!!busy || !hydrated} onClick={() => void newProject()}><Icon name="plus"/>{t("Жаңа", "Новый")}</button></div></div>
+    <div className={s.toolbar}><p className={s.statusLine} role="status"><span className={`${s.statusDot} ${!localSaved && !cloudSaved ? s.unsaved : ""}`}/>{!hydrated ? t("Жоба жүктелуде…", "Загружаем проект…") : busy === "save" ? t("Аккаунтқа сақталуда…", "Сохраняем в аккаунт…") : cloudSaved ? t("Аккаунтта сақталған", "Сохранено в аккаунте") : initial && restoredJobId ? t("Кеңестің бастапқы сұранысы", "Исходный запрос консультации") : storageError ? t("Құрылғыға автосақтау қолжетімсіз. Аккаунтқа сақтаңыз.", "Автосохранение на устройстве недоступно. Сохраните в аккаунт.") : localSaved ? t("Құрылғыда автосақталды", "Автоматически сохранено на устройстве") : t("Өзгерістер сақталуда…", "Сохраняем изменения…")}</p><div className={s.toolbarActions}><label className={s.srOnly} htmlFor="science-language">{t("Жауап тілі", "Язык ответа")}</label><select id="science-language" value={language} disabled={!!busy} onChange={e => { update({ language: e.target.value as Language }); if (step === 3) go(2); }}><option value="kk">Қазақша</option><option value="ru">Русский</option></select><button type="button" className={s.secondary} disabled={!!busy || !hydrated} onClick={() => void loadHistory()} aria-expanded={historyOpen}><Icon name="history"/>{t("Жобаларым", "Мои проекты")}</button><button type="button" className={s.secondary} disabled={!!busy || !hydrated} onClick={() => void save()}><Icon name="check"/>{t("Сақтау", "Сохранить")}</button><button type="button" className={s.secondary} disabled={!!busy || !hydrated} onClick={() => void newProject()}><Icon name="plus"/>{t("Жаңа", "Новый")}</button></div></div>
+    {initial && <p className={s.notice} role="status">{t("Тарихтағы кеңес бастапқы сұраныспен ашылды. Ағымдағы жоба өзгертілмеді.", "Консультация открыта с исходным запросом. Текущий проект не изменён.")}</p>}
     {error && <p className={s.error} role="alert">{error}</p>}
     {catalogError && <p className={s.notice}><Icon name="book"/>{t("Сервер каталогымен байланыс үзілді. ТЗ бойынша секциялар көрсетіліп тұр; файл, сақтау және тексеріс үшін серверге қосылу қажет.", "Каталог сервера пока недоступен. Показаны секции из ТЗ; для файлов, сохранения и проверки нужно подключение к серверу.")}</p>}
     {historyOpen && <section className={s.history}><div className={s.historyHeading}><h2>{t("Сіздің зерттеу жобаларыңыз", "Ваши исследовательские проекты")}</h2><button type="button" className={s.iconButton} aria-label={t("Жобалар тізімін жабу", "Закрыть список проектов")} onClick={() => setHistoryOpen(false)}><Icon name="close"/></button></div>{historyLoading ? <p role="status" className={s.hint}>{t("Жүктелуде…", "Загрузка…")}</p> : projects.length ? <div className={s.historyGrid}>{projects.map(project => <article className={s.historyCard} key={project.id}><button type="button" disabled={!!busy} onClick={() => void openProject(project.id)}><strong>{project.title}</strong><small>{new Date(project.updated_at).toLocaleDateString(language === "kk" ? "kk-KZ" : "ru-RU")} · {MODES.find(m => m.id === project.request.mode)?.[language === "kk" ? "kk" : "ru"]}</small></button><button type="button" disabled={!!busy} className={s.iconButton} aria-label={t(`«${project.title}» жобасын жою`, `Удалить проект «${project.title}»`)} onClick={() => setDeleting(project.id)}><Icon name="close"/></button></article>)}</div> : <p className={s.hint}>{t("Аккаунтта сақталған жобалар әлі жоқ. Бірінші идеяңыздан бастаңыз.", "Сохранённых проектов пока нет. Начните со своей первой идеи.")}</p>}{deleting && <div className={s.deleteConfirm}><p>{t("Жоба аккаунттан жойылады. Қазір ашық материалдар құрылғыда қалады.", "Проект будет удалён из аккаунта. Открытые материалы останутся на устройстве.")}</p><button type="button" className={s.secondary} disabled={!!busy} onClick={() => void deleteProject(deleting)}>{t("Жобаны жою", "Удалить проект")}</button><button type="button" className={s.textButton} disabled={!!busy} onClick={() => setDeleting(null)}>{t("Болдырмау", "Отмена")}</button></div>}</section>}
     <nav className={s.steps} aria-label={t("Зерттеу кеңістігінің қадамдары", "Шаги исследовательского пространства")}>{[["Жоба туралы", "О проекте"], ["Көмек түрі", "Вид помощи"], ["Материалдар", "Материалы"], ["Нәтиже", "Результат"]].map(([kk, ru], i) => <button type="button" key={i} disabled={!!busy || i === 3 && !result} className={step === i ? s.activeStep : ""} aria-current={step === i ? "step" : undefined} onClick={() => go(i)}><span>{i + 1}</span><strong>{t(kk, ru)}</strong></button>)}</nav>
     {busy === "assess" || busy === "open" ? <div className={`${s.panel} ${s.loading}`} role="status"><span className={s.loader}/><strong>{busy === "open" ? t("Жоба мен файлдар ашылуда…", "Открываем проект и файлы…") : t("Материалдар мен зерттеу логикасы тексерілуде…", "Проверяем материалы и логику исследования…")}</strong><p>{t("Енгізген деректеріңіз сақталған.", "Введённые данные сохранены.")}</p></div> : isResult ? <div ref={resultHeading} tabIndex={-1}>
-      {projectId && <ScienceConsultation key={`${projectId}:${requestFingerprint(resultRequest)}`} request={resultRequest} projectId={projectId} userId={userId} cost={catalog?.ai_cost_tokens ?? null} onResult={value => { setResult(value); }}/>} {projectId && <ScienceUsage projectId={projectId} userId={userId} language={resultRequest.language} refreshKey={result.ai_generated}/>}
+      {(projectId || restoredJobId) && <ScienceConsultation key={`${projectId}:${restoredJobId ?? ""}:${requestFingerprint(resultRequest)}`} request={resultRequest} projectId={projectId} userId={userId} initialJobId={restoredJobId} cost={catalog?.ai_cost_tokens ?? null} onResult={value => { setResult(value); }}/>} {projectId && <ScienceUsage projectId={projectId} userId={userId} language={resultRequest.language} refreshKey={result.ai_generated}/>}
       <ScienceResult key={`${projectId}:${resultRequest.mode}`} result={result} request={resultRequest} projectId={projectId} userId={userId} onEdit={() => go(2)}/>
     </div> : <div className={s.columns}><fieldset className={s.main} disabled={!!busy || !hydrated}>
       {step === 0 && <section className={s.panel}><PanelHeading number="01" eyebrow={t("Алғашқы қадам", "Первый шаг")} title={t("Зерттеуіңізді таныстырыңыз", "Расскажите о своём исследовании")} description={t("Бар мәліметтен бастаңыз. Толық емес жобаға да келесі пайдалы қадам табылады.", "Начните с того, что уже знаете. Следующий полезный шаг найдётся и для незавершённой идеи.")}/>

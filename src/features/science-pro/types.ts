@@ -38,4 +38,5 @@ export interface UploadedDocument {
 export interface SavedProject { id: string; title: string; request: ScienceRequest; result: Assessment | null; created_at: string; updated_at: string }
 export interface AiUsage { id: string; project_id: string; used_at: string; tool: string; model_version: string | null; stage: string; purpose: string; prompt_summary: string; output_use_location: string; author_verification: string; author_changes: string }
 export interface Draft { version: 1; request: ScienceRequest; dataText: string; projectId: string | null; documents: UploadedDocument[] }
+export interface ConsultationSeed { request: ScienceRequest; result: Assessment; projectId: string | null; jobId: string; documents: UploadedDocument[] }
 export interface ExportFormatting { font_family: "Times New Roman" | "Arial" | "Calibri"; font_size: number; line_spacing: number; margins_cm: { left: number; right: number; top: number; bottom: number }; source: "editorial" | "user_provided"; source_clause: string }
