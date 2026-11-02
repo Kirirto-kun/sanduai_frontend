@@ -15,7 +15,8 @@ export function ChatWidgetWrapper() {
   if (
     !isAuthenticated ||
     pathname === "/dashboard/sandubot" ||
-    pathname === "/dashboard/media/video"
+    pathname === "/dashboard/media/video" ||
+    pathname === "/dashboard/ai/coaching"
   )
     return null;
 
