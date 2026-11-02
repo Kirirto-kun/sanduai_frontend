@@ -149,6 +149,13 @@ const AI_TRAININGS: NavItem = {
   isNew: true,
 };
 
+const AI_COACHING: NavItem = {
+  key: "coaching",
+  href: "/dashboard/ai/coaching",
+  label: { ru: "Коучинг PRO", kk: "Коучинг PRO" },
+  isNew: true,
+};
+
 const AI_PRESCHOOL_PROJECTS: NavItem = {
   key: "preschool-projects",
   href: "/dashboard/ai/preschool-projects",
@@ -190,6 +197,7 @@ const SCHOOL: NavSegment = {
         AI_PEDAGOGICAL_IDEAS,
         AI_MASTERCLASSES,
         AI_TRAININGS,
+        AI_COACHING,
       ],
     },
     {
@@ -337,6 +345,7 @@ const KINDERGARTEN: NavSegment = {
         AI_SCENARIO,
         AI_MASTERCLASSES,
         AI_TRAININGS,
+        AI_COACHING,
         AI_PRESCHOOL_PROJECTS,
         AI_SCIPROJECT,
         AI_WORKSHEET,
@@ -411,6 +420,7 @@ const LIBRARY: NavSegment = {
         AI_COMICS,
         AI_MASTERCLASSES,
         AI_TRAININGS,
+        AI_COACHING,
       ],
     },
     {
