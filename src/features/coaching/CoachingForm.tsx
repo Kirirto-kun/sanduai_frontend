@@ -78,7 +78,7 @@ export default function CoachingForm({ input, onChange, onSubmit, language, cost
         <div className={s.included}><p>{t("В вашем комплекте", "Сіздің жинағыңызда")}</p><ul>{[
           t("9 этапов с точным таймингом", "Нақты уақытпен 9 кезең"), t("Готовые слова ведущего", "Жүргізушінің дайын сөзі"), t("3 связанных практических задания", "Өзара байланысты 3 тапсырма"), t("Карточки и тексты слайдов", "Карточкалар мен слайд мәтіндері"), t("Рефлексия и оценка результата", "Рефлексия және нәтижені бағалау"),
         ].map(item => <li key={item}><Icon name="check" />{item}</li>)}</ul></div>
-        {insufficient && <p className={s.hint}>{t("Недостаточно токенов.", "Токендер жеткіліксіз.")} <Link href="/dashboard/tokens">{t("Пополнить баланс", "Балансты толықтыру")}</Link></p>}
+        {insufficient && <p className={s.hint}>{t("Недостаточно токенов.", "Токендер жеткіліксіз.")} <Link href="/dashboard/profile">{t("Профиль и баланс", "Профиль және баланс")}</Link></p>}
         <button type="submit" className={s.primary} disabled={busy || insufficient || cost === null || !input.defaults_accepted}><Icon name="spark" />{busy ? t("Отправляем…", "Жіберілуде…") : t("Создать коучинг", "Коучинг жасау")}</button>
         <div className={s.cost}><span>{cost === null ? t("Уточняем стоимость…", "Құны анықталуда…") : `${cost} ${t("токенов", "токен")}`}</span><span>{t("Баланс", "Баланс")}: {balance ?? "—"}</span></div>
         <p role="status" className={s.draft}>{saved ? t("Черновик сохранён на этом устройстве", "Жоба осы құрылғыда сақталды") : t("Изменения сохраняются автоматически", "Өзгерістер автоматты түрде сақталады")}</p>
