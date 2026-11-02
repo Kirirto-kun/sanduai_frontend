@@ -356,7 +356,7 @@ function ComicsContent() {
           {result && !loading && (
             <ImageCard
               imageUrl={result.image_url}
-              filename={`comic-${Date.now()}.png`}
+              filename={`comic-${currentJobId ?? "result"}.png`}
               title={result.title}
               labels={{
                 download: t.download,

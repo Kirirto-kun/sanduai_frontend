@@ -345,7 +345,7 @@ function KornekilikContent() {
           {result && !loading && (
             <ImageCard
               imageUrl={result.image_url}
-              filename={`kornekilik-${Date.now()}.png`}
+              filename={`kornekilik-${currentJobId ?? "result"}.png`}
               title={result.title}
               labels={{
                 download: t.download,
