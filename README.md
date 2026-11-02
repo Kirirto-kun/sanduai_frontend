@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sandu AI — frontend
 
-## Getting Started
+Образовательная платформа на Next.js 16 и React 19. Правила веток, проверок и ручного релиза: [REPOSITORY-WORKFLOW.md](docs/REPOSITORY-WORKFLOW.md).
 
-First, run the development server:
+В `main` объединены пять модулей: Open Lesson, Training, Preschool Project Pro, Zerde Pro и Science Pro. Классический КМЖ сохранён отдельным планировщиком. На production из этих пяти модулей опубликованы Open Lesson, Preschool и Zerde; Training и Science находятся в исходном коде для последующего отдельного релиза.
+
+Ветка `production` закрепляет фактически опубликованный frontend `2acb11d14cbd9eced5ca75aeca584023d05b5959`. Изменения `main` не развёртывают код на VPS. Подтверждённый выпуск описан в [отчёте Zerde](docs/DEPLOYMENT-ZERDE-2026-11-02.md) и его обезличенной ведомости доказательств.
+
+## Локальный запуск
+
+Нужны Node.js 24, npm и отдельно запущенный backend.
+
+```bash
+npm ci
+```
+
+Создайте локальный `.env.local`:
+
+```dotenv
+NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000
+```
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Интерфейс откроется на `http://localhost:3000`. Для production-сборки публичный API origin — `https://api.sanduai.kz`; параметры конфигурации и проверки находятся в `.github/workflows/ci.yml`. Локальные env, credentials и QA-артефакты в Git не добавляются.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Проверки
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm audit --audit-level=high
+npm run validate:api-base
+npm test
+npm run lint
+npx tsc --noEmit
+npm run build
+```
 
-## Learn More
+Если изолированный Windows checkout использует junction на зависимости вне корня проекта, для локальной проверки сборки используйте `npx next build --webpack`. Канонический image собирается отдельно со своими зависимостями; эта команда не меняет release-конфигурацию.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Перед изменениями прочитайте `AGENTS.md` и соответствующую документацию установленного Next.js в `node_modules/next/dist/docs/`. История, авторизация, платные операции и скачивания проверяются вместе с согласованным API-контрактом backend.
