@@ -73,4 +73,13 @@ describe("auth error copy", () => {
       "login",
     )).toContain("обновлённом браузере");
   });
+
+  it.each(["ru", "kk"] as const)("explains browser and storage restrictions separately in %s", (language) => {
+    const storage = authErrorMessage({ code: "AUTH_STORAGE_UNAVAILABLE" }, language, "login");
+    const coordination = authErrorMessage({ code: "AUTH_SESSION_COORDINATION_UNAVAILABLE" }, language, "login");
+    expect(storage).toContain("cookies");
+    expect(coordination).toContain("Chrome");
+    expect(storage).not.toBe(coordination);
+    expect(storage).not.toContain("AUTH_STORAGE");
+  });
 });

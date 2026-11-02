@@ -1,6 +1,6 @@
 import { getApiBase } from "./api-base";
 import {
-  AuthSessionCoordinationError,
+  AuthStorageUnavailableError,
   clearAuthLogoutTombstone,
   hasAuthLogoutTombstone,
   markAuthLogoutTombstone,
@@ -1227,7 +1227,7 @@ function assertAuthStorageAvailable(): void {
     window.localStorage.setItem(probeKey, "1");
     window.localStorage.removeItem(probeKey);
   } catch {
-    throw new AuthSessionCoordinationError();
+    throw new AuthStorageUnavailableError();
   }
 }
 
