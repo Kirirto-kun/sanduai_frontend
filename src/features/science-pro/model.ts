@@ -53,6 +53,10 @@ export function eligibility(grades: number[], language: Language) {
 }
 export function barGeometry(value: number, maximum: number) { const width = Math.abs(value) / Math.max(maximum, 1) * 50; return { width: `${width}%`, left: `${value < 0 ? 50 - width : 50}%` }; }
 export function requestFingerprint(request: ScienceRequest) { return JSON.stringify({ ...request, document_ids: [...new Set(request.document_ids)].sort() }); }
+export function hasResearchContext(request: ScienceRequest) {
+  const texts = [request.title, request.idea, request.problem, request.relevance, request.research_question, request.goal, request.object, request.subject, request.hypothesis, request.materials, request.equipment, request.existing_results, request.authored_text, request.abstract_text, request.english_abstract, request.novelty, request.practical_significance, request.safety, request.limitations, request.stages, request.recording, request.expert_answer];
+  return texts.some(text => text.trim()) || [request.tasks, request.methods, request.sources, request.contributions].some(items => items.some(item => item.trim())) || request.data.length > 0 || request.document_ids.length > 0 || request.diary.some(entry => Object.values(entry).some(value => value.trim()));
+}
 export function isAssessment(value: unknown): value is Assessment {
   if (!value || typeof value !== "object") return false; const r = value as Partial<Assessment>;
   return MODES.some(m => m.id === r.mode) && typeof r.title === "string" && Array.isArray(r.sections) && r.sections.every(s => !!s && typeof s.id === "string" && typeof s.title === "string" && typeof s.body === "string" && Array.isArray(s.questions)) && Array.isArray(r.checks) && Array.isArray(r.next_steps) && !!r.provenance && typeof r.ai_generated === "boolean";

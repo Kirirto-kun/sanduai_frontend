@@ -5,7 +5,7 @@ import { cancelGenerationJob, getGenerationJob } from "@/lib/api";
 import { currentSessionUserId, useTokens } from "@/hooks/useTokens";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
 import { scienceApi } from "./api";
-import { isAssessment, requestFingerprint } from "./model";
+import { hasResearchContext, isAssessment, requestFingerprint } from "./model";
 import { Icon } from "./ui";
 import type { Assessment, ScienceRequest } from "./types";
 import s from "./science-pro.module.css";
@@ -20,7 +20,7 @@ export default function ScienceConsultation({ request, projectId, userId, cost, 
   const query = useQuery({ queryKey: ["science-pro-consult", userId, jobId], queryFn: () => getGenerationJob(jobId!), enabled: !!jobId, retry: 1, refetchInterval: q => q.state.status === "error" || q.state.data && TERMINAL.has(q.state.data.status) ? false : 1800 });
   const job = query.data?.kind === "science_pro.consult" ? query.data : null;
   const active = !!jobId && (!job || !TERMINAL.has(job.status)) && !query.isError;
-  const enough = !!(request.idea.trim() || request.title.trim() || request.authored_text.trim() || request.research_question.trim() || request.document_ids.length || request.data.length || request.expert_answer.trim());
+  const enough = hasResearchContext(request);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
     let cancelled = false;

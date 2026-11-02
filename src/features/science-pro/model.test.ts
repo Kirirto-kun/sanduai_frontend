@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barGeometry, blankDiaryEntry, blankRequest, EVIDENCE_STATUSES, eligibility, isDraft, MODE_TEMPLATE, MODES, parseData, requestFingerprint, restoreDraft, SECTION_FALLBACK, wordCount } from "./model";
+import { barGeometry, blankDiaryEntry, blankRequest, EVIDENCE_STATUSES, eligibility, hasResearchContext, isDraft, MODE_TEMPLATE, MODES, parseData, requestFingerprint, restoreDraft, SECTION_FALLBACK, wordCount } from "./model";
 import type { Draft } from "./types";
 
 function draft(): Draft { return { version: 1, request: blankRequest(), dataText: "", projectId: null, documents: [] }; }
@@ -14,6 +14,15 @@ describe("Scientific Research PRO content boundaries", () => {
   it("starts in Kazakh and retains all author-entered passport fields", () => {
     const request = blankRequest(); expect(request.language).toBe("kk"); expect(request.grades).toEqual([9]); expect(request.competition).toBe(""); expect(request.stages).toBe(""); expect(request.recording).toBe(""); expect(request.supervisor).toBe(null); expect(request.data).toEqual([]);
     expect(Object.keys(blankDiaryEntry())).toEqual(["date", "stage", "goal", "action", "data", "difficulties", "changes", "evidence", "author"]);
+  });
+  it("allows consultation from partial real materials without requiring a title or idea", () => {
+    const request = blankRequest(); expect(hasResearchContext(request)).toBe(false);
+    expect(hasResearchContext({ ...request, diary: [{ ...blankDiaryEntry(), action: "Сынақ өткіздім" }] })).toBe(true);
+    expect(hasResearchContext({ ...request, sources: ["Actual author and source"] })).toBe(true);
+    expect(hasResearchContext({ ...request, problem: "Real local research problem", goal: "Study this problem" })).toBe(true);
+    expect(hasResearchContext({ ...request, methods: ["observation"] })).toBe(true);
+    expect(hasResearchContext({ ...request, abstract_text: "Own research abstract" })).toBe(true);
+    expect(hasResearchContext({ ...request, sources: ["   "], diary: [blankDiaryEntry()] })).toBe(false);
   });
 });
 describe("Evidence-safe data entry", () => {
