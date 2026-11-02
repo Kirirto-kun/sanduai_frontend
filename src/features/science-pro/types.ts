@@ -12,7 +12,7 @@ export interface ScienceRequest {
   project_type: ProjectType; stage: number; direction: string; idea: string; problem: string; relevance: string; research_question: string; goal: string; tasks: string[];
   object: string; subject: string; hypothesis: string; methods: string[]; sources: string[]; region: string; supervisor: boolean | null;
   materials: string; equipment: string; deadline: string; data_status: "not_started" | "collecting" | "collected"; existing_results: string;
-  authored_text: string; abstract_text: string; english_abstract: string; data: Datum[]; diary: DiaryEntry[]; contributions: string[];
+  authored_text: string; abstract_text: string; english_abstract: string; data: Datum[]; data_order: "comparison" | "time"; percent_change_meaningful: boolean; diary: DiaryEntry[]; contributions: string[];
   novelty: string; practical_significance: string; safety: string; limitations: string; stages: string; recording: string; expert_level: number; expert_question: string;
   expert_answer: string; document_ids: string[];
 }

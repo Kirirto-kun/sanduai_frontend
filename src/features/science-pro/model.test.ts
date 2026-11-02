@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barGeometry, blankDiaryEntry, blankRequest, EVIDENCE_STATUSES, eligibility, isDraft, MODE_TEMPLATE, MODES, parseData, requestFingerprint, SECTION_FALLBACK, wordCount } from "./model";
+import { barGeometry, blankDiaryEntry, blankRequest, EVIDENCE_STATUSES, eligibility, isDraft, MODE_TEMPLATE, MODES, parseData, requestFingerprint, restoreDraft, SECTION_FALLBACK, wordCount } from "./model";
 import type { Draft } from "./types";
 
 function draft(): Draft { return { version: 1, request: blankRequest(), dataText: "", projectId: null, documents: [] }; }
@@ -41,5 +41,11 @@ describe("Private versioned draft recovery", () => {
   it("fingerprints evidence and authored answers while deduplicating file order", () => {
     const a = { ...blankRequest(), document_ids: ["b", "a"] }; const b = { ...a, document_ids: ["a", "b", "a"] }; expect(requestFingerprint(a)).toBe(requestFingerprint(b));
     expect(requestFingerprint({ ...a, expert_answer: "My own answer" })).not.toBe(requestFingerprint(a));
+  });
+  it("recovers additive schema fields without losing an existing author's materials", () => {
+    const old = { ...draft(), request: { ...blankRequest(), authored_text: "Менің нақты зерттеуім" } };
+    const partial = old.request as Partial<typeof old.request>; delete partial.stages; delete partial.recording; delete partial.data_order; delete partial.percent_change_meaningful;
+    expect(restoreDraft(old)?.request).toMatchObject({ authored_text: "Менің нақты зерттеуім", stages: "", recording: "", data_order: "comparison", percent_change_meaningful: false });
+    expect(restoreDraft({ ...old, request: { ...old.request, injected: true } })).toBeNull();
   });
 });
