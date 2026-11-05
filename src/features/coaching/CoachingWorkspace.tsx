@@ -9,6 +9,7 @@ import { useTokens, currentSessionUserId } from "@/hooks/useTokens";
 import { cancelGenerationJob, clearGenerationIntentForJob, enqueueGenerationJob, getGenerationJob, listGenerationJobs } from "@/lib/api";
 import { generationJobIdFromSearchParam, isUnavailableGenerationJobError } from "@/lib/generation-history";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
+import { getErrorStatus } from "@/lib/error-utils";
 import { blankCoaching, isCoachingDraft, coachingSubmission, isCoachingResult, COACHING_PATH } from "./model";
 import CoachingForm from "./CoachingForm";
 import CoachingResult from "./CoachingResult";
@@ -29,6 +30,7 @@ function CoachingSession({ userId }: { userId: string }) {
   const [input, setInput] = useState(blankCoaching); const [saved, setSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false); const [error, setError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false); const [cancelling, setCancelling] = useState(false);
+  const [cancelUnavailableJobId, setCancelUnavailableJobId] = useState<string | null>(null);
   const loaded = useRef(false); const submissionLock = useRef(false); const handled = useRef<string | null>(null);
   const draftKey = `sanduai:coaching-draft:v1:${userId}`;
   const rawJobId = params.get("job"); const jobId = generationJobIdFromSearchParam(rawJobId);
@@ -79,10 +81,19 @@ function CoachingSession({ userId }: { userId: string }) {
     finally { submissionLock.current = false; if (currentSessionUserId() === userId) setSubmitting(false); }
   }
   async function cancel() {
-    if (!current) return; setCancelling(true); setError(null);
-    try { const next = await cancelGenerationJob(current.id); if (currentSessionUserId() === userId) cache.setQueryData(["coaching-job", userId, current.id], next); }
-    catch (reason) { if (currentSessionUserId() === userId) setError(teacherFacingErrorMessage(reason, language)); }
-    finally { if (currentSessionUserId() === userId) setCancelling(false); }
+    if (!current || current.status !== "queued" || current.cancel_requested || cancelling || cancelUnavailableJobId === current.id || currentSessionUserId() !== userId) return;
+    const cancelledJobId = current.id;
+    setCancelling(true); setError(null);
+    try {
+      const next = await cancelGenerationJob(cancelledJobId);
+      if (currentSessionUserId() === userId) cache.setQueryData(["coaching-job", userId, cancelledJobId], next);
+    } catch (reason) {
+      if (currentSessionUserId() !== userId) return;
+      if (getErrorStatus(reason) === 409) {
+        setCancelUnavailableJobId(cancelledJobId);
+        await cache.invalidateQueries({ queryKey: ["coaching-job", userId, cancelledJobId], exact: true });
+      } else setError(teacherFacingErrorMessage(reason, language));
+    } finally { if (currentSessionUserId() === userId) setCancelling(false); }
   }
   const historyItems = [...new Map((history.data?.pages.flatMap(p => p.items) ?? []).map(x => [x.id, x])).values()];
   const statusLabel = (status: string) => status === "completed" ? t("Готово", "Дайын") : status === "failed" ? t("Не удалось создать", "Жасау мүмкін болмады") : status === "cancelled" ? t("Отменено", "Бас тартылды") : status === "billing_error" ? t("Материал сохранён", "Материал сақталды") : t("Готовится", "Дайындалуда");
@@ -93,9 +104,10 @@ function CoachingSession({ userId }: { userId: string }) {
     {rawJobId && !jobId && <div className={s.error} role="alert">{t("Ссылка на материал некорректна. Откройте встречу из истории.", "Материал сілтемесі қате. Кездесуді тарихтан ашыңыз.")}</div>}
     {job.isError && <div className={s.error} role="alert"><p>{teacherFacingErrorMessage(job.error, language)}</p><button type="button" className={`${s.secondary} mt-3`} onClick={() => void job.refetch()}>{t("Проверить снова", "Қайта тексеру")}</button></div>}
     {job.data && !current && <div className={s.error} role="alert">{t("Это материал другого раздела. Откройте его в общей истории.", "Бұл басқа бөлімнің материалы. Оны жалпы тарихтан ашыңыз.")}</div>}
+    {active && current?.id === cancelUnavailableJobId && <div role="status" className={s.notice}>{t("Задание уже вышло из очереди, поэтому отменить его не удалось.", "Тапсырма енді кезекте емес, сондықтан одан бас тарту мүмкін болмады.")}</div>}
     {current?.status === "billing_error" && result && <div role="status" className={s.notice}>{t("Материал сохранён. Проверка оплаты ещё не завершена; повторная генерация не требуется.", "Материал сақталды. Төлемді тексеру әлі аяқталған жоқ; қайта жасау қажет емес.")}</div>}
     {current && TERMINAL.has(current.status) && !result && <div role="alert" className={s.error}><strong>{statusLabel(current.status)}</strong><p>{current.status === "failed" ? t("Попробуйте ещё раз. Статус возврата токенов доступен в общей истории.", "Қайталап көріңіз. Токендердің қайтарылу күйі жалпы тарихта көрсетіледі.") : current.status === "cancelled" ? t("Можно изменить параметры и создать новую встречу.", "Параметрлерді өзгертіп, жаңа кездесу жасауға болады.") : t("Результат пока недоступен. Откройте общую историю.", "Нәтиже әзірге қолжетімсіз. Жалпы тарихты ашыңыз.")}</p></div>}
-    {busy ? <section className={s.loading} role="status" aria-live="polite"><div className={s.loader} aria-hidden="true" /><h2>{submitting ? t("Передаём вашу идею…", "Идеяңызды жіберудеміз…") : t("Создаём вашу следующую встречу", "Келесі кездесуіңізді жасаудамыз")}</h2><p>{submitting ? t("Дождитесь подтверждения приёма задания.", "Тапсырманың қабылдануын күтіңіз.") : current ? t("Задание принято. Можно закрыть страницу: работа продолжится, а материал останется в истории.", "Тапсырма қабылданды. Бетті жабуға болады: жұмыс жалғасып, материал тарихта сақталады.") : t("Загружаем сохранённое задание…", "Сақталған тапсырма жүктелуде…")}</p><div className={s.loadingSteps}><span><Icon name="book" />{t("Концепция", "Концепция")}</span><span><Icon name="file" />{t("Сценарий и задания", "Сценарий мен тапсырмалар")}</span><span><Icon name="shield" />{t("Проверка качества", "Сапаны тексеру")}</span></div>{current && <p>{current.status === "queued" ? t("Коучинг в очереди на подготовку.", "Коучинг дайындау кезегінде.") : current.status === "refunding" ? t("Подготовка не завершена. Возвращаем токены.", "Дайындау аяқталмады. Токендер қайтарылуда.") : current.status === "settling" ? t("Сохраняем материал и завершаем расчёт.", "Материалды сақтап, есеп айырысуды аяқтаудамыз.") : t("Пишем задания и проверяем структуру. Подготовка может занять несколько минут.", "Тапсырмаларды жазып, құрылымды тексерудеміз. Дайындау бірнеше минут алуы мүмкін.")}</p>}{error && <p role="alert" className={s.error}>{error}</p>}{current && ["queued", "running"].includes(current.status) && <button type="button" className={`${s.secondary} mt-6`} disabled={cancelling || current.cancel_requested} onClick={() => void cancel()}>{cancelling || current.cancel_requested ? t("Отмена запрошена…", "Бас тарту сұралды…") : t("Отменить подготовку", "Дайындаудан бас тарту")}</button>}</section>
+    {busy ? <section className={s.loading} role="status" aria-live="polite"><div className={s.loader} aria-hidden="true" /><h2>{submitting ? t("Передаём вашу идею…", "Идеяңызды жіберудеміз…") : t("Создаём вашу следующую встречу", "Келесі кездесуіңізді жасаудамыз")}</h2><p>{submitting ? t("Дождитесь подтверждения приёма задания.", "Тапсырманың қабылдануын күтіңіз.") : current ? t("Задание принято. Можно закрыть страницу: работа продолжится, а материал останется в истории.", "Тапсырма қабылданды. Бетті жабуға болады: жұмыс жалғасып, материал тарихта сақталады.") : t("Загружаем сохранённое задание…", "Сақталған тапсырма жүктелуде…")}</p><div className={s.loadingSteps}><span><Icon name="book" />{t("Концепция", "Концепция")}</span><span><Icon name="file" />{t("Сценарий и задания", "Сценарий мен тапсырмалар")}</span><span><Icon name="shield" />{t("Проверка качества", "Сапаны тексеру")}</span></div>{current && <p>{current.status === "queued" ? t("Коучинг в очереди на подготовку.", "Коучинг дайындау кезегінде.") : current.status === "refunding" ? t("Подготовка не завершена. Возвращаем токены.", "Дайындау аяқталмады. Токендер қайтарылуда.") : current.status === "settling" ? t("Сохраняем материал и завершаем расчёт.", "Материалды сақтап, есеп айырысуды аяқтаудамыз.") : t("Пишем задания и проверяем структуру. Подготовка может занять несколько минут.", "Тапсырмаларды жазып, құрылымды тексерудеміз. Дайындау бірнеше минут алуы мүмкін.")}</p>}{error && <p role="alert" className={s.error}>{error}</p>}{current?.status === "queued" && cancelUnavailableJobId !== current.id && <button type="button" className={`${s.secondary} mt-6`} disabled={cancelling || current.cancel_requested} onClick={() => void cancel()}>{cancelling || current.cancel_requested ? t("Отмена запрошена…", "Бас тарту сұралды…") : t("Отменить подготовку", "Дайындаудан бас тарту")}</button>}</section>
       : result && current ? <CoachingResult key={current.id} result={result} job={current} language={language} />
       : <CoachingForm input={input} onChange={next => { setInput(next); setSaved(false); setError(null); }} onSubmit={() => void generate()} language={language} cost={cost} balance={balance} busy={submitting} saved={saved} error={error} costsUnavailable={Boolean(costsError)} costsLoading={costsLoading} onRetryCosts={() => void refreshCosts()} />}
   </div>;
