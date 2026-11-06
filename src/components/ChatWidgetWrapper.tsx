@@ -18,7 +18,8 @@ export function ChatWidgetWrapper() {
     pathname === "/dashboard/sandubot" ||
     pathname === "/dashboard/media/video" ||
     pathname === "/dashboard/ai/trainings" ||
-    pathname === "/dashboard/ai/coaching"
+    pathname === "/dashboard/ai/coaching" ||
+    pathname === "/dashboard/ai/parent-meetings"
   )
     return null;
 

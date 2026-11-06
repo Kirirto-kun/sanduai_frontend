@@ -156,6 +156,13 @@ const AI_COACHING: NavItem = {
   isNew: true,
 };
 
+const AI_PARENT_MEETINGS: NavItem = {
+  key: "parent-meetings",
+  href: "/dashboard/ai/parent-meetings",
+  label: { ru: "Родительское собрание PRO", kk: "Ата-аналар жиналысы PRO" },
+  isNew: true,
+};
+
 const AI_PRESCHOOL_PROJECTS: NavItem = {
   key: "preschool-projects",
   href: "/dashboard/ai/preschool-projects",
@@ -198,6 +205,7 @@ const SCHOOL: NavSegment = {
         AI_MASTERCLASSES,
         AI_TRAININGS,
         AI_COACHING,
+        AI_PARENT_MEETINGS,
       ],
     },
     {
@@ -346,6 +354,7 @@ const KINDERGARTEN: NavSegment = {
         AI_MASTERCLASSES,
         AI_TRAININGS,
         AI_COACHING,
+        AI_PARENT_MEETINGS,
         AI_PRESCHOOL_PROJECTS,
         AI_SCIPROJECT,
         AI_WORKSHEET,
@@ -421,6 +430,7 @@ const LIBRARY: NavSegment = {
         AI_MASTERCLASSES,
         AI_TRAININGS,
         AI_COACHING,
+        AI_PARENT_MEETINGS,
       ],
     },
     {
