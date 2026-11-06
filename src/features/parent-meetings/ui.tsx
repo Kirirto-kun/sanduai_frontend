@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import s from "./parent-meetings.module.css";
 export { Icon } from "@/features/trainings/ui";
 
-export function Field({ id, label, hint, children }: { id: string; label: string; hint?: string; children: ReactNode }) {
-  return <div className={s.field}><label htmlFor={id}>{label}</label>{children}{hint && <p id={`${id}-hint`} className={s.hint}>{hint}</p>}</div>;
+export function Field({ id, label, hint, error, children }: { id: string; label: string; hint?: string; error?: string; children: ReactNode }) {
+  return <div className={s.field}><label htmlFor={id}>{label}</label>{children}{hint && <p id={`${id}-hint`} className={s.hint}>{hint}</p>}{error && <p id={`${id}-error`} className={s.fieldError}>{error}</p>}</div>;
 }
 export function Section({ number, title, hint, children }: { number: string; title: string; hint?: string; children: ReactNode }) {
   return <section className={s.panel}><div className={s.sectionHeading}><span>{number}</span><div><h2>{title}</h2>{hint && <p>{hint}</p>}</div></div>{children}</section>;
