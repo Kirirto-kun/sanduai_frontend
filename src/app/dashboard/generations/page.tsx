@@ -109,6 +109,7 @@ function GenerationsPage({ initialFilter }: { initialFilter: GenerationMaterialF
   const visibleMaterials = materialFilter === "all"
     ? materialItems
     : materialItems.filter(item => item.job?.kind === ({
+      "parent-meetings": "parent_meeting.generate",
       masterclasses: "masterclass.generate",
       "preschool-projects": "preschool_project.generate",
     }[materialFilter]));
@@ -149,9 +150,10 @@ function GenerationsPage({ initialFilter }: { initialFilter: GenerationMaterialF
       </Link>}
 
       <nav aria-label={language === "kk" ? "Материал түрі" : "Тип материалов"} className="flex flex-wrap gap-2">
-        {(["all", "masterclasses", "preschool-projects"] as const).map(value => <button key={value} type="button" aria-pressed={materialFilter === value} onClick={() => setMaterialFilter(value)} className={`min-h-11 rounded-xl border px-4 py-2.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${materialFilter === value ? "border-teal-700 bg-teal-700 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-teal-300 hover:bg-teal-50"}`}>{({
+        {(["all", "masterclasses", "parent-meetings", "preschool-projects"] as const).map(value => <button key={value} type="button" aria-pressed={materialFilter === value} onClick={() => setMaterialFilter(value)} className={`min-h-11 rounded-xl border px-4 py-2.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${materialFilter === value ? "border-teal-700 bg-teal-700 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-teal-300 hover:bg-teal-50"}`}>{({
           all: language === "kk" ? "Барлық материал" : "Все материалы",
           masterclasses: language === "kk" ? "Мастер-класстар" : "Мастер-классы",
+          "parent-meetings": language === "kk" ? "Ата-аналар жиналыстары" : "Родительские собрания",
           "preschool-projects": language === "kk" ? "Балабақша жобалары" : "Дошкольные проекты",
         })[value]}</button>)}
       </nav>
@@ -207,6 +209,7 @@ function GenerationsPage({ initialFilter }: { initialFilter: GenerationMaterialF
           ) : null}
           {materialFilter === "masterclasses" && !visibleMaterials.length && <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">{language === "kk" ? "Осы бетте мастер-класс табылмады. Жаңа мастер-класс жасаңыз немесе басқа материалдарды жүктеңіз." : "На этой странице пока нет мастер-классов. Создайте первый или загрузите следующие материалы."}</p>}
           {materialFilter === "preschool-projects" && !visibleMaterials.length && <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600"><p>{language === "kk" ? "Жүктелген материалдар арасында балабақша жобалары жоқ. Алғашқы жобаңызды жасаңыз немесе келесі материалдарды көрсетіңіз." : "Среди загруженных материалов пока нет дошкольных проектов. Создайте первый или покажите следующие материалы."}</p><Link href="/dashboard/ai/preschool-projects" className="mt-3 inline-flex min-h-11 items-center font-semibold text-teal-800 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">{language === "kk" ? "Жоба жасау" : "Создать проект"}</Link></div>}
+          {materialFilter === "parent-meetings" && !visibleMaterials.length && <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600"><p>{language === "kk" ? "Жүктелген материалдар арасында ата-аналар жиналысы жоқ. Алғашқы жиналысты жасаңыз немесе келесі материалдарды көрсетіңіз." : "Среди загруженных материалов пока нет родительских собраний. Создайте первое или покажите следующие материалы."}</p><Link href="/dashboard/ai/parent-meetings" className="mt-3 inline-flex min-h-11 items-center font-semibold text-teal-800 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">{language === "kk" ? "Жиналыс жасау" : "Создать собрание"}</Link></div>}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {visibleMaterials.map(({ key, job, project }) => job ? (
               <GenerationMaterialCard

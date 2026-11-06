@@ -111,6 +111,15 @@ async function exportedDocument(
   }
 
   switch (job.kind) {
+    case "parent_meeting.generate": {
+      const token = getToken();
+      const blob = await requestBlob(`${getApiBase()}/api/v1/parent-meetings/${encodeURIComponent(job.id)}/export?format=docx`, {
+        cache: "no-store",
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      return { blob, extension: "docx" };
+    }
     case "preschool_project.generate": {
       const token = getToken();
       const blob = await requestBlob(`${getApiBase()}/api/v1/preschool-projects/${encodeURIComponent(job.id)}/export?format=docx`, {
