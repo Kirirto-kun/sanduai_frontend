@@ -1,5 +1,6 @@
 import type { ContentLanguage } from "@/lib/content-languages";
 import type { MeetingResult, StageKind } from "./types";
+import { MEETING_FORMATS } from "./model";
 
 const words = {
   passport: ["Паспорт собрания", "Жиналыс паспорты", "Meeting overview", "Жыйын паспорту", "Yig‘ilish ma’lumotlari"],
@@ -63,6 +64,20 @@ type Word = keyof typeof words;
 const index: Record<ContentLanguage, number> = { ru: 0, kk: 1, en: 2, ky: 3, uz: 4 };
 export const documentWord = (key: Word, language: ContentLanguage) => words[key][index[language]];
 export const documentStage = (kind: StageKind, language: ContentLanguage) => documentWord(kind === "closing" ? "closing" : kind, language);
+function formatName(r: MeetingResult) {
+  if (r.language === "ru" || r.language === "kk") return MEETING_FORMATS.find(x => x.value === r.selected_format)?.[r.language] ?? "";
+  const names = {
+    traditional: ["Information meeting", "Маалыматтык жыйын", "Axborot yig‘ilishi"], training: ["Training meeting", "Тренинг-жыйын", "Trening yig‘ilishi"],
+    interactive: ["Interactive meeting", "Интерактивдүү жыйын", "Interaktiv yig‘ilish"], workshop: ["Workshop", "Чебердик сабагы", "Mahorat darsi"],
+    family_values: ["Family values", "Үй-бүлөлүк баалуулуктар", "Oilaviy qadriyatlar"], quest: ["Pedagogical quest", "Педагогикалык квест", "Pedagogik kvest"],
+    round_table: ["Round table", "Тегерек стол", "Davra suhbati"], conference: ["Parent conference", "Ата-энелер конференциясы", "Ota-onalar konferensiyasi"],
+  };
+  return names[r.selected_format][({ en: 0, ky: 1, uz: 2 } as const)[r.language]];
+}
+function deliveryName(r: MeetingResult) {
+  const labels = { offline: ["Офлайн", "Офлайн", "Offline", "Офлайн", "Oflayn"], online: ["Онлайн", "Онлайн", "Online", "Онлайн", "Onlayn"], hybrid: ["Смешанный", "Аралас", "Hybrid", "Аралаш", "Aralash"] };
+  return labels[r.delivery_format][index[r.language]];
+}
 
 /** A complete portable text package; labels follow the saved content language. */
 export function meetingMarkdown(r: MeetingResult): string {
@@ -74,7 +89,7 @@ export function meetingMarkdown(r: MeetingResult): string {
   const section = (n: number, key: Word) => lines.push(`## ${n}. ${w(key)}`, "");
   section(1, "passport");
   text("topic", r.topic); text("goal", r.goal); text("class", r.class_group); if (r.institution_name) text("institution", r.institution_name);
-  text("duration", r.duration_minutes); text("parents", r.participant_count); text("delivery", r.delivery_format); text("format", r.selected_format); lines.push(r.format_reason, "");
+  text("duration", r.duration_minutes); text("parents", r.participant_count); text("delivery", deliveryName(r)); text("format", formatName(r)); lines.push(r.format_reason, "");
   list("assumptions", r.assumptions); list("objectives", r.objectives); list("outcomes", r.outcomes); list("resources", r.materials); list("preparation", r.preparation);
   section(2, "concept"); lines.push(`### ${r.concept.name}`, "", r.concept.description, ""); text("product", r.concept.final_product); r.national_values.forEach(x => lines.push(`**${x.value}:** ${x.action}`, ""));
   section(3, "timeline");
