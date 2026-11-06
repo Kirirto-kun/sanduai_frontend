@@ -13,6 +13,7 @@ import { blankMeeting, isMeetingDraft, isMeetingResult, meetingSubmission, MEETI
 import MeetingForm from "./MeetingForm";
 import MeetingResult from "./MeetingResult";
 import { Icon, MeetingArtwork } from "./ui";
+import { focusMeetingProblem, meetingListProblems } from "./validation";
 import s from "./parent-meetings.module.css";
 
 const TERMINAL = new Set(["completed", "failed", "cancelled", "billing_error"]);
@@ -74,7 +75,12 @@ function MeetingSession({ userId }: { userId: string }) {
     if (submissionLock.current || busy) return;
     let submission: ReturnType<typeof meetingSubmission>;
     try { submission = meetingSubmission(input); }
-    catch { setError(t("Проверьте тему, класс или группу, числовые параметры и согласие с условиями. В списках используйте не менее двух символов в каждом пункте.", "Тақырыпты, сыныпты не топты, сандық параметрлерді және шарттарды қабылдауды тексеріңіз. Тізімдегі әр тармақ кемінде екі таңбадан тұрсын.")); return; }
+    catch {
+      const problems = meetingListProblems(input, language);
+      setError(problems.length ? t("Исправьте отмеченные поля. Все введённые данные остаются в форме.", "Белгіленген өрістерді түзетіңіз. Енгізілген мәліметтер формада қалады.") : t("Проверьте тему, класс или группу, числовые параметры и согласие с условиями.", "Тақырыпты, сыныпты не топты, сандық параметрлерді және шарттарды қабылдауды тексеріңіз."));
+      requestAnimationFrame(() => { if (currentSessionUserId() === userId) focusMeetingProblem(problems[0]?.targetId ?? "meeting-form-error"); });
+      return;
+    }
     submissionLock.current = true; setSubmitting(true); setError(null);
     try {
       const accepted = await enqueueGenerationJob(MEETING_KIND, submission.payload, { title: submission.title });

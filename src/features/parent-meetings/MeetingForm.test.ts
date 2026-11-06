@@ -19,4 +19,12 @@ describe("parent meeting form access and audience adaptation", () => {
     expect(html).toContain("Адаптация к детскому саду с поддержкой");
     expect(html).not.toMatch(/<button(?=[^>]*type="submit")(?=[^>]*disabled="")[^>]*>/);
   });
+  it.each(["ru", "kk"] as const)("associates list errors with their field and gives a summary recovery link in %s", language => {
+    const html = renderToStaticMarkup(createElement(MeetingForm, { input: { ...blankMeeting(), resources: ["a"] }, onChange: () => {}, onSubmit: () => {}, language, busy: false, saved: false, error: "Fix the marked field", cost: 30, balance: 100 }));
+    expect(html).toContain('id="meeting-form-error"');
+    expect(html).toContain('href="#meeting-resources"');
+    expect(html).toContain('id="meeting-resources-error"');
+    expect(html).toContain('aria-invalid="true" aria-describedby="meeting-resources-hint meeting-resources-error"');
+    expect(html).toContain(language === "ru" ? "Доступные материалы: пункт 1" : "Қолжетімді материалдар: 1-тармақ");
+  });
 });
