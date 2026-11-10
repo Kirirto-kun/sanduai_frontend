@@ -87,28 +87,28 @@ describe("dashboard access classification", () => {
     }
   });
 
-  it("limits the video rollout to admin while retaining course videos and other media", () => {
+  it("opens the video studio to authenticated accounts while retaining course videos and other media", () => {
     for (const pathname of ["/dashboard/media/video", "/dashboard/media/video/", "/dashboard/media/video/project-id"]) {
-      expect(classifyRouteAccess(pathname)).toBe("admin");
-      expect(decideRouteAccess({ policy: classifyRouteAccess(pathname), isAuthenticated: true, isAdmin: false, hasSubscription: true })).toBe("forbidden");
+      expect(classifyRouteAccess(pathname)).toBe("authenticated");
+      expect(decideRouteAccess({ policy: classifyRouteAccess(pathname), isAuthenticated: true, isAdmin: false, hasSubscription: true })).toBe("allow");
       expect(decideRouteAccess({ policy: classifyRouteAccess(pathname), isAuthenticated: true, isAdmin: true, hasSubscription: false })).toBe("allow");
     }
     expect(classifyRouteAccess("/dashboard/media/voiceover")).toBe("authenticated");
     expect(classifyRouteAccess("/dashboard/library/videos")).toBe("subscription");
     expect(classifyRouteAccess("/dashboard/media/video-help")).toBe("authenticated");
     expect(canAccessVideoGeneration("admin")).toBe(true);
-    for (const role of [undefined, null, "teacher", "user", "super_admin", "ADMIN"]) {
+    for (const role of [undefined, null]) {
       expect(canAccessVideoGeneration(role)).toBe(false);
     }
   });
 
-  it("hides restricted navigation for every non-admin segment without mutating shared groups", () => {
+  it("shows video navigation to every account without mutating shared groups", () => {
     for (const segment of SEGMENTS) {
       const groups = [...segment.groups, ...COMMON_GROUPS];
       const before = JSON.stringify(groups);
       for (const role of [undefined, "teacher", "user"]) {
         const visible = filterNavGroupsForRole(groups, role).flatMap((group) => group.items);
-        expect(visible.some((item) => item.key === "video")).toBe(false);
+        expect(visible.some((item) => item.key === "video")).toBe(true);
         expect(visible.some((item) => item.key === "photo")).toBe(true);
         expect(visible.some((item) => item.key === "voiceover")).toBe(true);
       }

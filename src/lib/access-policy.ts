@@ -6,9 +6,9 @@ function matchesSegment(pathname: string, base: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);
 }
 
-/** Video generation is in an administrator-only rollout. */
+/** Video generation is available to every authenticated account. */
 export function canAccessVideoGeneration(role: string | undefined | null): boolean {
-  return role === "admin";
+  return Boolean(role);
 }
 
 /**
@@ -19,7 +19,7 @@ export function canAccessVideoGeneration(role: string | undefined | null): boole
  */
 export function classifyRouteAccess(pathname: string): AccessPolicy {
   if (matchesSegment(pathname, "/dashboard/admin")) return "admin";
-  if (matchesSegment(pathname, "/dashboard/media/video")) return "admin";
+  if (matchesSegment(pathname, "/dashboard/media/video")) return "authenticated";
   if (pathname === "/dashboard/library/games" || pathname === "/dashboard/library/games/") {
     return "authenticated";
   }

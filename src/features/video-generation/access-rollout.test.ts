@@ -26,17 +26,17 @@ vi.mock("./VideoWorkspace", () => ({ VideoWorkspace: () => { state.workspace(); 
 
 import VideoPage from "@/app/dashboard/media/video/page";
 
-describe("administrator-only video rollout", () => {
+describe("authenticated video access", () => {
   beforeEach(() => {
     state.role = "teacher";
     state.loading = false;
     state.language = "ru";
   });
 
-  it.each(["teacher", "user", "super_admin", undefined])("does not mount video or handoff queries for %s", (role) => {
+  it.each([undefined])("does not mount video or handoff queries for %s", (role) => {
     state.role = role;
     const html = renderToStaticMarkup(createElement(VideoPage));
-    expect(html).toContain("Генерация видео пока доступна только администратору");
+    expect(html).toContain("Войдите, чтобы создавать видео");
     expect(html).toContain('href="/dashboard"');
     expect(state.workspace).not.toHaveBeenCalled();
     expect(state.handoff).not.toHaveBeenCalled();
@@ -54,11 +54,12 @@ describe("administrator-only video rollout", () => {
 
   it("explains the restriction in Kazakh", () => {
     state.language = "kk";
-    expect(renderToStaticMarkup(createElement(VideoPage))).toContain("Видео генерациясы әзірге тек әкімшіге қолжетімді");
+    state.role = undefined;
+    expect(renderToStaticMarkup(createElement(VideoPage))).toContain("Видео жасау үшін жүйеге кіріңіз");
   });
 
-  it("retains the complete studio and handoff flow for admin", () => {
-    state.role = "admin";
+  it.each(["admin", "user", "teacher"])("retains the complete studio and handoff flow for %s", (role) => {
+    state.role = role;
     const html = renderToStaticMarkup(createElement(VideoPage));
     expect(html).toContain("Admin video studio");
     expect(state.workspace).toHaveBeenCalledOnce();

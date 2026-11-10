@@ -83,7 +83,7 @@ export default function VideoPage() {
   if (!canAccessVideoGeneration(user?.role)) {
     return (
       <section role="status" className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white px-6 py-12 text-center">
-        <h1 className="text-xl font-semibold text-slate-900">{language === "kk" ? "Видео генерациясы әзірге тек әкімшіге қолжетімді" : "Генерация видео пока доступна только администратору"}</h1>
+        <h1 className="text-xl font-semibold text-slate-900">{language === "kk" ? "Видео жасау үшін жүйеге кіріңіз" : "Войдите, чтобы создавать видео"}</h1>
         <Link href="/dashboard" className="mt-5 inline-flex min-h-11 items-center font-semibold text-[color:var(--primary)]">{language === "kk" ? "Басты бетке оралу" : "Вернуться на главную"}</Link>
       </section>
     );

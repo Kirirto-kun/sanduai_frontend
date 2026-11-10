@@ -500,7 +500,7 @@ export const COMMON_GROUPS: NavGroup[] = [
         key: "video",
         href: "/dashboard/media/video",
         label: { ru: "Генерация видео", kk: "Видео генерациясы" },
-        access: "admin",
+        access: "authenticated",
       },
     ],
   },

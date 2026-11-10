@@ -722,7 +722,7 @@ export function VideoWorkspace({
             <div className="p-7 sm:p-10">
               <span className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-semibold text-indigo-600">
                 <Icon name="sparkles" className="h-3 w-3" />
-                Grok · H3 Max · Native audio
+                Grok · Native audio
               </span>
               <h2 className="mt-6 max-w-lg text-3xl font-bold leading-[1.2] tracking-tight text-slate-900 sm:text-4xl">
                 {kk
