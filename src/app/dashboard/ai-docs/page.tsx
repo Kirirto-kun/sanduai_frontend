@@ -1,4 +1,5 @@
 "use client";
+import { startGenerationPolling, GENERATION_POLL_RETRY_EVENT } from "@/lib/generation-polling";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -92,15 +93,9 @@ export default function AiDocsPage() {
 
   useEffect(() => {
     if (!currentJobId) return;
-
-    let cancelled = false;
-    let retryCount = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const poll = async () => {
-      try {
-        const job = await getGenerationJob(currentJobId);
-        if (cancelled) return;
+    return startGenerationPolling({
+      read: () => getGenerationJob(currentJobId),
+      onData: (job) => {
 
         if (job.kind !== "essay.generate") {
           throw new Error("MATERIAL_NOT_FOUND");
@@ -116,7 +111,7 @@ export default function AiDocsPage() {
           return;
         }
 
-        if (["failed", "cancelled", "billing_error"].includes(job.status)) {
+        if (["completed", "failed", "cancelled", "billing_error"].includes(job.status)) {
           setLoading(false);
           setGenerationPending(false);
           setError(toTeacherErrorMessage(new Error(job.error_message || "GENERATION_FAILED"), t.essay.errors.generic));
@@ -126,28 +121,14 @@ export default function AiDocsPage() {
         setLoading(true);
         setGenerationPending(true);
         setError(null);
-        retryCount = 0;
-        timer = setTimeout(() => void poll(), 1_200);
-      } catch (pollError) {
-        if (cancelled) return;
-        retryCount += 1;
-        if (retryCount < 4) {
-          setLoading(true);
-          setGenerationPending(true);
-          timer = setTimeout(() => void poll(), 2_000);
-          return;
-        }
+
+      },
+      onError: (pollError) => {
         setLoading(false);
         setGenerationPending(false);
         setError(toTeacherErrorMessage(pollError, t.essay.errors.generic));
-      }
-    };
-
-    void poll();
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
+      },
+    }).stop;
   }, [currentJobId, refreshBalance, showEssay, t.essay.errors.generic, toTeacherErrorMessage]);
 
   const onGenerate = async (e: FormEvent) => {
@@ -357,8 +338,9 @@ export default function AiDocsPage() {
           />
 
           {error && (
-            <div className="sm:col-span-2 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div role="status" className="sm:col-span-2 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
+                  {currentJobId && <button type="button" className="mt-2 block min-h-11 rounded-lg border border-red-300 px-3 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2" onClick={() => window.dispatchEvent(new Event(GENERATION_POLL_RETRY_EVENT))}>{language === "kk" ? "Күйін қайта тексеру" : "Проверить статус снова"}</button>}
             </div>
           )}
 
@@ -570,7 +552,7 @@ export default function AiDocsPage() {
                   )}
                 </div>
               )}
-              
+
               <div className="flex flex-wrap items-center justify-end gap-3">
                 <button
                   type="button"

@@ -1,7 +1,8 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ScientificProjectHistory } from "../../../../components/generations/ScientificProjectHistory";
 import { ZerdeEntryCard } from "@/components/ZerdeEntryCard";
@@ -18,7 +19,6 @@ import {
   generationJobIdFromSearchParam,
   generationServerStatusCopy,
   isAcknowledgedGenerationJob,
-  isActiveGenerationJob,
   isUnavailableGenerationJobError,
 } from "../../../../lib/generation-history";
 import { useTokens } from "../../../../hooks/useTokens";
@@ -56,18 +56,10 @@ function ScientificProjectContent() {
   const [supervisor, setSupervisor] = useState("");
   const [city, setCity] = useState("");
 
-  const job = useQuery({
+  const job = useGenerationJobQuery({
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
-    retry: (failureCount, requestError) =>
-      !isUnavailableGenerationJobError(requestError) && failureCount < 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) => {
-      const value = query.state.data;
-      return value && isActiveGenerationJob(value) ? 2_000 : false;
-    },
   });
 
   useEffect(() => {
@@ -179,7 +171,7 @@ function ScientificProjectContent() {
     ["science.plan"],
   );
   const showJobProgress = Boolean(
-    currentJobId && (job.isLoading || (currentJobAcknowledged && currentJob && isActiveGenerationJob(currentJob))),
+    currentJobId && job.isGenerationBusy && (!job.data || currentJobAcknowledged),
   );
   const progressCurrent = Math.max(0, Number(currentJob?.progress.current ?? 0));
   const progressTotal = Math.max(1, Number(currentJob?.progress.total ?? 1));
@@ -462,7 +454,6 @@ function ScientificProjectContent() {
     </div>
   );
 }
-
 
 export default function ScientificProjectPage() {
   return (

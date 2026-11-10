@@ -1,6 +1,6 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { cancelGenerationJob, getGenerationJob } from "@/lib/api";
 import { currentSessionUserId, useTokens } from "@/hooks/useTokens";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
@@ -17,7 +17,11 @@ export default function ScienceConsultation({ request, projectId, userId, cost, 
   const [jobId, setJobId] = useState<string | null>(initialJobId ?? null); const [submitting, setSubmitting] = useState(false); const [error, setError] = useState<string | null>(null); const [cancelling, setCancelling] = useState(false); const [loaded, setLoaded] = useState(false);
   const lock = useRef(false); const handled = useRef<string | null>(null); const alive = useRef(true); const intent = useRef<string | null>(null);
   const fingerprint = requestFingerprint(request); const key = `sanduai:science-pro:consult:v1:${userId}:${projectId}`;
-  const query = useQuery({ queryKey: ["science-pro-consult", userId, jobId], queryFn: () => getGenerationJob(jobId!), enabled: !!jobId, retry: 1, refetchInterval: q => q.state.status === "error" || q.state.data && TERMINAL.has(q.state.data.status) ? false : 1800 });
+  const query = useGenerationJobQuery({
+    queryKey: ["science-pro-consult", userId, jobId],
+    queryFn: () => getGenerationJob(jobId!),
+    enabled: !!jobId,
+  });
   const job = query.data?.kind === "science_pro.consult" ? query.data : null;
   const active = !!jobId && (!job || !TERMINAL.has(job.status)) && !query.isError;
   const enough = hasResearchContext(request);

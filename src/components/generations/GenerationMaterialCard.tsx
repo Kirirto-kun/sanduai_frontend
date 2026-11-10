@@ -1,5 +1,6 @@
 "use client";
 
+import { GenerationJobStatus } from "./GenerationJobStatus";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -10,7 +11,6 @@ import {
   generationSourceHref,
   isActiveGenerationJob,
 } from "../../lib/generation-history";
-
 
 const STATUS_COPY = {
   queued: { ru: "В очереди", kk: "Кезекте" },
@@ -23,7 +23,6 @@ const STATUS_COPY = {
   billing_error: { ru: "Готово", kk: "Дайын" },
 } as const;
 
-
 export type GenerationMaterialCardProps = {
   job: GenerationJobSummary;
   language: "ru" | "kk";
@@ -31,7 +30,6 @@ export type GenerationMaterialCardProps = {
   onDownload?: (job: GenerationJobSummary) => Promise<void>;
   onActionError?: (error: unknown) => void;
 };
-
 
 export function GenerationMaterialCard({
   job,
@@ -82,6 +80,7 @@ export function GenerationMaterialCard({
         />
       </div>
 
+      {active && <GenerationJobStatus job={job} language={language} />}
       {active ? (
         <div
           className="mt-4"

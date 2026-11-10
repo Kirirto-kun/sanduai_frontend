@@ -1,4 +1,7 @@
 "use client";
+import { GenerationJobStatus } from "@/components/generations/GenerationJobStatus";
+import type { GenerationJob } from "@/lib/api";
+import { startGenerationPolling, GENERATION_POLL_RETRY_EVENT } from "@/lib/generation-polling";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -166,6 +169,8 @@ export default function ScenarioPage() {
   const [loading, setLoading] = useState(false);
   const [enqueueing, setEnqueueing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [lastJob, setLastJob] = useState<GenerationJob | null>(null);
+  const [pollError, setPollError] = useState<unknown>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [acknowledgedJobId, setAcknowledgedJobId] = useState<string | null>(null);
 
@@ -203,19 +208,13 @@ export default function ScenarioPage() {
 
   useEffect(() => {
     if (!currentJobId) return;
-
-    let cancelled = false;
-    let retryCount = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const poll = async () => {
-      try {
-        const job = await getGenerationJob(currentJobId);
-        if (cancelled) return;
-
+    return startGenerationPolling({
+      read: () => getGenerationJob(currentJobId),
+      onData: (job) => {
         if (job.kind !== "scenario.generate") {
           throw new Error("MATERIAL_NOT_FOUND");
         }
+        setLastJob(job); setPollError(null);
         setAcknowledgedJobId(job.id);
         if ((job.status === "completed" || job.status === "billing_error") && job.result) {
           showScenario(job.result as unknown as ScenarioResult);
@@ -224,7 +223,7 @@ export default function ScenarioPage() {
           refreshBalance();
           return;
         }
-        if (["failed", "cancelled", "billing_error"].includes(job.status)) {
+        if (["completed", "failed", "cancelled", "billing_error"].includes(job.status)) {
           setLoading(false);
           setError(toTeacherErrorMessage(new Error(job.error_message || "GENERATION_FAILED")));
           return;
@@ -232,26 +231,14 @@ export default function ScenarioPage() {
 
         setLoading(true);
         setError(null);
-        retryCount = 0;
-        timer = setTimeout(() => void poll(), 1_200);
-      } catch (pollError) {
-        if (cancelled) return;
-        retryCount += 1;
-        if (retryCount < 4) {
-          setLoading(true);
-          timer = setTimeout(() => void poll(), 2_000);
-          return;
-        }
+
+      },
+      onError: (pollError) => {
+        setPollError(pollError);
         setLoading(false);
         setError(toTeacherErrorMessage(pollError));
-      }
-    };
-
-    void poll();
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
+      },
+    }).stop;
   }, [currentJobId, refreshBalance, showScenario, toTeacherErrorMessage]);
 
   const downloadScenarioJob = useCallback(async (job: GenerationJobSummary) => {
@@ -266,12 +253,13 @@ export default function ScenarioPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!topic.trim()) return;
+    if (!topic.trim() || (lastJob && ["queued", "running", "settling", "refunding"].includes(lastJob.status))) return;
 
     setError(null);
     setLoading(true);
     setEnqueueing(true);
     setAcknowledgedJobId(null);
+    setLastJob(null); setPollError(null);
     setResult(null);
     setCopied(false);
 
@@ -328,6 +316,7 @@ export default function ScenarioPage() {
 
   return (
     <>
+    <GenerationJobStatus job={lastJob} language={language} error={pollError} onRetry={() => window.dispatchEvent(new Event(GENERATION_POLL_RETRY_EVENT))} />
     <GeneratorLayout
       icon="🎭"
       title={t.title}
@@ -398,7 +387,7 @@ export default function ScenarioPage() {
 
           <GenerateButton
             loading={loading}
-            disabled={!topic.trim() || !enoughTokens}
+            disabled={!topic.trim() || !enoughTokens || Boolean(lastJob && ["queued", "running", "settling", "refunding"].includes(lastJob.status))}
             label={t.generate}
             loadingLabel={t.generating}
           />
@@ -412,7 +401,7 @@ export default function ScenarioPage() {
       }
       result={
         <div className="space-y-4">
-          {error && <ErrorState message={error} />}
+          {error && !pollError && <><ErrorState message={error} /><button type="button" className="min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" onClick={() => window.dispatchEvent(new Event(GENERATION_POLL_RETRY_EVENT))}>{language === "kk" ? "Күйін қайта тексеру" : "Проверить статус снова"}</button></>}
           {loading && (
             <div className="space-y-3" role="status">
               <LoadingState

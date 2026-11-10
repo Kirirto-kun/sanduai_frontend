@@ -1,4 +1,5 @@
 "use client";
+import { generationPollingInterval, generationPollingRecovery } from "@/lib/generation-polling";
 
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
@@ -20,9 +21,7 @@ import { teacherFacingErrorMessage } from "../../../lib/teacher-facing-error";
 import { useAuth } from "@/contexts/AuthContext";
 import { canAccessVideoGeneration } from "@/lib/access-policy";
 
-
 const HISTORY_PAGE_SIZE = 30;
-
 
 export default function Page() {
   return <Suspense fallback={<div className="h-72 animate-pulse rounded-3xl bg-white" />}><GenerationHistoryFromQuery /></Suspense>;
@@ -40,6 +39,7 @@ function GenerationsPage({ initialFilter }: { initialFilter: GenerationMaterialF
   const [actionError, setActionError] = useState<string | null>(null);
   const [materialFilter, setMaterialFilter] = useState<GenerationMaterialFilter>(initialFilter);
   const jobs = useInfiniteQuery({
+    ...generationPollingRecovery,
     queryKey: [...generationJobsQueryKey, "history"],
     queryFn: ({ pageParam }) => listGenerationJobs({
       limit: HISTORY_PAGE_SIZE,
@@ -48,25 +48,22 @@ function GenerationsPage({ initialFilter }: { initialFilter: GenerationMaterialF
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next_offset ?? undefined,
     staleTime: 1_000,
-    retry: 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) =>
-      query.state.data?.pages.some((page) => page.active_count > 0) ? 2_500 : 30_000,
+
+
+    refetchInterval: (query) => generationPollingInterval(query.state, (query.state.data?.pages.some((page) => page.active_count > 0) ? 2_500 : 30_000), query),
   });
   const scienceProjects = useInfiniteQuery({
+    ...generationPollingRecovery,
     queryKey: ["science-project-history", HISTORY_PAGE_SIZE],
     queryFn: ({ pageParam }) => listScienceProjects(HISTORY_PAGE_SIZE, pageParam),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next_offset ?? undefined,
     staleTime: 1_000,
-    retry: 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) =>
-      query.state.data?.pages.some((page) =>
+
+
+    refetchInterval: (query) => generationPollingInterval(query.state, (query.state.data?.pages.some((page) =>
         page.items.some((project) => Boolean(project.active_job_id)),
-      ) ? 5_000 : 30_000,
+      ) ? 5_000 : 30_000), query),
   });
   const items = useMemo(() => {
     const unique = new Map<string, GenerationJobSummary>();

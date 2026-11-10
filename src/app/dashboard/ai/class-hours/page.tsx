@@ -1,4 +1,5 @@
 "use client";
+import { startGenerationPolling, GENERATION_POLL_RETRY_EVENT } from "@/lib/generation-polling";
 
 import { useCallback, useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -84,15 +85,9 @@ export default function ClassHoursPage() {
 
   useEffect(() => {
     if (!currentJobId) return;
-
-    let cancelled = false;
-    let retryCount = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const poll = async () => {
-      try {
-        const job = await getGenerationJob(currentJobId);
-        if (cancelled) return;
+    return startGenerationPolling({
+      read: () => getGenerationJob(currentJobId),
+      onData: (job) => {
 
         if (job.kind !== "class_hour.generate") {
           throw new Error("MATERIAL_NOT_FOUND");
@@ -105,7 +100,7 @@ export default function ClassHoursPage() {
           refreshBalance();
           return;
         }
-        if (["failed", "cancelled", "billing_error"].includes(job.status)) {
+        if (["completed", "failed", "cancelled", "billing_error"].includes(job.status)) {
           setIsLoading(false);
           setError(toTeacherErrorMessage(new Error(job.error_message || "GENERATION_FAILED"), t.classHour.errors.generic));
           return;
@@ -113,26 +108,13 @@ export default function ClassHoursPage() {
 
         setIsLoading(true);
         setError("");
-        retryCount = 0;
-        timer = setTimeout(() => void poll(), 1_200);
-      } catch (pollError) {
-        if (cancelled) return;
-        retryCount += 1;
-        if (retryCount < 4) {
-          setIsLoading(true);
-          timer = setTimeout(() => void poll(), 2_000);
-          return;
-        }
+
+      },
+      onError: (pollError) => {
         setIsLoading(false);
         setError(toTeacherErrorMessage(pollError, t.classHour.errors.generic));
-      }
-    };
-
-    void poll();
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
+      },
+    }).stop;
   }, [currentJobId, refreshBalance, showClassHour, t.classHour.errors.generic, toTeacherErrorMessage]);
 
   // Handle form input changes
@@ -446,8 +428,9 @@ export default function ClassHoursPage() {
 
               {/* Error Message */}
               {error && (
-                <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
+                <div role="status" className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
                   {error}
+                  {currentJobId && <button type="button" className="mt-2 block min-h-11 rounded-lg border border-red-300 px-3 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2" onClick={() => window.dispatchEvent(new Event(GENERATION_POLL_RETRY_EVENT))}>{language === "kk" ? "Күйін қайта тексеру" : "Проверить статус снова"}</button>}
                 </div>
               )}
 
@@ -570,8 +553,9 @@ export default function ClassHoursPage() {
 
             {/* Error Message (if any during operations) */}
             {error && (
-              <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
+              <div role="status" className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
                 {error}
+                  {currentJobId && <button type="button" className="mt-2 block min-h-11 rounded-lg border border-red-300 px-3 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2" onClick={() => window.dispatchEvent(new Event(GENERATION_POLL_RETRY_EVENT))}>{language === "kk" ? "Күйін қайта тексеру" : "Проверить статус снова"}</button>}
               </div>
             )}
 

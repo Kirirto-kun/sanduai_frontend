@@ -1,6 +1,8 @@
 "use client";
+import { GenerationJobStatus } from "@/components/generations/GenerationJobStatus";
+import { isTerminalGenerationPollError } from "@/lib/generation-polling";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 
-import { useQuery } from "@tanstack/react-query";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRaceGame } from "../../../../../../hooks/useRaceGame";
@@ -13,7 +15,6 @@ import {
   generationJobIdFromSearchParam,
   generationServerStatusCopy,
   isAcknowledgedGenerationJob,
-  isActiveGenerationJob,
   isUnavailableGenerationJobError,
 } from "../../../../../../lib/generation-history";
 import {
@@ -36,7 +37,6 @@ type GameMessageProps = {
   loading?: boolean;
   backLabel: string;
 };
-
 
 function GameMessage({
   title,
@@ -71,7 +71,6 @@ function GameMessage({
     </div>
   );
 }
-
 
 function RaceArena({ gameData }: { gameData: RestoredRaceGame }) {
   const router = useRouter();
@@ -222,22 +221,15 @@ function RaceArena({ gameData }: { gameData: RestoredRaceGame }) {
   );
 }
 
-
 function AtZharysGameContent() {
   const { language } = useLanguage();
   const toTeacherErrorMessage = useTeacherErrorMessage();
   const searchParams = useSearchParams();
   const requestedJobId = generationJobIdFromSearchParam(searchParams.get("job"));
-  const job = useQuery({
+  const job = useGenerationJobQuery({
     queryKey: ["generation-job", requestedJobId],
     queryFn: () => getGenerationJob(requestedJobId as string),
     enabled: Boolean(requestedJobId),
-    retry: (failureCount, requestError) =>
-      !isUnavailableGenerationJobError(requestError) && failureCount < 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) =>
-      query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
   });
   const interfaceLanguage: ContentLanguage = language;
   const contentLanguage = tryNormalizeContentLanguage(job.data?.content_language)
@@ -261,7 +253,7 @@ function AtZharysGameContent() {
     );
   }
 
-  if (job.isPending || (jobAcknowledged && job.data && isActiveGenerationJob(job.data))) {
+  if (job.isGenerationBusy && (!job.data || jobAcknowledged)) {
     return (
       <GameMessage
         loading
@@ -274,7 +266,8 @@ function AtZharysGameContent() {
     );
   }
 
-  if (job.error) {
+  const cachedResultVisible = jobAcknowledged && job.data && ["completed", "billing_error"].includes(job.data.status) && !isTerminalGenerationPollError(job.error);
+  if (job.error && !cachedResultVisible) {
     const unavailable = isUnavailableGenerationJobError(job.error) && !jobAcknowledged;
     return (
       <GameMessage
@@ -321,9 +314,8 @@ function AtZharysGameContent() {
     );
   }
 
-  return <RaceArena gameData={gameData} />;
+  return <>{job.error && <GenerationJobStatus language={language} error={job.error} onRetry={() => void job.refetch()} />}<RaceArena gameData={gameData} /></>;
 }
-
 
 export default function AtZharysGamePage() {
   return (

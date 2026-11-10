@@ -1,4 +1,5 @@
 import { getApiBase } from "./api-base";
+import { generationRetryDelay } from "./generation-polling";
 import {
   AuthSessionCoordinationError,
   clearAuthLogoutTombstone,
@@ -834,6 +835,13 @@ export type GenerationJobStatus =
   | "billing_error";
 
 export type GenerationJobSummary = {
+  workload_lane?: "short_text" | "long_text" | "media" | null;
+  queue_deadline_at?: string | null;
+  execution_deadline_at?: string | null;
+  queue_position?: number | null;
+  estimated_wait_seconds?: number | null;
+  priority?: "admin" | "normal" | null;
+  phase?: string | null;
   id: string;
   kind: string;
   /** Optional durable resource owned by this job (for example a Builder project). */
@@ -1140,7 +1148,7 @@ export async function waitForGenerationResult<T>(jobId: string): Promise<T> {
       // The browser may be offline while the server keeps working. Keep this
       // local waiter quiet and let the global history recover on reconnect.
       consecutiveTransportErrors += 1;
-      await sleep(Math.min(10_000, 1_200 * (2 ** Math.min(consecutiveTransportErrors, 3))));
+      await sleep(generationRetryDelay(consecutiveTransportErrors));
       continue;
     }
 

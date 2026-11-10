@@ -1,13 +1,14 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 
 import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ModuleGenerationHistory } from "@/components/generations/ModuleGenerationHistory";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { enqueueGenerationJob, exportLessonPlanDocx, getGenerationJob, InsufficientTokensError, type LessonPlanResponse } from "@/lib/api";
-import { generationJobIdFromSearchParam, generationServerStatusCopy, isAcknowledgedGenerationJob, isActiveGenerationJob, isUnavailableGenerationJobError } from "@/lib/generation-history";
+import { generationJobIdFromSearchParam, generationServerStatusCopy, isAcknowledgedGenerationJob, isUnavailableGenerationJobError } from "@/lib/generation-history";
 import { useTokens } from "@/hooks/useTokens";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { PlannerForm } from "@/features/lesson-plan/PlannerForm";
@@ -41,14 +42,10 @@ function LessonPlanner({ userId }: { userId: string | null }) {
   const [restoredNotice, setRestoredNotice] = useState<"draft" | "edits" | "images" | null>(null);
   const draftHydrated = useRef(false);
   const restoredScope = useRef<string | null>(null);
-  const job = useQuery({
+  const job = useGenerationJobQuery({
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
-    retry: (count, failure) => !isUnavailableGenerationJobError(failure) && count < 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) => query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
   });
 
   useEffect(() => {
@@ -168,7 +165,7 @@ function LessonPlanner({ userId }: { userId: string | null }) {
     router.replace("/dashboard/ai/kmzh", { scroll: false });
   };
   const acknowledged = isAcknowledgedGenerationJob(job.data, currentJobId, ["kmzh.generate"]);
-  const progress = Boolean(currentJobId && (job.isLoading || (acknowledged && job.data && isActiveGenerationJob(job.data))));
+  const progress = Boolean(currentJobId && job.isGenerationBusy && (!job.data || acknowledged));
 
   if (storageReady !== persistenceScope) return <p role="status" className="p-8 text-slate-600">{kk ? "ҚМЖ ашылуда…" : "Открываем КМЖ…"}</p>;
 

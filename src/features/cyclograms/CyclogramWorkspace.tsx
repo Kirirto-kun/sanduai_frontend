@@ -1,4 +1,6 @@
 "use client";
+import { startGenerationPolling } from "@/lib/generation-polling";
+import { GenerationJobStatus as GenerationStatus } from "@/components/generations/GenerationJobStatus";
 
 import {
   type FormEvent,
@@ -201,6 +203,7 @@ function FormView({
   busy,
   error,
   pendingType,
+  connectionIssue,
   onSubmit,
   onTopics,
   onCancelSource,
@@ -213,6 +216,7 @@ function FormView({
   busy: boolean;
   error: string | null;
   pendingType: PendingType | null;
+  connectionIssue?: boolean;
   onSubmit: (event: FormEvent) => void;
   onTopics: () => void;
   onCancelSource: () => void;
@@ -246,7 +250,7 @@ function FormView({
 
       {error ? <div role="alert" className="border-l-4 border-rose-500 bg-rose-50 px-4 py-3 text-sm text-rose-900">{error}</div> : null}
 
-      {busy ? (
+      {busy && !connectionIssue ? (
         <div aria-live="polite" className="flex items-center gap-3 border border-sky-200 bg-sky-50 px-4 py-4 text-sm text-sky-950">
           <span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-r-transparent" aria-hidden="true" />
           <div>
@@ -574,6 +578,8 @@ export default function CyclogramWorkspace() {
   const [configLoading, setConfigLoading] = useState(true);
   const [configError, setConfigError] = useState<string | null>(null);
   const [input, setInput] = useState<CyclogramInput>(emptyInput);
+  const [pollJob, setPollJob] = useState<GenerationJob | null>(null);
+  const [pollError, setPollError] = useState<unknown>(null);
   const [pending, setPending] = useState<PendingOperation | null>(null);
   const [jobProgress, setJobProgress] = useState<GenerationJob["progress"] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -737,30 +743,19 @@ export default function CyclogramWorkspace() {
 
   useEffect(() => {
     if (!pending) return;
-    let cancelled = false;
-    let timer: number | undefined;
-    const poll = async () => {
-      try {
-        const job = await cyclogramApi.job(pending.jobId);
-        if (cancelled) return;
+    return startGenerationPolling({
+      read: () => cyclogramApi.job(pending.jobId),
+      onData: async (job) => {
+        setPollJob(job); setPollError(null);
         setJobProgress(job.progress);
-        if (ACTIVE_STATUSES.has(job.status)) {
-          timer = window.setTimeout(poll, 1_800);
-          return;
-        }
+        if (ACTIVE_STATUSES.has(job.status)) return;
         await finishJob(job, pending);
-      } catch (cause) {
-        if (cancelled) return;
-        if (cause instanceof ApiRequestError && (cause.status === 0 || cause.status >= 500)) {
-          timer = window.setTimeout(poll, 4_000);
-          return;
-        }
-        setPending(null);
-        showError(cause);
-      }
-    };
-    void poll();
-    return () => { cancelled = true; if (timer !== undefined) window.clearTimeout(timer); };
+      },
+      onError: (cause) => {
+        setPollError(cause);
+        // Keep the accepted operation available for a status-only manual/focus retry.
+      },
+    }).stop;
   }, [finishJob, pending, showError]);
 
   const saveNow = useCallback((): Promise<boolean> => {
@@ -972,11 +967,12 @@ export default function CyclogramWorkspace() {
         {document ? <button type="button" onClick={() => setView("document")} aria-current={view === "document" ? "page" : undefined} className={`min-h-11 border-b-2 px-4 text-sm font-bold ${view === "document" ? "border-teal-700 text-teal-800" : "border-transparent text-slate-500 hover:text-slate-900"}`}>{copy.ready}</button> : null}
       </nav>
 
-      {pending && view !== "create" ? <div className="cyclogram-no-print mb-5 flex items-center gap-3 border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950" aria-live="polite"><span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-r-transparent" /><span><strong>{progressText}</strong>{jobProgress?.total ? ` · ${jobProgress.current ?? 0}/${jobProgress.total}` : ""}</span></div> : null}
+      {pending && !pollError && view !== "create" ? <div className="cyclogram-no-print mb-5 flex items-center gap-3 border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950" aria-live="polite"><span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-r-transparent" /><span><strong>{progressText}</strong>{jobProgress?.total ? ` · ${jobProgress.current ?? 0}/${jobProgress.total}` : ""}</span></div> : null}
 
-      {view === "create" ? <FormView copy={copy} config={config} input={input} setInput={setInput} balance={balance} busy={Boolean(pending)} error={error} pendingType={pending?.type ?? null} onSubmit={submit} onTopics={() => void suggestTopics()} onCancelSource={() => setInput(previous => ({ ...previous, source_id: undefined }))} /> : null}
+      <GenerationStatus job={pollJob} language={language} error={pollError} onRetry={() => window.dispatchEvent(new Event("sanduai:retry-generation-polls"))} />
+      {view === "create" ? <FormView copy={copy} config={config} input={input} setInput={setInput} balance={balance} busy={Boolean(pending)} connectionIssue={Boolean(pollError)} error={error} pendingType={pending?.type ?? null} onSubmit={submit} onTopics={() => void suggestTopics()} onCancelSource={() => setInput(previous => ({ ...previous, source_id: undefined }))} /> : null}
       {view === "history" ? <HistoryView copy={copy} items={history} total={historyTotal} loading={historyLoading} error={historyError} search={historySearch} setSearch={setHistorySearch} onOpen={id => void openDocument(id)} onAdapt={adapt} onLoadMore={() => void loadHistory(history.length)} /> : null}
-      {view === "document" && document ? <DocumentView copy={copy} language={language} document={document} mobileDay={mobileDay} setMobileDay={setMobileDay} saveState={saveState} conflict={conflict} error={error} pendingCell={pending?.type === "cell"} downloading={downloading} onSelectCell={selectCell} onBack={() => setView("create")} onAdapt={() => adapt(document)} onExport={format => void exportDocument(format)} onPrint={() => void printDocument()} onReload={() => void reloadDocument()} onRetrySave={() => void saveNow()} /> : null}
+      {view === "document" && document ? <DocumentView copy={copy} language={language} document={document} mobileDay={mobileDay} setMobileDay={setMobileDay} saveState={saveState} conflict={conflict} error={error} pendingCell={!pollError && pending?.type === "cell"} downloading={downloading} onSelectCell={selectCell} onBack={() => setView("create")} onAdapt={() => adapt(document)} onExport={format => void exportDocument(format)} onPrint={() => void printDocument()} onReload={() => void reloadDocument()} onRetrySave={() => void saveNow()} /> : null}
 
       <p className="cyclogram-no-print mt-8 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500">{selectedDocumentCopy.regulatory}</p>
 
@@ -995,7 +991,7 @@ export default function CyclogramWorkspace() {
             <div className="flex items-start justify-between gap-4"><div><h2 id="cyclogram-cell-title" className="text-xl font-bold text-slate-950">{copy.cellTitle}</h2><p className="mt-1 text-sm text-slate-500">{selectedSection ? localizedLabel(selectedSection.title, document.language, language) : selectedCell.sectionId} · <span className="capitalize">{selectedDayLabel}</span></p></div><button type="button" onClick={() => setSelectedCell(null)} disabled={pending?.type === "cell"} aria-label={copy.close} className="h-10 w-10 text-2xl text-slate-500 disabled:opacity-40">×</button></div>
             <p className="mt-4 text-sm text-slate-600">{copy.cellHint}</p>
             <textarea ref={editorRef} value={editorText} onChange={event => editCell(event.target.value)} disabled={pending?.type === "cell"} className="mt-3 min-h-48 w-full resize-y rounded-lg border border-slate-300 p-4 text-sm leading-6 text-slate-950 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100" />
-            {pending?.type === "cell" ? <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-sky-800"><span className="h-4 w-4 animate-spin rounded-full border-2 border-sky-600 border-r-transparent" />{copy.cellLoading}</p> : null}
+            {pending?.type === "cell" ? <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-sky-800">{!pollError && <span className="h-4 w-4 animate-spin rounded-full border-2 border-sky-600 border-r-transparent" />}{copy.cellLoading}</p> : null}
             <div className="mt-4 flex flex-wrap gap-2">
               {(["regenerate", "shorten", "expand", "other_game"] as CellAction[]).map(action => <button key={action} type="button" onClick={() => void aiCellAction(action)} disabled={Boolean(pending)} className="min-h-10 rounded-lg border border-teal-700 bg-white px-3 text-sm font-bold text-teal-800 hover:bg-teal-50 disabled:opacity-40">{copy[action]}</button>)}
             </div>

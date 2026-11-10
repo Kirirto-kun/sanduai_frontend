@@ -1,4 +1,5 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +15,6 @@ import {
 import {
   generationJobIdFromSearchParam,
   generationServerStatusCopy,
-  isActiveGenerationJob,
 } from "../../../../../../lib/generation-history";
 import { useTeacherErrorMessage } from "@/hooks/useTeacherErrorMessage";
 import { tryNormalizeContentLanguage } from "@/lib/content-languages";
@@ -57,17 +57,10 @@ function GenerateProgressContent() {
     refetchOnReconnect: true,
   });
 
-  const job = useQuery({
+  const job = useGenerationJobQuery({
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
-    retry: 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) => {
-      const value = query.state.data;
-      return value && isActiveGenerationJob(value) ? 2_000 : false;
-    },
   });
 
   const plan = projectState.data?.plan ?? null;
@@ -226,7 +219,7 @@ function GenerateProgressContent() {
     Number(job.data?.progress.current ?? 0),
   );
   const active = Boolean(
-    currentJobId && (job.isLoading || (job.data && isActiveGenerationJob(job.data))),
+    currentJobId && job.isGenerationBusy,
   );
   const projectTransportError = projectState.error
     ? toTeacherErrorMessage(projectState.error)

@@ -1,7 +1,8 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 
 import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
@@ -19,7 +20,6 @@ import {
   generationJobIdFromSearchParam,
   generationServerStatusCopy,
   isAcknowledgedGenerationJob,
-  isActiveGenerationJob,
   isUnavailableGenerationJobError,
 } from "../../../../lib/generation-history";
 import { useTokens } from "../../../../hooks/useTokens";
@@ -83,18 +83,10 @@ function LessonPlanContent() {
   const resultCopy = generatedContentCopy(
     tryNormalizeContentLanguage(lessonPlan?.language ?? formData.language) ?? "kk",
   ).lessonPlan;
-  const job = useQuery({
+  const job = useGenerationJobQuery({
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
-    retry: (failureCount, requestError) =>
-      !isUnavailableGenerationJobError(requestError) && failureCount < 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) => {
-      const value = query.state.data;
-      return value && isActiveGenerationJob(value) ? 2_000 : false;
-    },
   });
 
   useEffect(() => {
@@ -425,7 +417,7 @@ function LessonPlanContent() {
     CLASSIC_LESSON_KINDS,
   );
   const showJobProgress = Boolean(
-    currentJobId && (job.isLoading || (currentJobAcknowledged && currentJob && isActiveGenerationJob(currentJob))),
+    currentJobId && job.isGenerationBusy && (!job.data || currentJobAcknowledged),
   );
   const progressCurrent = Math.max(0, Number(currentJob?.progress.current ?? 0));
   const progressTotal = Math.max(1, Number(currentJob?.progress.total ?? 1));
@@ -1146,7 +1138,6 @@ function LessonPlanContent() {
     </div>
   );
 }
-
 
 export default function ClassicLessonPlanPage() {
   return (

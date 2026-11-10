@@ -1,6 +1,6 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { currentSessionUserId, useTokens } from "@/hooks/useTokens";
 import { cancelGenerationJob, getGenerationJob } from "@/lib/api";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
@@ -19,7 +19,11 @@ export default function ZerdeConsultation({ request, projectId, userId, cost, la
   const [anonymized, setAnonymized] = useState(false);
   const key = `sanduai:zerde:consult:v1:${userId}:${projectId}`; const fingerprint = requestFingerprint(request);
   const intentKey = useRef<string | null>(null);
-  const query = useQuery({ queryKey: ["zerde-consult", userId, jobId], queryFn: () => getGenerationJob(jobId!), enabled: !!jobId, retry: 1, refetchInterval: q => q.state.status === "error" || (q.state.data && TERMINAL.has(q.state.data.status)) ? false : 1800 });
+  const query = useGenerationJobQuery({
+    queryKey: ["zerde-consult", userId, jobId],
+    queryFn: () => getGenerationJob(jobId!),
+    enabled: !!jobId,
+  });
   const job = query.data?.kind === "zerde.consult" ? query.data : null;
   const active = Boolean(jobId && (!job || !TERMINAL.has(job.status)) && !query.isError);
   const enough = !!(request.title.trim() || request.authored_text.trim() || request.research_question.trim() || request.document_ids.length || request.data.length);

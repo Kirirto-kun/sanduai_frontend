@@ -1,7 +1,9 @@
 "use client";
+import { GENERATION_POLL_RETRY_EVENT, generationPollingInterval, generationPollingRecovery } from "@/lib/generation-polling";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { GenerationJobStatus } from "./GenerationJobStatus";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useLanguage } from "../../i18n/LanguageContext";
@@ -12,9 +14,7 @@ import {
 } from "../../lib/api";
 import { invalidateCachedBalance } from "../../lib/tokenCache";
 
-
 export const generationJobsQueryKey = ["generation-jobs"] as const;
-
 
 export function GenerationCenter() {
   const { language } = useLanguage();
@@ -23,14 +23,13 @@ export function GenerationCenter() {
   const previousStatuses = useRef<Map<string, string> | null>(null);
   const observedRefunds = useRef(new Set<string>());
   const jobs = useQuery({
+    ...generationPollingRecovery,
     queryKey: generationJobsQueryKey,
     queryFn: () => listGenerationJobs(30),
     staleTime: 1_000,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    retry: 2,
-    refetchInterval: (query) =>
-      (query.state.data?.active_count ?? 0) > 0 ? 2_500 : 30_000,
+
+
+    refetchInterval: (query) => generationPollingInterval(query.state, ((query.state.data?.active_count ?? 0) > 0 ? 2_500 : 30_000), query),
   });
 
   useEffect(() => {
@@ -81,12 +80,21 @@ export function GenerationCenter() {
     previousStatuses.current = nextStatuses;
   }, [jobs.data]);
 
+  const pollError = useSyncExternalStore(
+    (notify) => queryClient.getQueryCache().subscribe(notify),
+    () => queryClient.getQueryCache().findAll({ predicate: (query) => query.isActive() && query.meta?.generationPolling === true }).find(query => query.state.error)?.state.error ?? null,
+    () => null,
+  );
+  const retryPolling = () => {
+    void queryClient.invalidateQueries({ predicate: (query) => query.meta?.generationPolling === true });
+    window.dispatchEvent(new Event(GENERATION_POLL_RETRY_EVENT));
+  };
   const activeCount = jobs.data?.active_count ?? 0;
-  if (online && activeCount === 0) return null;
+  const activeJob = jobs.data?.items.find(job => ["queued", "running", "settling", "refunding"].includes(job.status));
+  if (online && activeCount === 0 && !pollError) return null;
 
   return (
     <aside
-      aria-live="polite"
       className={`mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm shadow-sm ${
         online
           ? "border-sky-200 bg-sky-50 text-sky-950"
@@ -97,16 +105,18 @@ export function GenerationCenter() {
         <span className={online ? "animate-pulse" : ""} aria-hidden="true">
           {online ? "✨" : "📡"}
         </span>
-        <p className="min-w-0 leading-5">
+        <p role="status" className="min-w-0 leading-5">
           {!online
             ? language === "kk"
               ? "Интернет өшірілді. Қабылданған жұмыстар серверде жалғасады."
               : "Интернет отключён. Принятые задания продолжаются на сервере."
+            : pollError ? (language === "kk" ? "Күйін жаңарту үшін байланыс қажет." : "Для обновления статуса требуется связь.")
             : language === "kk"
               ? `${activeCount} материал жасалып жатыр. Бетті жабуға болады.`
               : `Создаётся материалов: ${activeCount}. Страницу можно закрыть.`}
         </p>
       </div>
+      {(activeJob || pollError) && <div className="w-full"><GenerationJobStatus job={activeJob} language={language} error={pollError} onRetry={retryPolling} /></div>}
       <Link
         href="/dashboard/generations"
         className="shrink-0 rounded-full bg-white px-4 py-2 font-semibold text-slate-900 shadow-sm ring-1 ring-black/5 transition hover:-translate-y-0.5"

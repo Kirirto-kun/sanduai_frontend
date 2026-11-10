@@ -1,4 +1,5 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { getGenerationJob } from "@/lib/api";
 import { currentSessionUserId, useTokens } from "@/hooks/useTokens";
-import { generationJobIdFromSearchParam, isUnavailableGenerationJobError } from "@/lib/generation-history";
+import { generationJobIdFromSearchParam } from "@/lib/generation-history";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
 import type { Action, MasterclassInput, MasterclassWork, Topic } from "./types";
 import { actOnMasterclass, generateMasterclass, getMasterclassConfig, getMasterclassWork, listMasterclassWorks, suggestMasterclassTopics } from "./api";
@@ -32,13 +33,24 @@ export default function MasterclassWorkspace() {
   const workId = generationJobIdFromSearchParam(params.get("work"));
   const jobId = generationJobIdFromSearchParam(params.get("masterclassJob"));
   const topicJobId = generationJobIdFromSearchParam(params.get("topicsJob"));
-  const config = useQuery({ queryKey: ["masterclass-config", user?.userId], queryFn: getMasterclassConfig, enabled: Boolean(user), staleTime: 30_000 });
-  const history = useInfiniteQuery({ queryKey: ["masterclass-works", user?.userId, "history"], initialPageParam: 0, queryFn: ({ pageParam }) => listMasterclassWorks(MASTERCLASS_HISTORY_PAGE_SIZE, pageParam), getNextPageParam: (lastPage, _pages, lastOffset) => nextHistoryOffset(lastPage, lastOffset), enabled: Boolean(user), staleTime: 5000 });
+  const config = useQuery({ queryKey: ["masterclass-config", user?.userId], queryFn: getMasterclassConfig, enabled: Boolean(user), staleTime: 30_000,
+  });
+  const history = useInfiniteQuery({ queryKey: ["masterclass-works", user?.userId, "history"], initialPageParam: 0, queryFn: ({ pageParam }) => listMasterclassWorks(MASTERCLASS_HISTORY_PAGE_SIZE, pageParam), getNextPageParam: (lastPage, _pages, lastOffset) => nextHistoryOffset(lastPage, lastOffset), enabled: Boolean(user), staleTime: 5000,
+  });
   const historyItems = useMemo(() => uniqueHistoryItems(history.data?.pages ?? []), [history.data]);
   const historyTotal = history.data?.pages[0]?.total ?? 0;
-  const work = useQuery({ queryKey: ["masterclass-work", workId, user?.userId], queryFn: () => getMasterclassWork(workId!), enabled: Boolean(workId && user) });
-  const job = useQuery({ queryKey: ["masterclass-job", jobId, user?.userId], queryFn: () => getGenerationJob(jobId!), enabled: Boolean(jobId && user), retry: (count, cause) => !isUnavailableGenerationJobError(cause) && count < 2, refetchInterval: query => query.state.status === "error" || (query.state.data && terminal.includes(query.state.data.status)) ? false : 1800 });
-  const topicJob = useQuery({ queryKey: ["masterclass-topic-job", topicJobId, user?.userId], queryFn: () => getGenerationJob(topicJobId!), enabled: Boolean(topicJobId && user), retry: (count, cause) => !isUnavailableGenerationJobError(cause) && count < 2, refetchInterval: query => query.state.status === "error" || (query.state.data && terminal.includes(query.state.data.status)) ? false : 1800 });
+  const work = useQuery({ queryKey: ["masterclass-work", workId, user?.userId], queryFn: () => getMasterclassWork(workId!), enabled: Boolean(workId && user),
+  });
+  const job = useGenerationJobQuery({
+    queryKey: ["masterclass-job", jobId, user?.userId],
+    queryFn: () => getGenerationJob(jobId!),
+    enabled: Boolean(jobId && user),
+  });
+  const topicJob = useGenerationJobQuery({
+    queryKey: ["masterclass-topic-job", topicJobId, user?.userId],
+    queryFn: () => getGenerationJob(topicJobId!),
+    enabled: Boolean(topicJobId && user),
+  });
   useEffect(() => {
     loaded.current = false; handled.current = null; topicHandled.current = null; submission.current = null;
     queueMicrotask(() => {

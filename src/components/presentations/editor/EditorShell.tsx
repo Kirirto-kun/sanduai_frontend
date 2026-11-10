@@ -1,4 +1,5 @@
 "use client";
+import { GenerationJobStatus } from "@/components/generations/GenerationJobStatus";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -180,7 +181,8 @@ export default function EditorShell({
 
   return (
     <div className="space-y-4">
-      {job && (
+      {jobQuery.error && <GenerationJobStatus language={language} error={jobQuery.error} onRetry={() => void jobQuery.refetch()} />}
+      {job && !jobQuery.error && (
         <GenerationProgress
           job={job}
           completed={completed}

@@ -1,4 +1,5 @@
 "use client";
+import { startGenerationPolling, isTerminalGenerationPollError } from "@/lib/generation-polling";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -11,7 +12,6 @@ import {
 } from "@/lib/api";
 import {
   generationJobIdFromSearchParam,
-  isUnavailableGenerationJobError,
 } from "@/lib/generation-history";
 import { API_ERROR_CODES, ApiRequestError } from "@/lib/http-client";
 import { createIdempotencyKey } from "@/lib/idempotency";
@@ -139,6 +139,7 @@ export default function BuilderWorkspace() {
   const [generationJob, setGenerationJob] = useState<GenerationJob | null>(null);
   const [pendingBuild, setPendingBuild] = useState<PendingBuilderBuild | null>(null);
   const [retryDraft, setRetryDraft] = useState<BuilderComposerDraft | null>(null);
+  const [generationPollError, setGenerationPollError] = useState<unknown>(null);
   const [recoveringBuild, setRecoveringBuild] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -567,12 +568,11 @@ export default function BuilderWorkspace() {
       return;
     }
     let stopped = false;
-    let timer: number | undefined;
-
-    const poll = async () => {
-      try {
-        const job = await getGenerationJob(jobIdFromUrl);
-        if (stopped) return;
+    const poller = startGenerationPolling({
+      read: () => getGenerationJob(jobIdFromUrl),
+      onData: async (job) => {
+        setGenerationPollError(null);
+        if (stopped) return false;
         if (job.kind !== BUILDER_GENERATION_KIND) {
           setGenerationJob(null);
           setRecoveringBuild(false);
@@ -585,7 +585,7 @@ export default function BuilderWorkspace() {
           } else {
             router.replace("/dashboard/ai/builder", { scroll: false });
           }
-          return;
+          return false;
         }
 
         const jobProjectId = builderProjectIdFromJob(job);
@@ -601,7 +601,7 @@ export default function BuilderWorkspace() {
           } else {
             router.replace("/dashboard/ai/builder", { scroll: false });
           }
-          return;
+          return false;
         }
         if (projectIdFromUrl && !builderJobBelongsToProject(job, projectIdFromUrl)) {
           // Never let a valid job for project B drive project A merely because
@@ -612,7 +612,7 @@ export default function BuilderWorkspace() {
             ? "Тапсырма басқа жобаға тиесілі. Дұрыс жобаға ауыстырып жатырмыз."
             : "Задача относится к другому проекту. Открываем правильный проект.");
           router.replace(builderWorkspaceHref(jobProjectId, job.id), { scroll: false });
-          return;
+          return false;
         }
 
         if (pollTransportErrorRef.current) {
@@ -637,8 +637,7 @@ export default function BuilderWorkspace() {
           || memoryBuild.idempotencyKey !== stored.idempotencyKey
         )) rememberPendingBuild(stored);
         if (isActiveBuilderJob(job)) {
-          timer = window.setTimeout(poll, 1_500);
-          return;
+          return true;
         }
 
         if (
@@ -649,7 +648,7 @@ export default function BuilderWorkspace() {
             ? "Жобаны сақтау мен монета есебі расталмады. Қайта жібермеңіз — әкімші тапсырма күйін тексеруі керек."
             : "Сохранение проекта и учёт монет не подтверждены. Не отправляйте запрос повторно — администратору нужно проверить задачу.");
           announceGenerationUpdate();
-          return;
+          return false;
         }
 
         if (job.status === "completed" || job.status === "billing_error") {
@@ -664,7 +663,7 @@ export default function BuilderWorkspace() {
               },
             );
             const latestProject = await reconciliation.project;
-            if (stopped) return;
+            if (stopped) return false;
             replaceProject(latestProject);
             void reconciliation.versions.then((latestVersions) => {
               if (
@@ -691,22 +690,20 @@ export default function BuilderWorkspace() {
             router.replace(builderWorkspaceHref(targetProjectId), { scroll: false });
             announceGenerationUpdate();
           } catch (requestError) {
-            if (stopped) return;
+            if (stopped) return false;
             if (requestError instanceof BuilderCompletionPendingError) {
-              timer = window.setTimeout(poll, 1_500);
-              return;
+              return true;
             }
             if (uncertainTransport(requestError)) {
               setError(language === "kk"
                 ? "Өзгерістер сақталды. Жаңартылған жобаны серверден алып жатырмыз…"
                 : "Изменения сохранены. Получаем обновлённый проект с сервера…");
-              timer = window.setTimeout(poll, 3_000);
-              return;
+              return true;
             }
             setRecoveringBuild(false);
             setError(builderErrorMessage(requestError, language));
           }
-          return;
+          return false;
         }
 
         if (stored) {
@@ -729,9 +726,11 @@ export default function BuilderWorkspace() {
             ? "Жобаны жасау аяқталмады. Монеталар автоматты түрде қайтарылады; сұрауды қайта жіберуге болады."
             : "Не удалось завершить проект. Монеты вернутся автоматически; запрос можно отправить снова.");
         announceGenerationUpdate();
-      } catch (requestError) {
+      },
+      onError: (requestError) => {
         if (stopped) return;
-        if (isUnavailableGenerationJobError(requestError)) {
+        setGenerationPollError(requestError);
+        if (isTerminalGenerationPollError(requestError)) {
           if (projectIdFromUrl) {
             clearPendingBuilderBuild(projectIdFromUrl, jobIdFromUrl, persistenceScope);
             rememberPendingBuild(null);
@@ -751,15 +750,10 @@ export default function BuilderWorkspace() {
           ? "Сервермен байланыс үзілді. Генерация серверде жалғасуда; байланыс қалпына келгенде күйі жаңартылады."
           : "Связь с сервером прервалась. Генерация продолжается на сервере; статус обновится после восстановления связи.");
         pollTransportErrorRef.current = true;
-        timer = window.setTimeout(poll, 3_000);
-      }
-    };
-
-    void poll();
-    return () => {
-      stopped = true;
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
+        setRecoveringBuild(false);
+      },
+    });
+    return () => { stopped = true; poller.stop(); };
   }, [
     announceGenerationUpdate,
     jobIdFromUrl,
@@ -1187,6 +1181,7 @@ export default function BuilderWorkspace() {
         saving={saving}
         error={error}
         generationJob={generationJob}
+        generationPollError={generationPollError}
         pendingPrompt={pendingBuild?.payload.prompt ?? ""}
         retryDraft={retryDraft}
         persistenceScope={persistenceScope}

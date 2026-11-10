@@ -1,4 +1,6 @@
 "use client";
+import { GenerationJobStatus } from "@/components/generations/GenerationJobStatus";
+import { generationPollingInterval, generationPollingRecovery } from "@/lib/generation-polling";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useInfiniteQuery,
@@ -82,18 +84,19 @@ export function VideoWorkspace({
     retry: false,
   });
   const query = useQuery({
+    ...generationPollingRecovery,
     queryKey: ["video-project", ownerId, projectId],
     queryFn: () => videoApi.project(projectId!),
     enabled: Boolean(ownerId && projectId),
-    retry: false,
-    refetchInterval: (q) => {
+
+    refetchInterval: (q) => generationPollingInterval(q.state, (() => {
       const p = q.state.data;
       return p &&
         (p.jobs.some(isActiveVideoJob) || p.exports.some(isActiveVideoJob))
         ? 4000
         : false;
-    },
-    refetchOnWindowFocus: true,
+    })(), q),
+
   });
   const project = query.data;
   const fastAvailable =
@@ -408,6 +411,7 @@ export function VideoWorkspace({
           </button>
         </div>
       )}
+      {query.error && project && <GenerationJobStatus language={language} error={query.error} onRetry={() => void query.refetch()} />}
       {catalog.isLoading ? (
         <div className="grid min-h-72 place-items-center rounded-3xl border border-slate-200 bg-white text-slate-400">
           <Spinner className="h-7 w-7" />
@@ -515,7 +519,7 @@ export function VideoWorkspace({
         <div className="grid min-h-80 place-items-center rounded-3xl bg-white text-slate-400">
           <Spinner className="h-7 w-7" />
         </div>
-      ) : projectId && (query.isError || expired) ? (
+      ) : projectId && ((query.isError && !project) || expired) ? (
         <section className="rounded-3xl border border-slate-200 bg-white p-8">
           <Icon name="clock" className="h-8 w-8 text-amber-400" />
           <h2 className="mt-4 text-lg font-semibold text-slate-800">

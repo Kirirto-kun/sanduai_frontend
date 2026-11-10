@@ -1,4 +1,5 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -67,7 +68,6 @@ import {
   isActiveGenerationJob,
 } from "@/lib/generation-history";
 import { visualGenerationErrorMessage } from "@/lib/visuals-ai-errors";
-
 
 const CUSTOM_SUBJECT = "__other__";
 const SOURCE_PATH = "/dashboard/ai/worksheets";
@@ -252,7 +252,6 @@ const COPY = {
   },
 } as const;
 
-
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -262,11 +261,9 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-
 function localizedSubjectName(subject: ContentSubject, language: "ru" | "kk"): string {
   return language === "kk" ? subject.name_kk?.trim() || subject.name : subject.name;
 }
-
 
 async function convertToJpeg(blob: Blob): Promise<Blob> {
   const sourceUrl = URL.createObjectURL(blob);
@@ -296,7 +293,6 @@ async function convertToJpeg(blob: Blob): Promise<Blob> {
     URL.revokeObjectURL(sourceUrl);
   }
 }
-
 
 function WorksheetResultCard({
   result,
@@ -409,7 +405,6 @@ function WorksheetResultCard({
   );
 }
 
-
 function LegacyWorksheetCard({ job, language }: { job: GenerationJob; language: "ru" | "kk" }) {
   const t = COPY[language];
   const [downloading, setDownloading] = useState(false);
@@ -444,7 +439,6 @@ function LegacyWorksheetCard({ job, language }: { job: GenerationJob; language: 
     </article>
   );
 }
-
 
 function WorksheetsContent() {
   const { isAuthenticated } = useAuth();
@@ -486,14 +480,10 @@ function WorksheetsContent() {
     refetchOnReconnect: true,
   });
 
-  const job = useQuery({
+  const job = useGenerationJobQuery({
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
-    retry: 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) => query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
   });
 
   const selectedSubject = useMemo(
@@ -512,7 +502,7 @@ function WorksheetsContent() {
   const cost = costs.worksheet_generate ?? 10;
   const enoughTokens = balance === null || balance >= cost;
   const loading = submitting || Boolean(
-    currentJobId && (job.isPending || (job.data && isActiveGenerationJob(job.data))),
+    currentJobId && job.isGenerationBusy,
   );
 
   useEffect(() => {
@@ -840,7 +830,6 @@ function WorksheetsContent() {
     </>
   );
 }
-
 
 export default function WorksheetsPage() {
   return (

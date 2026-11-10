@@ -1,4 +1,6 @@
 "use client";
+import { GenerationJobStatus } from "@/components/generations/GenerationJobStatus";
+import { GENERATION_POLL_RETRY_EVENT } from "@/lib/generation-polling";
 
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -41,6 +43,7 @@ type BuilderStudioProps = {
   saving: boolean;
   error: string;
   generationJob: GenerationJob | null;
+  generationPollError?: unknown;
   pendingPrompt: string;
   retryDraft: BuilderComposerDraft | null;
   persistenceScope: BuilderPersistenceScope;
@@ -263,7 +266,7 @@ function PublishDialog({
 export default function BuilderStudio(props: BuilderStudioProps) {
   const {
     language, project, versions, config, busy, saving, error, onBack, onBuild,
-    generationJob, pendingPrompt, retryDraft, onSaveFiles, onRestore, onUploadAsset,
+    generationJob, generationPollError, pendingPrompt, retryDraft, onSaveFiles, onRestore, onUploadAsset,
     persistenceScope, onRemoveAsset, onContentLanguageChange, onPublish, onDownload,
   } = props;
   const isKk = language === "kk";
@@ -666,7 +669,7 @@ export default function BuilderStudio(props: BuilderStudioProps) {
               </div>
             )}
             {activeBuilderGeneration && generationJob ? (
-              <BuilderGenerationProgress job={generationJob} language={language} />
+              generationPollError ? <GenerationJobStatus job={generationJob} language={language} error={generationPollError} onRetry={() => window.dispatchEvent(new Event(GENERATION_POLL_RETRY_EVENT))} /> : <BuilderGenerationProgress job={generationJob} language={language} />
             ) : busy && !generationJob ? (
               <div className="mr-3 rounded-2xl rounded-bl-md bg-slate-100 p-3" aria-live="polite"><div className="flex items-center gap-2"><span className="h-4 w-4 animate-spin rounded-full border-2 border-orange-500 border-r-transparent" /><span className="text-xs font-bold text-slate-600">{isKk ? "Сұрауды серверге жіберіп жатырмыз…" : "Передаём запрос серверу…"}</span></div><p className="mt-1.5 text-[10px] leading-4 text-slate-500">{isKk ? "Сервер тапсырманы қабылдағанша бетті жаппаңыз." : "Не закрывайте страницу, пока сервер не примет задачу."}</p><div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-200"><div className="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-orange-500 to-emerald-500" /></div></div>
             ) : null}

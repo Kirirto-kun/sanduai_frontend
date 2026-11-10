@@ -1,4 +1,5 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -8,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getGenerationJob } from "@/lib/api";
 import { useTokens } from "@/hooks/useTokens";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
-import { generationJobIdFromSearchParam, isUnavailableGenerationJobError } from "@/lib/generation-history";
+import { generationJobIdFromSearchParam } from "@/lib/generation-history";
 import { actOnCompetitionWork, generateCompetition, getCompetitionConfig, getCompetitionWork, listCompetitionWorks, type CompetitionInput, type CompetitionWork } from "./api";
 import CompetitionWizard, { blankCompetitionInput } from "./CompetitionWizard";
 import CompetitionResult from "./CompetitionResult";
@@ -38,8 +39,13 @@ export default function CompetitionWorkspace() {
   const workId = generationJobIdFromSearchParam(params.get("work"));
   const config = useQuery({ queryKey: ["competition-config", user?.userId], queryFn: getCompetitionConfig, staleTime: 30_000 });
   const history = useQuery({ queryKey: ["competition-works", user?.userId], queryFn: listCompetitionWorks, staleTime: 5_000 });
-  const work = useQuery({ queryKey: ["competition-work", workId, user?.userId], queryFn: () => getCompetitionWork(workId!), enabled: Boolean(workId) });
-  const job = useQuery({ queryKey: ["competition-job", jobId, user?.userId], queryFn: () => getGenerationJob(jobId!), enabled: Boolean(jobId), retry: (count, cause) => !isUnavailableGenerationJobError(cause) && count < 2, refetchInterval: query => query.state.status === "error" || (query.state.data && terminal.includes(query.state.data.status)) ? false : 1800 });
+  const work = useQuery({ queryKey: ["competition-work", workId, user?.userId], queryFn: () => getCompetitionWork(workId!), enabled: Boolean(workId),
+  });
+  const job = useGenerationJobQuery({
+    queryKey: ["competition-job", jobId, user?.userId],
+    queryFn: () => getGenerationJob(jobId!),
+    enabled: Boolean(jobId),
+  });
 
   useEffect(() => {
     draftLoaded.current = false;

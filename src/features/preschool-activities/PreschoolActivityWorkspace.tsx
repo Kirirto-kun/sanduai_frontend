@@ -1,4 +1,5 @@
 "use client";
+import { startGenerationPolling, isTerminalGenerationPollError } from "@/lib/generation-polling";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -31,7 +32,6 @@ import {
   preschoolJobFailureMessage,
   restorePreschoolDraft,
   restorePreschoolPending,
-  retryablePreschoolRequest,
   savePreschoolDraft,
   savePreschoolPending,
   type PendingKind,
@@ -187,6 +187,7 @@ function FormView({
   setSeason,
   busy,
   pendingKind: currentPendingKind,
+  connectionIssue,
   balance,
   error,
   onSubmit,
@@ -201,6 +202,7 @@ function FormView({
   setSeason: (value: string) => void;
   busy: boolean;
   pendingKind: PendingKind | null;
+  connectionIssue?: boolean;
   balance: number | null;
   error: string | null;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -250,7 +252,7 @@ function FormView({
       </header>
 
       {error ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{error}</div> : null}
-      {busy ? (
+      {busy && !connectionIssue ? (
         <div aria-live="polite" className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4 text-sky-950">
           <span className="mt-0.5 h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-sky-600 border-r-transparent" />
           <div>
@@ -1095,13 +1097,11 @@ export default function PreschoolActivityWorkspace() {
   useEffect(() => {
     if (!pending) return;
     let active = true;
-    let timer: number | undefined;
     const controller = new AbortController();
-
-    const poll = async () => {
-      try {
-        const job = await preschoolActivityApi.job(pending.id, controller.signal);
-        if (!active) return;
+    const poller = startGenerationPolling({
+      read: () => preschoolActivityApi.job(pending.id, controller.signal),
+      onData: (job) => {
+        if (!active) return false;
         setConnectionError(null);
         const actualKind = pendingKind(job.kind);
         if (actualKind === "unknown") {
@@ -1112,17 +1112,16 @@ export default function PreschoolActivityWorkspace() {
           setTopics(null);
           setError(copy.wrongMaterial);
           router.replace(SOURCE_PATH, { scroll: false });
-          return;
+          return false;
         }
         if (pending.kind === "unknown") {
           setPending((current) => current?.id === job.id ? { ...current, kind: actualKind } : current);
         }
         setProgress(job.progress);
         if (isPreschoolJobActive(job.status)) {
-          timer = window.setTimeout(() => void poll(), 1_800);
-          return;
+          return true;
         }
-        if (settledJobRef.current === job.id) return;
+        if (settledJobRef.current === job.id) return false;
         settledJobRef.current = job.id;
         savePreschoolPending(ownerId, null);
         setPending(null);
@@ -1133,14 +1132,14 @@ export default function PreschoolActivityWorkspace() {
           if (actualKind === "topics") {
             setTopics(topicsFromJobResult(job.result));
             router.replace(SOURCE_PATH, { scroll: false });
-            return;
+            return false;
           }
           if (actualKind === "generate" || actualKind === "task") {
             const nextDocument = documentFromJobResult(job.result);
             if (!nextDocument) {
               setError(copy.invalidResult);
               router.replace(SOURCE_PATH, { scroll: false });
-              return;
+              return false;
             }
             documentRequestRef.current += 1;
             restoredDocumentRef.current = nextDocument.id;
@@ -1150,17 +1149,19 @@ export default function PreschoolActivityWorkspace() {
             setHistory([]);
             setHistoryTotal(0);
             router.replace(`${SOURCE_PATH}?document=${encodeURIComponent(nextDocument.id)}`, { scroll: false });
-            return;
+            return false;
           }
           setError(copy.wrongMaterial);
-          return;
+          return false;
         }
         setTopics(null);
         setError(preschoolJobFailureMessage(job, language));
         router.replace(pending.documentId ? `${SOURCE_PATH}?document=${encodeURIComponent(pending.documentId)}` : SOURCE_PATH, { scroll: false });
-      } catch (requestError) {
+
+      },
+      onError: (requestError) => {
         if (!active || controller.signal.aborted) return;
-        if (!retryablePreschoolRequest(requestError)) {
+        if (isTerminalGenerationPollError(requestError)) {
           settledJobRef.current = pending.id;
           savePreschoolPending(ownerId, null);
           setPending(null);
@@ -1172,15 +1173,10 @@ export default function PreschoolActivityWorkspace() {
           return;
         }
         setConnectionError(copy.reconnecting);
-        timer = window.setTimeout(() => void poll(), 4_000);
-      }
-    };
-    void poll();
-    return () => {
-      active = false;
-      controller.abort();
-      if (timer) window.clearTimeout(timer);
-    };
+
+      },
+    });
+    return () => { active = false; controller.abort(); poller.stop(); };
   }, [copy.invalidResult, copy.reconnecting, copy.wrongMaterial, language, ownerId, pending, refreshBalance, reportError, router]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -1337,7 +1333,7 @@ export default function PreschoolActivityWorkspace() {
   const pendingText = currentOperation === "task" ? copy.taskLoading : currentOperation === "topics" ? copy.topicsLoading : copy.loading;
   return (
     <div className="mx-auto max-w-[1480px] pb-12">
-      {connectionError ? <p role="status" className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{connectionError}</p> : null}
+      {connectionError ? <p role="status" className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{connectionError}<button type="button" className="ml-3 min-h-11 rounded-lg border border-amber-400 px-3 font-semibold" onClick={() => window.dispatchEvent(new Event("sanduai:retry-generation-polls"))}>{language === "kk" ? "Қайта тексеру" : "Проверить снова"}</button></p> : null}
       <nav className="mb-6 flex flex-wrap gap-1 border-b border-slate-200" aria-label={copy.title}>
         <button type="button" onClick={createNew} aria-current={view === "create" ? "page" : undefined} className={`min-h-11 border-b-2 px-4 text-sm font-black ${view === "create" ? "border-emerald-600 text-emerald-700" : "border-transparent text-slate-500 hover:text-slate-900"}`}>{copy.createTab}</button>
         <button type="button" onClick={openHistory} aria-current={view === "history" ? "page" : undefined} className={`min-h-11 border-b-2 px-4 text-sm font-black ${view === "history" ? "border-emerald-600 text-emerald-700" : "border-transparent text-slate-500 hover:text-slate-900"}`}>{copy.historyTab}</button>
@@ -1346,12 +1342,12 @@ export default function PreschoolActivityWorkspace() {
 
       {view === "history" && error ? <p role="alert" className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p> : null}
 
-      {(pending || enqueueing) && view !== "create" ? <div aria-live="polite" className="mb-5 flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950"><span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-r-transparent" /><span><strong>{pendingText}</strong>{progress?.total ? ` · ${progress.current ?? 0}/${progress.total}` : progress?.message ? ` · ${progress.message}` : ""}</span></div> : null}
-      {view === "create" ? <FormView copy={copy} interfaceLanguage={language} config={config} input={input} setInput={setReadyInput} season={season} setSeason={setSeason} busy={Boolean(pending || enqueueing)} pendingKind={currentOperation} balance={balance} error={error} onSubmit={(event) => void submit(event)} onTopics={() => void suggestTopics()} /> : null}
+      {!connectionError && (pending || enqueueing) && view !== "create" ? <div aria-live="polite" className="mb-5 flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950"><span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-r-transparent" /><span><strong>{pendingText}</strong>{progress?.total ? ` · ${progress.current ?? 0}/${progress.total}` : progress?.message ? ` · ${progress.message}` : ""}</span></div> : null}
+      {view === "create" ? <FormView copy={copy} interfaceLanguage={language} config={config} input={input} setInput={setReadyInput} season={season} setSeason={setSeason} busy={Boolean(pending || enqueueing)} connectionIssue={Boolean(connectionError)} pendingKind={currentOperation} balance={balance} error={error} onSubmit={(event) => void submit(event)} onTopics={() => void suggestTopics()} /> : null}
       {view === "history" ? <HistoryView copy={copy} config={config} language={language} items={history} total={historyTotal} loading={historyLoading} error={historyError} search={historySearch} setSearch={setHistorySearch} onOpen={(id) => void openDocument(id)} onAdapt={adapt} onLoadMore={() => void loadHistory(history.length)} /> : null}
       {view === "document" && document ? <DocumentView copy={copy} language={language} config={config} document={document} pendingTaskId={pending?.kind === "task" ? pending.taskId : enqueueing === "task" ? enqueueingTaskId : undefined} transformLocked={currentOperation === "task"} error={error} downloading={downloading} actions={taskActions} instructions={taskInstructions} onActionChange={(taskId, action) => setTaskActions((current) => ({ ...current, [taskId]: action }))} onInstructionChange={(taskId, value) => setTaskInstructions((current) => ({ ...current, [taskId]: value }))} onTransform={(task) => void transformTask(task)} onBack={createNew} onAdapt={() => adapt(document)} onExport={(format) => void exportDocument(format)} onOpenVisuals={() => setVisualsOpen(true)} /> : null}
 
-      {topics !== null ? <TopicDialog copy={copy} topics={topics} loading={pending?.kind === "topics" || enqueueing === "topics"} onChoose={(topic) => { setInput((current) => current ? { ...current, topic } : current); setTopics(null); }} onClose={() => setTopics(null)} /> : null}
+      {topics !== null ? <TopicDialog copy={copy} topics={topics} loading={!connectionError && (pending?.kind === "topics" || enqueueing === "topics")} onChoose={(topic) => { setInput((current) => current ? { ...current, topic } : current); setTopics(null); }} onClose={() => setTopics(null)} /> : null}
       {visualsOpen && document ? <VisualsDialog copy={copy} document={document} onClose={() => setVisualsOpen(false)} /> : null}
     </div>
   );

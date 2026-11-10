@@ -1,4 +1,5 @@
 "use client";
+import { generationPollingInterval, generationPollingRecovery } from "@/lib/generation-polling";
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -41,41 +42,43 @@ export function usePresentationsList() {
 
 export function usePresentation(id: string | null | undefined) {
   return useQuery({
+    ...generationPollingRecovery,
     queryKey: presentationKeys.detail(id ?? ""),
     queryFn: ({ signal }) => api.getPresentation(id!, signal),
     enabled: Boolean(id),
-    refetchInterval: (query) => {
+    refetchInterval: (query) => generationPollingInterval(query.state, (() => {
       const status = query.state.data?.status;
       return status === "planning" || status === "queued" || status === "generating"
         ? 2500
         : false;
-    },
+    })(), query),
   });
 }
 
 export function useJob(jobId: string | null | undefined) {
   return useQuery({
+    ...generationPollingRecovery,
     queryKey: presentationKeys.job(jobId ?? ""),
     queryFn: ({ signal }) => api.getJob(jobId!, signal),
     enabled: Boolean(jobId),
-    refetchInterval: (query) => {
+    refetchInterval: (query) => generationPollingInterval(query.state, (() => {
       const status = query.state.data?.status;
       return status && terminalJobStatuses.has(status) ? false : 2000;
-    },
+    })(), query),
   });
 }
 
 export function usePresentationExports(presentationId: string | null | undefined) {
   return useQuery({
+    ...generationPollingRecovery,
     queryKey: presentationKeys.exports(presentationId ?? ""),
     queryFn: ({ signal }) => api.listExports(presentationId!, signal),
     enabled: Boolean(presentationId),
-    refetchInterval: (query) =>
-      query.state.data?.some((item) =>
+    refetchInterval: (query) => generationPollingInterval(query.state, (query.state.data?.some((item) =>
         item.status === "queued" || item.status === "running" || item.status === "processing",
       )
         ? 2500
-        : false,
+        : false), query),
   });
 }
 

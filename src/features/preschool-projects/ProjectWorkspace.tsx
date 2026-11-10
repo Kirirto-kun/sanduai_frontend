@@ -1,13 +1,14 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { currentSessionUserId, useTokens } from "@/hooks/useTokens";
 import { cancelGenerationJob, clearGenerationIntentForJob, enqueueGenerationJob, getGenerationJob, listGenerationJobs } from "@/lib/api";
-import { generationJobIdFromSearchParam, isUnavailableGenerationJobError } from "@/lib/generation-history";
+import { generationJobIdFromSearchParam } from "@/lib/generation-history";
 import { teacherFacingErrorMessage } from "@/lib/teacher-facing-error";
 import { blankProject, isProjectDraft, isProjectResult, projectSubmission, selectOutput, PROJECT_KIND, PROJECT_PATH } from "./model";
 import ProjectForm from "./ProjectForm";
@@ -36,12 +37,17 @@ function ProjectSession({ userId }: { userId: string }) {
   const loaded = useRef(false); const submissionLock = useRef(false); const handled = useRef<string | null>(null);
   const draftKey = `sanduai:preschool-project-draft:v1:${userId}`;
   const rawJobId = params.get("job"); const jobId = generationJobIdFromSearchParam(rawJobId);
-  const job = useQuery({ queryKey: ["preschool-project-job", userId, jobId], queryFn: () => getGenerationJob(jobId!), enabled: Boolean(jobId), retry: (count, reason) => !isUnavailableGenerationJobError(reason) && count < 2, refetchInterval: query => query.state.status === "error" || (query.state.data && TERMINAL.has(query.state.data.status)) ? false : 1800 });
-  const history = useInfiniteQuery({ queryKey: ["preschool-project-history", userId], initialPageParam: 0, queryFn: ({ pageParam }) => listGenerationJobs({ kind: PROJECT_KIND, limit: 12, offset: pageParam }), enabled: historyOpen, getNextPageParam: (last, pages) => last.has_more ? last.next_offset ?? pages.reduce((sum, p) => sum + p.items.length, 0) : undefined, staleTime: 1000 });
+  const job = useGenerationJobQuery({
+    queryKey: ["preschool-project-job", userId, jobId],
+    queryFn: () => getGenerationJob(jobId!),
+    enabled: Boolean(jobId),
+  });
+  const history = useInfiniteQuery({ queryKey: ["preschool-project-history", userId], initialPageParam: 0, queryFn: ({ pageParam }) => listGenerationJobs({ kind: PROJECT_KIND, limit: 12, offset: pageParam }), enabled: historyOpen, getNextPageParam: (last, pages) => last.has_more ? last.next_offset ?? pages.reduce((sum, p) => sum + p.items.length, 0) : undefined, staleTime: 1000,
+  });
   const current = job.data?.kind === PROJECT_KIND ? job.data : null;
   const result = current && ["completed", "billing_error"].includes(current.status) && isProjectResult(current.result) ? current.result : null;
-  const active = Boolean(current && !TERMINAL.has(current.status));
-  const busy = submitting || active || Boolean(jobId && job.isPending);
+  const active = job.isGenerationBusy && Boolean(current && !TERMINAL.has(current.status));
+  const busy = submitting || active || Boolean(jobId && job.isPending && !job.error);
   const cost = costs.preschool_project_generate ?? null;
   useEffect(() => {
     let alive = true;

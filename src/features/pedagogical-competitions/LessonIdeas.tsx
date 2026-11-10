@@ -1,4 +1,6 @@
 "use client";
+import { generationPollingInterval, generationPollingRecovery } from "@/lib/generation-polling";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -171,32 +173,23 @@ function PedagogicalIdeasContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const history = useQuery({
+    ...generationPollingRecovery,
     queryKey: [...generationJobsQueryKey, KIND],
     queryFn: () => listGenerationJobs({ kind: KIND, limit: 100, offset: 0 }),
     staleTime: 1_000,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) =>
-      query.state.data?.items.some((job) => job.kind === KIND && !TERMINAL_STATUSES.includes(job.status))
+
+    refetchInterval: (query) => generationPollingInterval(query.state, (query.state.data?.items.some((job) => job.kind === KIND && !TERMINAL_STATUSES.includes(job.status))
         ? 2_000
-        : 30_000,
+        : 30_000), query),
   });
   const jobs = useMemo(
     () => (history.data?.items ?? []).filter((job) => job.kind === KIND),
     [history.data?.items],
   );
-  const current = useQuery({
+  const current = useGenerationJobQuery({
     queryKey: ["generation-job", requestedJobId],
     queryFn: () => getGenerationJob(requestedJobId as string),
     enabled: Boolean(requestedJobId),
-    retry: (failureCount, requestError) =>
-      !isUnavailableGenerationJobError(requestError) && failureCount < 2,
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status && !TERMINAL_STATUSES.includes(status) ? 1_800 : false;
-    },
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {

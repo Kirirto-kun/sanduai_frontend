@@ -1,7 +1,8 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useLanguage, useTranslations } from "../../../../../../i18n/LanguageContext";
 import {
@@ -21,7 +22,6 @@ import {
   generationJobIdFromSearchParam,
   generationServerStatusCopy,
   isAcknowledgedGenerationJob,
-  isActiveGenerationJob,
   isUnavailableGenerationJobError,
 } from "../../../../../../lib/generation-history";
 import { completeScienceProjectFromState } from "../../../../../../lib/science-project-history";
@@ -56,18 +56,10 @@ function EditProjectContent() {
   const [regenerating, setRegenerating] = useState<string | null>(null);
   const [regenerateInstructions, setRegenerateInstructions] = useState<Record<string, string>>({});
 
-  const job = useQuery({
+  const job = useGenerationJobQuery({
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
-    retry: (failureCount, requestError) =>
-      !isUnavailableGenerationJobError(requestError) && failureCount < 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) => {
-      const value = query.state.data;
-      return value && isActiveGenerationJob(value) ? 2_000 : false;
-    },
   });
 
   useEffect(() => {
@@ -266,7 +258,7 @@ function EditProjectContent() {
     ["science.regenerate", "science.finalize"],
   );
   const operationActive = Boolean(
-    currentJobId && (job.isLoading || (operationAcknowledged && job.data && isActiveGenerationJob(job.data))),
+    currentJobId && job.isGenerationBusy && (!job.data || operationAcknowledged),
   );
 
   if (loading) {
@@ -435,7 +427,6 @@ function EditProjectContent() {
     </div>
   );
 }
-
 
 export default function EditProjectPage() {
   return (

@@ -1,4 +1,5 @@
 "use client";
+import { generationPollingInterval, generationPollingRecovery } from "@/lib/generation-polling";
 
 import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -13,7 +14,6 @@ import { teacherFacingErrorMessage } from "../../lib/teacher-facing-error";
 import { generationJobsQueryKey } from "./GenerationCenter";
 import { GenerationMaterialCard } from "./GenerationMaterialCard";
 
-
 export type ModuleGenerationHistoryProps = {
   kinds: readonly string[];
   title?: { ru: string; kk: string };
@@ -21,9 +21,7 @@ export type ModuleGenerationHistoryProps = {
   onDownload?: (job: GenerationJobSummary) => Promise<void>;
 };
 
-
 const HISTORY_API_PAGE_SIZE = 100;
-
 
 async function listKindHistory(kind: string, wanted: number) {
   const items: GenerationJobSummary[] = [];
@@ -47,7 +45,6 @@ async function listKindHistory(kind: string, wanted: number) {
   return { items, hasMore };
 }
 
-
 export function ModuleGenerationHistory({
   kinds,
   title = { ru: "Мои материалы", kk: "Менің материалдарым" },
@@ -61,6 +58,7 @@ export function ModuleGenerationHistory({
   const pageSize = Math.max(1, Math.trunc(limit));
   const visibleLimit = pageSize * visiblePages;
   const jobs = useQuery({
+    ...generationPollingRecovery,
     queryKey: [...generationJobsQueryKey, "module", stableKinds.join(","), visibleLimit],
     queryFn: async () => {
       const pages = await Promise.all(
@@ -75,15 +73,13 @@ export function ModuleGenerationHistory({
     enabled: stableKinds.length > 0,
     placeholderData: keepPreviousData,
     staleTime: 1_000,
-    retry: 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) =>
-      query.state.data?.items.some((job) =>
+
+
+    refetchInterval: (query) => generationPollingInterval(query.state, (query.state.data?.items.some((job) =>
         ["queued", "running", "settling", "refunding"].includes(job.status),
       )
         ? 2_500
-        : 30_000,
+        : 30_000), query),
   });
   const items = filterGenerationJobsByKind(jobs.data?.items ?? [], stableKinds);
 

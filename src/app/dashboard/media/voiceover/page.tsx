@@ -1,6 +1,7 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
@@ -124,18 +125,13 @@ function VoiceoverContent() {
   const [charactersUsed, setCharactersUsed] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const job = useQuery({
+  const job = useGenerationJobQuery({
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
-    retry: 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) =>
-      query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
   });
   const loading = submitting || Boolean(
-    currentJobId && (job.isPending || (job.data && isActiveGenerationJob(job.data))),
+    currentJobId && job.isGenerationBusy,
   );
 
   useEffect(() => {

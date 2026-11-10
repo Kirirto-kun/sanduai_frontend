@@ -1,6 +1,7 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ModuleGenerationHistory } from "../../../../../components/generations/ModuleGenerationHistory";
@@ -59,18 +60,13 @@ function AtZharysSetupContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const job = useQuery({
+  const job = useGenerationJobQuery({
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
-    retry: 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) =>
-      query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
   });
   const isLoading = isSubmitting || Boolean(
-    currentJobId && (job.isPending || (job.data && isActiveGenerationJob(job.data))),
+    currentJobId && job.isGenerationBusy,
   );
 
   useEffect(() => {
@@ -412,7 +408,6 @@ function AtZharysSetupContent() {
     </div>
   );
 }
-
 
 export default function AtZharysSetupPage() {
   return (

@@ -1,4 +1,5 @@
 "use client";
+import { generationPollingInterval, generationPollingRecovery } from "@/lib/generation-polling";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -20,7 +21,6 @@ import {
 } from "../../lib/science-project-history";
 import { teacherFacingErrorMessage } from "../../lib/teacher-facing-error";
 
-
 function expiryCopy(project: ScienceProjectListItem, language: "ru" | "kk"): string {
   if (!project.expires_at) {
     return language === "kk" ? "Сақтау мерзімі нақтылануда" : "Срок хранения уточняется";
@@ -38,7 +38,6 @@ function expiryCopy(project: ScienceProjectListItem, language: "ru" | "kk"): str
   return language === "kk" ? `${formatted} дейін қолжетімді` : `Доступно до ${formatted}`;
 }
 
-
 function safeFileName(value: string): string {
   return value
     .trim()
@@ -46,7 +45,6 @@ function safeFileName(value: string): string {
     .replace(/\s+/g, "_")
     .slice(0, 80) || "scientific_project";
 }
-
 
 export function ScientificProjectMaterialCard({
   project,
@@ -117,7 +115,6 @@ export function ScientificProjectMaterialCard({
   );
 }
 
-
 export function ScientificProjectHistory({ limit = 9 }: { limit?: number }) {
   const { language } = useLanguage();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -125,18 +122,17 @@ export function ScientificProjectHistory({ limit = 9 }: { limit?: number }) {
   const pageSize = Math.max(1, Math.min(50, Math.trunc(limit)));
   const visibleLimit = pageSize * visiblePages;
   const projects = useInfiniteQuery({
+    ...generationPollingRecovery,
     queryKey: ["science-project-history"],
     queryFn: ({ pageParam }) => listScienceProjects(50, pageParam),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next_offset ?? undefined,
     staleTime: 1_000,
-    retry: 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) =>
-      hasActiveScienceProject(
+
+
+    refetchInterval: (query) => generationPollingInterval(query.state, (hasActiveScienceProject(
         query.state.data?.pages.flatMap((page) => page.items) ?? [],
-      ) ? 5_000 : false,
+      ) ? 5_000 : false), query),
   });
   const allProjects = useMemo(() => {
     const unique = new Map<string, ScienceProjectListItem>();

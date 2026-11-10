@@ -1,6 +1,7 @@
 "use client";
+import { useGenerationJobQuery } from "@/hooks/useGenerationJobQuery";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, FormEvent, Suspense } from "react";
 import { ModuleGenerationHistory } from "../../../../components/generations/ModuleGenerationHistory";
@@ -86,7 +87,7 @@ function ExamContent() {
   const [sessionJobId, setSessionJobId] = useState<string | null>(null);
   const currentJobId = requestedJobId ?? sessionJobId;
   const settledJobId = useRef<string | null>(null);
-  
+
   // BJB/TJB exam generation page
 
   // Form state
@@ -115,18 +116,13 @@ function ExamContent() {
   const advancedCopy = EXAM_ADVANCED_COPY[language];
   const resultCopy = generatedContentCopy(examProject?.meta.lang ?? form.lang).exam;
 
-  const job = useQuery({
+  const job = useGenerationJobQuery({
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
-    retry: 2,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) =>
-      query.state.data && isActiveGenerationJob(query.state.data) ? 2_000 : false,
   });
   const loading = submitting || Boolean(
-    currentJobId && (job.isPending || (job.data && isActiveGenerationJob(job.data))),
+    currentJobId && job.isGenerationBusy,
   );
 
   useEffect(() => {
@@ -357,7 +353,7 @@ function ExamContent() {
                   placeholder={t.exam.form.subject}
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-3">
                  <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
@@ -406,7 +402,7 @@ function ExamContent() {
                   placeholder={t.exam.form.topic}
                 />
               </div>
-              
+
                <div className="sm:col-span-2">
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
                   {advancedCopy.ktpTopic}
@@ -439,7 +435,7 @@ function ExamContent() {
                       max="20"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
                       {advancedCopy.complexity}
@@ -879,7 +875,7 @@ function TaskContent({ task, copy }: TaskContentProps) {
       </>
     );
   }
-  
+
   if (widget_type === "fill_in_blank") {
     const parts = content.text_with_gaps?.split("[gap]") || [];
     return (
