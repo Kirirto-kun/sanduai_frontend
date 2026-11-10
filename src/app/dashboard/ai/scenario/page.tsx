@@ -1,7 +1,7 @@
 "use client";
 import { GenerationJobStatus } from "@/components/generations/GenerationJobStatus";
 import type { GenerationJob } from "@/lib/api";
-import { startGenerationPolling, GENERATION_POLL_RETRY_EVENT } from "@/lib/generation-polling";
+import { startGenerationPolling, GENERATION_POLL_RETRY_EVENT, isAcceptedGenerationPending } from "@/lib/generation-polling";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -173,6 +173,7 @@ export default function ScenarioPage() {
   const [pollError, setPollError] = useState<unknown>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [acknowledgedJobId, setAcknowledgedJobId] = useState<string | null>(null);
+  const submissionLocked = enqueueing || isAcceptedGenerationPending(currentJobId, lastJob);
 
   const enoughTokens = balance === null || balance >= cost;
 
@@ -253,6 +254,7 @@ export default function ScenarioPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     if (!topic.trim() || (lastJob && ["queued", "running", "settling", "refunding"].includes(lastJob.status))) return;
 
     setError(null);
@@ -332,7 +334,7 @@ export default function ScenarioPage() {
               placeholder={t.topicPlaceholder}
               rows={2}
               maxLength={500}
-              disabled={loading}
+              disabled={submissionLocked || loading}
             />
           </Field>
 
@@ -341,7 +343,7 @@ export default function ScenarioPage() {
               options={segmentOptions}
               value={segment}
               onChange={setSegment}
-              disabled={loading}
+              disabled={submissionLocked || loading}
               columns={3}
             />
           </Field>
@@ -351,7 +353,7 @@ export default function ScenarioPage() {
               value={age}
               onChange={(e) => setAge(e.target.value)}
               maxLength={50}
-              disabled={loading}
+              disabled={submissionLocked || loading}
             />
           </Field>
 
@@ -360,7 +362,7 @@ export default function ScenarioPage() {
               options={durationOptions}
               value={String(duration)}
               onChange={(v) => setDuration(Number(v))}
-              disabled={loading}
+              disabled={submissionLocked || loading}
               columns={4}
             />
           </Field>
@@ -370,7 +372,7 @@ export default function ScenarioPage() {
               options={langOptions}
               value={lang}
               onChange={setLang}
-              disabled={loading}
+              disabled={submissionLocked || loading}
             />
           </Field>
 
@@ -381,13 +383,13 @@ export default function ScenarioPage() {
               placeholder={t.notesPlaceholder}
               rows={2}
               maxLength={500}
-              disabled={loading}
+              disabled={submissionLocked || loading}
             />
           </Field>
 
           <GenerateButton
             loading={loading}
-            disabled={!topic.trim() || !enoughTokens || Boolean(lastJob && ["queued", "running", "settling", "refunding"].includes(lastJob.status))}
+            disabled={submissionLocked || !topic.trim() || !enoughTokens}
             label={t.generate}
             loadingLabel={t.generating}
           />

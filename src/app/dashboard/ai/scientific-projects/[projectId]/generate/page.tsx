@@ -58,6 +58,7 @@ function GenerateProgressContent() {
   });
 
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
@@ -77,7 +78,7 @@ function GenerateProgressContent() {
   }, [currentStep, projectId, projectState.data, router]);
 
   const startGeneration = useCallback(async () => {
-    if (!plan || startingJob.current) return;
+    if (!plan || startingJob.current || job.isSubmissionLocked) return;
     startingJob.current = true;
     setSubmitting(true);
     setGenerationIssue(null);
@@ -102,7 +103,7 @@ function GenerateProgressContent() {
       startingJob.current = false;
       setSubmitting(false);
     }
-  }, [plan, projectId, queryClient, router, toTeacherErrorMessage]);
+  }, [plan, projectId, queryClient, router, toTeacherErrorMessage, job.isSubmissionLocked]);
 
   useEffect(() => {
     if (
@@ -188,7 +189,7 @@ function GenerateProgressContent() {
   useEffect(() => {
     if (!currentJobId || handledJobId.current === currentJobId || !job.error) return;
     const status = requestStatus(job.error);
-    if (status !== 404 && status !== 410) return;
+    if ((status !== 404 && status !== 410) || job.isSubmissionLocked) return;
 
     handledJobId.current = currentJobId;
     clearGenerationIntentForJob(currentJobId);
@@ -203,7 +204,7 @@ function GenerateProgressContent() {
       `/dashboard/ai/scientific-projects/${encodeURIComponent(projectId)}/generate`,
       { scroll: false },
     );
-  }, [currentJobId, job.error, language, projectId, router]);
+  }, [currentJobId, job.error, job.isSubmissionLocked, language, projectId, router]);
 
   const resultCopy = generatedContentCopy(
     tryNormalizeContentLanguage(projectState.data?.language) ?? language,

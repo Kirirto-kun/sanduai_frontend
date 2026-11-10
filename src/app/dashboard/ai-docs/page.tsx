@@ -1,6 +1,7 @@
 "use client";
-import { startGenerationPolling, GENERATION_POLL_RETRY_EVENT } from "@/lib/generation-polling";
+import { startGenerationPolling, GENERATION_POLL_RETRY_EVENT, isAcceptedGenerationPending } from "@/lib/generation-polling";
 
+import type { GenerationJob } from "@/lib/api";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -57,8 +58,10 @@ export default function AiDocsPage() {
   const [loading, setLoading] = useState(false);
   const [generationPending, setGenerationPending] = useState(false);
   const [enqueueing, setEnqueueing] = useState(false);
+  const [lastJob, setLastJob] = useState<GenerationJob | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [acknowledgedJobId, setAcknowledgedJobId] = useState<string | null>(null);
+  const submissionLocked = enqueueing || isAcceptedGenerationPending(currentJobId, lastJob);
 
   // Modal state for adding a revision
   const [showModal, setShowModal] = useState(false);
@@ -100,6 +103,7 @@ export default function AiDocsPage() {
         if (job.kind !== "essay.generate") {
           throw new Error("MATERIAL_NOT_FOUND");
         }
+        setLastJob(job);
         setAcknowledgedJobId(job.id);
 
         if ((job.status === "completed" || job.status === "billing_error") && job.result) {
@@ -133,6 +137,7 @@ export default function AiDocsPage() {
 
   const onGenerate = async (e: FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     if (!form.topic || !form.grade_level || !form.word_count || !form.essay_type) {
       setError(t.essay.errors.required);
       return;
@@ -377,7 +382,7 @@ export default function AiDocsPage() {
           <div className="sm:col-span-2 flex justify-end">
             <button
               type="submit"
-              disabled={loading || (balance !== null && !checkBalance("essay_generate"))}
+              disabled={submissionLocked || loading || (balance !== null && !checkBalance("essay_generate"))}
               className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {loading ? t.essay.loading : t.essay.form.generate}
@@ -557,7 +562,7 @@ export default function AiDocsPage() {
                 <button
                   type="button"
                   onClick={onExport}
-                  disabled={loading}
+                  disabled={submissionLocked || loading}
                   className="rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
                 >
                   {t.essay.results.export}
@@ -566,7 +571,7 @@ export default function AiDocsPage() {
                   <button
                     type="button"
                     onClick={onApplyAllRevisions}
-                    disabled={loading || (balance !== null && !checkBalance("essay_revise"))}
+                    disabled={submissionLocked || loading || (balance !== null && !checkBalance("essay_revise"))}
                     className="rounded-full bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-orange-500/30 transition hover:shadow-xl hover:shadow-emerald-500/30 disabled:opacity-70"
                   >
                   {loading

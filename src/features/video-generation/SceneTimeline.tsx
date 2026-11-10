@@ -18,6 +18,7 @@ type SceneTimelineProps = {
   projectExpiresAt: string;
   kk: boolean;
   disabled?: boolean;
+  readError?: unknown;
   onSelect: (id: string) => void;
   onAddAfter: (scene: VideoScene) => void;
   onReorder: (ids: string[]) => Promise<void>;
@@ -54,7 +55,7 @@ function DragHandleIcon() {
   );
 }
 
-function sceneStatus(scene: VideoScene, kk: boolean) {
+function sceneStatus(scene: VideoScene, kk: boolean, readError?: unknown) {
   const latest = scene.versions.reduce<VideoScene["versions"][number] | null>(
     (current, item) =>
       !current || item.created_at > current.created_at ? item : current,
@@ -64,7 +65,7 @@ function sceneStatus(scene: VideoScene, kk: boolean) {
     scene.jobs?.some(isActiveVideoJob) ||
     (latest && isActiveVideoJob(latest))
   )
-    return { label: kk ? "Жасалып жатыр" : "Создаётся", busy: true };
+    return { label: readError ? (kk ? "Соңғы белгілі күй: жасалуда" : "Последний известный статус: создаётся") : (kk ? "Жасалып жатыр" : "Создаётся"), busy: !readError };
   const version = selectedVersion(scene);
   if (version?.asset_expired)
     return { label: kk ? "Мерзімі аяқталды" : "Срок истёк", busy: false };
@@ -82,6 +83,7 @@ export function SceneTimeline({
   projectExpiresAt,
   kk,
   disabled = false,
+  readError,
   onSelect,
   onAddAfter,
   onReorder,
@@ -309,7 +311,7 @@ export function SceneTimeline({
             const scene = byId.get(id)!;
             const version = selectedVersion(scene);
             const thumbnailId = version?.frame_asset_id || scene.input_asset_id;
-            const status = sceneStatus(scene, kk);
+            const status = sceneStatus(scene, kk, readError);
             const selected = scene.id === selectedSceneId;
             const dragging = preview?.sceneId === id;
             const title =

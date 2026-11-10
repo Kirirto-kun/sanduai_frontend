@@ -52,6 +52,7 @@ export function SceneEditor({
   onDelete,
   timeline,
   initialMode,
+  readError,
 }: {
   scene: VideoScene;
   project: VideoProject;
@@ -63,6 +64,7 @@ export function SceneEditor({
   onDelete: (scene: VideoScene) => void;
   timeline?: ReactNode;
   initialMode?: "text" | "image";
+  readError?: unknown;
 }) {
   const { draft, update, save, saveMyDraft, adopt, state, saveError } =
     useSceneDraft(scene, ownerId, project.expires_at, onRefresh);
@@ -154,6 +156,7 @@ export function SceneEditor({
       catalog.models.find((m) => m.id === draft.settings.model_id)?.available,
     ) &&
     !busy &&
+    !readError &&
     jobs.length === 0 &&
     draft.prompt.trim().length > 0 &&
     draft.prompt.length <= 12000 &&
@@ -172,7 +175,7 @@ export function SceneEditor({
     };
   }, [quoteError]);
   useEffect(() => {
-    if (!intent) return;
+    if (!intent || readError) return;
     const known = scene.versions.some((v) => v.quote_id === intent.quoteId);
     if (known) {
       clearVideoIntent(intent);
@@ -181,7 +184,7 @@ export function SceneEditor({
     }
     const timer = window.setInterval(onRefresh, 5000);
     return () => window.clearInterval(timer);
-  }, [intent, scene.versions, onRefresh]);
+  }, [intent, scene.versions, onRefresh, readError]);
   useEffect(() => {
     const requestId = ++quoteRequest.current;
     setQuote(null);
@@ -226,6 +229,7 @@ export function SceneEditor({
   async function submit(recovery?: VideoIntent) {
     if (
       submitLock.current ||
+      Boolean(readError) ||
       (!recovery &&
         (!canGenerate || inputUnavailable || isVideoExpired(inputExpiresAt))) ||
       (!recovery && (!quote || isVideoExpired(quote.expires_at)))
@@ -441,7 +445,8 @@ export function SceneEditor({
                 className="flex flex-wrap items-center justify-between gap-2"
               >
                 <span className="inline-flex items-center gap-2 text-xs font-medium text-indigo-700">
-                  <Spinner />
+                  {!readError && <Spinner />}
+                  {Boolean(readError) && (kk ? "Соңғы белгілі күй: " : "Последний известный статус: ")}
                   {states[job.status] ?? (kk ? "Өңделуде" : "В обработке")}
                   <span className="font-normal text-indigo-400">
                     · {money(job.reserved_tokens)}{" "}
@@ -914,7 +919,7 @@ export function SceneEditor({
                   </p>
                   <Button
                     variant="primary"
-                    disabled={busy}
+                    disabled={busy || Boolean(readError)}
                     className="mt-3 w-full"
                     onClick={() => void submit(intent)}
                   >
@@ -935,13 +940,13 @@ export function SceneEditor({
                   }
                   onClick={() => void submit()}
                 >
-                  {busy || jobs.length > 0 ? (
+                  {busy || (!readError && jobs.length > 0) ? (
                     <Spinner />
                   ) : (
                     <Icon name={assetId ? "refresh" : "sparkles"} />
                   )}
                   {jobs.length > 0
-                    ? kk
+                    ? readError ? (kk ? "Соңғы белгілі күй: көрініс жасалуда" : "Последний известный статус: сцена создаётся") : kk
                       ? "Көрініс жасалуда"
                       : "Сцена создаётся"
                     : assetId

@@ -126,10 +126,12 @@ function VoiceoverContent() {
   const [error, setError] = useState<string | null>(null);
 
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
   });
+  const submissionLocked = submitting || job.isSubmissionLocked;
   const loading = submitting || Boolean(
     currentJobId && job.isGenerationBusy,
   );
@@ -189,6 +191,7 @@ function VoiceoverContent() {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     if (!text.trim()) {
       setError(t.voiceover.errors.required);
       return;
@@ -373,7 +376,7 @@ function VoiceoverContent() {
 
             <button
               type="submit"
-              disabled={loading || !text.trim()}
+              disabled={submissionLocked || !text.trim()}
               className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-3.5 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
             >
               {loading ? (

@@ -160,10 +160,12 @@ function KornekilikContent() {
   }, [requestedJobId, searchParams]);
 
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
   });
+  const submissionLocked = submitting || job.isSubmissionLocked;
   const loading = submitting || Boolean(
     currentJobId && job.isGenerationBusy,
   );
@@ -214,6 +216,7 @@ function KornekilikContent() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     if (!topic.trim() || masterclass.loading || sourceCover.loading || masterclass.error) return;
     if (topic.length > 1000 || notes.length > 2000) {
       setError(language === "kk" ? "Тақырып — 1 000, қосымша мәтін — 2 000 таңбаға дейін." : "Тема — до 1 000, дополнительные данные — до 2 000 символов."); return;
@@ -270,7 +273,7 @@ function KornekilikContent() {
               placeholder={t.topicPlaceholder}
               rows={4}
               maxLength={1000}
-              disabled={loading || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
+              disabled={submissionLocked || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
             />
           </Field>
 
@@ -279,7 +282,7 @@ function KornekilikContent() {
               options={langOptions}
               value={lang}
               onChange={setLang}
-              disabled={loading || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
+              disabled={submissionLocked || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
             />
           </Field>
 
@@ -288,7 +291,7 @@ function KornekilikContent() {
               options={orientationOptions}
               value={orientation}
               onChange={setOrientation}
-              disabled={loading || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
+              disabled={submissionLocked || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
               columns={3}
             />
           </Field>
@@ -300,7 +303,7 @@ function KornekilikContent() {
               placeholder={t.notesPlaceholder}
               rows={2}
               maxLength={2000}
-              disabled={loading || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
+              disabled={submissionLocked || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
             />
           </Field>
 
@@ -308,7 +311,7 @@ function KornekilikContent() {
             <PhotoDropzone
               files={photos}
               onChange={setPhotos}
-              disabled={loading || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
+              disabled={submissionLocked || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
               labels={{
                 prompt: t.photoPrompt,
                 hint: t.photoHint,
@@ -319,7 +322,7 @@ function KornekilikContent() {
 
           <GenerateButton
             loading={loading}
-            disabled={!topic.trim() || !enoughTokens || masterclass.loading || sourceCover.loading || Boolean(masterclass.error)}
+              disabled={submissionLocked || (!topic.trim() || !enoughTokens || masterclass.loading || sourceCover.loading || Boolean(masterclass.error))}
             label={t.generate}
             loadingLabel={t.generating}
           />

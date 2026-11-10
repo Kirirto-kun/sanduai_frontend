@@ -84,10 +84,12 @@ function LessonPlanContent() {
     tryNormalizeContentLanguage(lessonPlan?.language ?? formData.language) ?? "kk",
   ).lessonPlan;
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
   });
+  const submissionLocked = isLoading || job.isSubmissionLocked;
 
   useEffect(() => {
     if (!currentJobId || loadedJobId.current === currentJobId) return;
@@ -147,7 +149,7 @@ function LessonPlanContent() {
       currentJobId,
       CLASSIC_LESSON_KINDS,
     );
-    if (isUnavailableGenerationJobError(job.error) && !acknowledged) {
+    if (isUnavailableGenerationJobError(job.error) && !acknowledged && !job.isSubmissionLocked) {
       if (currentJobId) loadedJobId.current = currentJobId;
       setSessionJobId(null);
       setError(
@@ -159,7 +161,7 @@ function LessonPlanContent() {
       return;
     }
     setError(toTeacherErrorMessage(job.error));
-  }, [currentJobId, job.data, job.error, language, router, toTeacherErrorMessage]);
+  }, [currentJobId, job.data, job.error, job.isSubmissionLocked, language, router, toTeacherErrorMessage]);
 
   // Convert image to Base64
   const convertImageToBase64 = (file: File): Promise<string> => {
@@ -274,6 +276,7 @@ function LessonPlanContent() {
   // Generate lesson plan
   const handleGenerate = async (e: FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     setError("");
 
     if (!validateForm()) return;
@@ -402,6 +405,7 @@ function LessonPlanContent() {
 
   // Create new plan
   const handleCreateNew = () => {
+    if (submissionLocked) return;
     setSessionJobId(null);
     loadedJobId.current = null;
     setLessonPlan(null);
@@ -785,7 +789,7 @@ function LessonPlanContent() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading || (balance !== null && !checkBalance("kmzh_generate"))}
+                disabled={submissionLocked || (balance !== null && !checkBalance("kmzh_generate"))}
                 className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
                 {isLoading ? (

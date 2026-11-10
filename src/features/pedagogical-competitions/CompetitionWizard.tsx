@@ -31,9 +31,9 @@ export function validateCompetitionStep(input: CompetitionInput, step: number, l
   return null;
 }
 
-type Props = { language: Locale; presets: CompetitionPreset[]; input: CompetitionInput; onChange: (value: CompetitionInput) => void; onGenerate: () => void; busy: boolean; saved: boolean; cost: number; error: string | null; balance: number | null };
+type Props = { language: Locale; presets: CompetitionPreset[]; input: CompetitionInput; onChange: (value: CompetitionInput) => void; onGenerate: () => void; busy: boolean; readError?: unknown; saved: boolean; cost: number; error: string | null; balance: number | null };
 
-export default function CompetitionWizard({ language, presets, input, onChange, onGenerate, busy, saved, cost, error, balance }: Props) {
+export default function CompetitionWizard({ language, presets, input, onChange, onGenerate, busy, readError, saved, cost, error, balance }: Props) {
   const t = (ru: string, kk: string) => language === "kk" ? kk : ru;
   const [step, setStep] = useState(0);
   const [validation, setValidation] = useState<string | null>(null);
@@ -109,7 +109,7 @@ export default function CompetitionWizard({ language, presets, input, onChange, 
       </div>
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-5 sm:px-8">
         <span className="flex items-center gap-1.5 text-[11px] text-slate-400"><Icon name={saved ? "check" : "clock"} className="size-3.5" />{saved ? t("Черновик сохранён на этом устройстве", "Нобай осы құрылғыда сақталды") : t("Черновик пока не сохранён", "Нобай әзірге сақталмаған")}</span>
-        <div className="flex items-center gap-2">{step > 0 && <button type="button" disabled={busy} className={secondaryClass} onClick={() => move(step - 1)}>{t("Назад", "Артқа")}</button>}{step < 3 ? <button type="button" disabled={busy || !preset} className={primaryClass} onClick={() => move(step + 1)}>{t("Продолжить", "Жалғастыру")}<Icon name="arrow" className="size-4" /></button> : <button type="button" disabled={busy || (balance !== null && balance < cost)} className={primaryClass} onClick={() => { const message = [0, 1, 2, 3].map(index => validateCompetitionStep(input, index, language)).find(Boolean); if (message) setValidation(message); else onGenerate(); }}><Icon name="spark" className="size-4" />{busy ? t("Подготавливаем…", "Дайындауда…") : t("Подготовить материал", "Материал дайындау")}<span className="ml-1 rounded-md bg-white/10 px-2 py-0.5 text-[11px]">{cost} ◈</span></button>}</div>
+        <div className="flex items-center gap-2">{step > 0 && <button type="button" disabled={busy} className={secondaryClass} onClick={() => move(step - 1)}>{t("Назад", "Артқа")}</button>}{step < 3 ? <button type="button" disabled={busy || !preset} className={primaryClass} onClick={() => move(step + 1)}>{t("Продолжить", "Жалғастыру")}<Icon name="arrow" className="size-4" /></button> : <button type="button" disabled={busy || (balance !== null && balance < cost)} className={primaryClass} onClick={() => { const message = [0, 1, 2, 3].map(index => validateCompetitionStep(input, index, language)).find(Boolean); if (message) setValidation(message); else onGenerate(); }}><Icon name="spark" className="size-4" />{busy && !readError ? t("Подготавливаем…", "Дайындауда…") : t("Подготовить материал", "Материал дайындау")}<span className="ml-1 rounded-md bg-white/10 px-2 py-0.5 text-[11px]">{cost} ◈</span></button>}</div>
         {step === 3 && balance !== null && balance < cost && <p className="w-full text-right text-xs text-rose-600">{t("Недостаточно монет для подготовки материала.", "Материал дайындауға монета жеткіліксіз.")}</p>}
       </footer>
     </section>

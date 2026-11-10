@@ -57,10 +57,12 @@ function ScientificProjectContent() {
   const [city, setCity] = useState("");
 
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
   });
+  const submissionLocked = loading || job.isSubmissionLocked;
 
   useEffect(() => {
     const value = job.data;
@@ -106,7 +108,7 @@ function ScientificProjectContent() {
       currentJobId,
       ["science.plan"],
     );
-    if (isUnavailableGenerationJobError(job.error) && !acknowledged) {
+    if (isUnavailableGenerationJobError(job.error) && !acknowledged && !job.isSubmissionLocked) {
       if (currentJobId) handledJobId.current = currentJobId;
       setSessionJobId(null);
       setError(
@@ -118,10 +120,11 @@ function ScientificProjectContent() {
       return;
     }
     setError(toTeacherErrorMessage(job.error));
-  }, [currentJobId, interfaceLanguage, job.data, job.error, router, toTeacherErrorMessage]);
+  }, [currentJobId, interfaceLanguage, job.data, job.error, job.isSubmissionLocked, router, toTeacherErrorMessage]);
 
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     if (!topic || !direction || !grade || !subject) {
       setError(t.scientificProject.errors.required);
       return;
@@ -433,7 +436,7 @@ function ScientificProjectContent() {
               {/* Create Plan Button */}
               <button
                 type="submit"
-                disabled={loading || (balance !== null && !checkBalance("sciproject_create_plan"))}
+                disabled={submissionLocked || (balance !== null && !checkBalance("sciproject_create_plan"))}
                 className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
                 {loading ? (

@@ -114,10 +114,12 @@ function InfographicsContent() {
   const [submitting, setSubmitting] = useState(false);
 
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
   });
+  const submissionLocked = submitting || job.isSubmissionLocked;
   const loading = submitting || Boolean(
     currentJobId && job.isGenerationBusy,
   );
@@ -168,6 +170,7 @@ function InfographicsContent() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     if (!topic.trim()) return;
 
     setError(null);
@@ -211,7 +214,7 @@ function InfographicsContent() {
               placeholder={t.topicPlaceholder}
               rows={7}
               maxLength={4000}
-              disabled={loading}
+              disabled={submissionLocked}
             />
           </Field>
 
@@ -220,7 +223,7 @@ function InfographicsContent() {
               options={langOptions}
               value={lang}
               onChange={setLang}
-              disabled={loading}
+              disabled={submissionLocked}
             />
           </Field>
 
@@ -229,14 +232,14 @@ function InfographicsContent() {
               options={orientationOptions}
               value={orientation}
               onChange={setOrientation}
-              disabled={loading}
+              disabled={submissionLocked}
               columns={3}
             />
           </Field>
 
           <GenerateButton
             loading={loading}
-            disabled={!topic.trim() || !enoughTokens}
+            disabled={submissionLocked || (!topic.trim() || !enoughTokens)}
             label={t.generate}
             loadingLabel={t.generating}
           />

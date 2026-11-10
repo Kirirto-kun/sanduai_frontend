@@ -613,6 +613,7 @@ export function VideoWorkspace({
             <SceneEditor
               key={`${ownerId}:${scene.id}`}
               scene={scene}
+              readError={query.error}
               project={project}
               catalog={catalog.data}
               ownerId={ownerId}
@@ -625,6 +626,7 @@ export function VideoWorkspace({
               }
               timeline={
                 <SceneTimeline
+                  readError={query.error}
                   scenes={scenes.map((item) => ({
                     ...item,
                     jobs: project.jobs.filter(
@@ -882,6 +884,7 @@ export function VideoWorkspace({
       )}{" "}
       {dialog === "export" && project && !expired && (
         <ExportDialog
+          readError={query.error}
           project={project}
           kk={kk}
           onClose={() => setDialog(null)}

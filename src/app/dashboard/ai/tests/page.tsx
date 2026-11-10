@@ -88,10 +88,12 @@ function TestsContent() {
   const [error, setError] = useState("");
 
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
   });
+  const submissionLocked = isSubmitting || job.isSubmissionLocked;
   const resultCopy = generatedContentCopy(commonForm.language).quiz;
   const isLoading = isSubmitting || Boolean(
     currentJobId && job.isGenerationBusy,
@@ -178,6 +180,7 @@ function TestsContent() {
   // Generate quiz
   const handleGenerate = async (e: FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     setError("");
 
     if (!validateForm()) return;
@@ -322,6 +325,7 @@ function TestsContent() {
 
   // Create new quiz
   const handleCreateNew = () => {
+    if (submissionLocked) return;
     setTasks([]);
     setQuizTitle("");
     setTopicForm({ subject: "", grade: "", topic: "" });
@@ -575,7 +579,7 @@ function TestsContent() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={submissionLocked}
                 className="w-full rounded-xl bg-gradient-to-r from-orange-500 to-green-500 px-6 py-3 font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-50"
               >
                 {isLoading ? t.quiz.loading : t.quiz.form.generate}

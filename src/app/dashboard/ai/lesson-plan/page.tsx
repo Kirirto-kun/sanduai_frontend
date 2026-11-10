@@ -43,6 +43,7 @@ function LessonPlanner({ userId }: { userId: string | null }) {
   const draftHydrated = useRef(false);
   const restoredScope = useRef<string | null>(null);
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
@@ -105,17 +106,19 @@ function LessonPlanner({ userId }: { userId: string | null }) {
   useEffect(() => {
     if (!job.error) return;
     const acknowledged = isAcknowledgedGenerationJob(job.data, currentJobId, ["kmzh.generate"]);
-    if (isUnavailableGenerationJobError(job.error) && !acknowledged) {
+    if (isUnavailableGenerationJobError(job.error) && !acknowledged && !job.isSubmissionLocked) {
       if (currentJobId) loadedJobId.current = currentJobId;
       setSessionJobId(null);
       setError(kk ? "Бұл тапсырма енді қолжетімді емес. Жаңа ҚМЖ жасай аласыз." : "Эта задача больше недоступна. Можно создать новый КМЖ.");
       router.replace("/dashboard/ai/kmzh", { scroll: false }); return;
     }
     setError(teacherError(job.error));
-  }, [currentJobId, job.data, job.error, kk, router, teacherError]);
+  }, [currentJobId, job.data, job.error, job.isSubmissionLocked, kk, router, teacherError]);
 
   const generate = async (event: FormEvent) => {
-    event.preventDefault(); setError("");
+    event.preventDefault();
+    if (submitting || job.isSubmissionLocked) return;
+    setError("");
     if (new Set((draft.selected_objectives ?? []).map((item) => item.program_id)).size > 1) {
       setError(kk ? "Бір сабақ үшін бір оқу бағдарламасын таңдаңыз. Бұрынғы мақсаттарды қайта таңдаңыз." : "Выберите одну учебную программу для урока и заново отметьте цели."); return;
     }
@@ -159,6 +162,7 @@ function LessonPlanner({ userId }: { userId: string | null }) {
   };
 
   const createNew = () => {
+    if (submitting || job.isSubmissionLocked) return;
     const store = lessonSessionStore();
     if (store) clearLessonSession(store, userId, currentJobId ?? undefined);
     setSessionJobId(null); loadedJobId.current = null; setPlan(null); setError(""); setDraft(createLessonDraft());
@@ -176,7 +180,7 @@ function LessonPlanner({ userId }: { userId: string | null }) {
       {storageFailed ? <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">{kk ? "Браузер деректерді осы қойындыда сақтай алмады. Бетті жаппас бұрын дайын жоспарды жүктеп алыңыз." : "Браузер не смог сохранить данные в этой вкладке. Скачайте готовый план перед закрытием страницы."}</p> : restoredNotice ? <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">{restoredNotice === "images" ? (kk ? "Мәтіндік деректер қалпына келтірілді. Оқулық суреттерін қайта тіркеңіз." : "Текстовые данные восстановлены. Прикрепите изображения учебника повторно.") : restoredNotice === "edits" ? (kk ? "Осы қойындыда сақталған жоспар түзетулері қалпына келтірілді." : "Восстановлены правки плана, сохранённые в этой вкладке.") : (kk ? "Осы қойындыдағы ҚМЖ жобасы қалпына келтірілді." : "Восстановлен черновик КМЖ из этой вкладки.")}</p> : null}
       {progress ? <section aria-live="polite" className="rounded-3xl border border-sky-200 bg-white p-8 text-center shadow-sm"><h2 className="text-xl font-bold">{kk ? "ҚМЖ жасалып жатыр" : "Создаём КМЖ"}</h2><p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-600">{generationServerStatusCopy(language, acknowledged)}</p><div className="mx-auto mt-6 h-2 max-w-xl overflow-hidden rounded-full bg-sky-100"><div className="h-full w-1/2 rounded-full bg-sky-500 motion-safe:animate-pulse" /></div>{error ? <div className="mt-4"><p role="alert" className="text-sm text-red-700">{error}</p><button type="button" onClick={() => void job.refetch()} className={`${buttonClass} mt-3`}>{kk ? "Күйін қайта тексеру" : "Проверить состояние снова"}</button></div> : null}</section>
         : plan ? <PlannerEditor plan={plan} onChange={setPlan} kk={kk} onExport={() => void exportDocument()} exporting={exporting} onNew={createNew} error={error} />
-        : <PlannerForm draft={draft} onChange={setDraft} onSubmit={(event) => void generate(event)} busy={submitting} kk={kk} cost={costs.kmzh_generate} balance={balance} error={error} />}
+        : <PlannerForm draft={draft} onChange={setDraft} onSubmit={(event) => void generate(event)} busy={submitting} locked={job.isSubmissionLocked} kk={kk} cost={costs.kmzh_generate} balance={balance} error={error} />}
       <ModuleGenerationHistory kinds={["kmzh.generate"]} title={{ ru: "Мои КМЖ", kk: "Менің ҚМЖ-ларым" }} />
     </div>
   </div>;

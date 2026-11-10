@@ -8,9 +8,9 @@ import { focusMeetingProblem, meetingListProblems } from "./validation";
 import s from "./parent-meetings.module.css";
 
 type Props = { input: MeetingInput; onChange: (next: MeetingInput) => void; onSubmit: () => void;
-  language: InterfaceLanguage; busy: boolean; saved: boolean; error: string | null; cost: number | null; balance: number | null };
+  language: InterfaceLanguage; busy: boolean; locked?: boolean; saved: boolean; error: string | null; cost: number | null; balance: number | null };
 
-export default function MeetingForm({ input, onChange, onSubmit, language, busy, saved, error, cost, balance }: Props) {
+export default function MeetingForm({ input, onChange, onSubmit, language, busy, locked = false, saved, error, cost, balance }: Props) {
   const t = (ru: string, kk: string) => language === "kk" ? kk : ru;
   const update = <K extends keyof MeetingInput>(key: K, value: MeetingInput[K]) => onChange({ ...input, [key]: value });
   const school = input.organization === "school";
@@ -26,8 +26,8 @@ export default function MeetingForm({ input, onChange, onSubmit, language, busy,
     t("Самостоятельность начинается дома", "Дербестік отбасынан басталады"),
     t("Играем, общаемся, развиваемся вместе", "Бірге ойнаймыз, сөйлесеміз, дамимыз"),
   ];
-  return <form className={s.columns} onSubmit={event => { event.preventDefault(); onSubmit(); }}>
-    <fieldset disabled={busy} className={s.form}>
+  return <form className={s.columns} onSubmit={event => { event.preventDefault(); if (!busy && !locked) onSubmit(); }}>
+    <fieldset disabled={busy || locked} className={s.form}>
       <Section number="01" title={t("О чём поговорим с родителями?", "Ата-аналармен не талқылаймыз?")} hint={t("Четыре основных параметра — и можно готовить встречу.", "Төрт негізгі параметр — кездесуді дайындауға жеткілікті.")}>
         <div className={s.stack}>
           <div className={s.field}><label id="meeting-organization-label">{t("Образовательная организация *", "Білім беру ұйымы *")}</label><div className={s.organizationChoices} role="group" aria-labelledby="meeting-organization-label">{(["school", "kindergarten"] as const).map(value => <button type="button" key={value} aria-pressed={input.organization === value} onClick={() => update("organization", value)}><Icon name={value === "school" ? "school" : "team"} /><span><strong>{value === "school" ? t("Школа", "Мектеп") : t("Детский сад", "Балабақша")}</strong><small>{value === "school" ? t("Родители школьников", "Оқушылардың ата-аналары") : t("Родители дошкольников", "Мектепке дейінгі балалар")}</small></span></button>)}</div></div>
@@ -99,7 +99,7 @@ export default function MeetingForm({ input, onChange, onSubmit, language, busy,
         t("Шаблон протокола для заполнения", "Толтыруға арналған хаттама үлгісі"),
       ].map(text => <li key={text}><Icon name="check" />{text}</li>)}</ul></div>
       {insufficient && <p className={s.hint}>{t("Недостаточно токенов.", "Токендер жеткіліксіз.")} <Link href="/dashboard/profile">{t("Профиль и баланс", "Профиль және баланс")}</Link></p>}
-      <button className={s.primary} type="submit" disabled={busy || insufficient || cost === null || !input.defaults_accepted}><Icon name="spark" />{busy ? t("Отправляем…", "Жіберілуде…") : t("Подготовить собрание", "Жиналысты дайындау")}</button>
+      <button className={s.primary} type="submit" disabled={busy || locked || insufficient || cost === null || !input.defaults_accepted}><Icon name="spark" />{busy ? t("Отправляем…", "Жіберілуде…") : t("Подготовить собрание", "Жиналысты дайындау")}</button>
       <div className={s.cost}><span>{cost === null ? t("Уточняем стоимость…", "Құны анықталуда…") : `${cost} ${t("токенов", "токен")}`}</span><span>{t("Баланс", "Баланс")}: {balance ?? "—"}</span></div>
       <p className={s.draft} role="status">{saved ? t("Черновик сохранён на этом устройстве", "Жоба осы құрылғыда сақталды") : t("Изменения сохраняются автоматически", "Өзгерістер автоматты түрде сақталады")}</p>
     </div></section><div className={s.asideNote}><strong><Icon name="shield" />{t("С уважением к каждой семье", "Әр отбасына құрметпен")}</strong><p>{t("Участие добровольное, обсуждения — без сравнений детей и личных семейных историй. Для коротких встреч и небольших групп структура адаптируется.", "Қатысу ерікті, талқылау балаларды салыстырусыз және жеке отбасылық оқиғаларсыз өтеді. Қысқа кездесулер мен шағын топтарға құрылым бейімделеді.")}</p></div></aside>

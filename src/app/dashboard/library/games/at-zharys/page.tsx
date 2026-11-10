@@ -61,10 +61,12 @@ function AtZharysSetupContent() {
   const [error, setError] = useState<string | null>(null);
 
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
   });
+  const submissionLocked = isSubmitting || job.isSubmissionLocked;
   const isLoading = isSubmitting || Boolean(
     currentJobId && job.isGenerationBusy,
   );
@@ -144,6 +146,7 @@ function AtZharysSetupContent() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     setError(null);
 
     if (!validateForm()) return;
@@ -366,7 +369,7 @@ function AtZharysSetupContent() {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={submissionLocked}
             className="w-full rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-4 py-3.5 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
           >
             {isLoading ? (

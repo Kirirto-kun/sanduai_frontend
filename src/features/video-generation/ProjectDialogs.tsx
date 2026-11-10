@@ -398,11 +398,13 @@ export function ExportDialog({
   kk,
   onClose,
   onRefresh,
+  readError,
 }: {
   project: VideoProject;
   kk: boolean;
   onClose: () => void;
   onRefresh: () => void;
+  readError?: unknown;
 }) {
   const [resolution, setResolution] = useState("720p");
   const [aspect, setAspect] = useState(project.aspect_ratio);
@@ -436,7 +438,7 @@ export function ExportDialog({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-800">
             {isActiveVideoJob(item)
-              ? kk
+              ? readError ? (kk ? "Соңғы белгілі күй: ролик дайындалуда" : "Последний известный статус: готовим ролик") : kk
                 ? "Ролик дайындалуда…"
                 : "Готовим ролик…"
               : item.status === "failed"
@@ -482,7 +484,7 @@ export function ExportDialog({
             name={project.title}
             kk={kk}
           />
-        ) : isActiveVideoJob(item) ? (
+        ) : isActiveVideoJob(item) && !readError ? (
           <Spinner />
         ) : null}
       </div>
@@ -672,9 +674,10 @@ export function ExportDialog({
         variant="primary"
         className="mt-5 w-full"
         disabled={
-          busy || active || incomplete.length > 0 || included.length === 0
+          busy || active || Boolean(readError) || incomplete.length > 0 || included.length === 0
         }
         onClick={() => {
+          if (busy || active || readError) return;
           setBusy(true);
           setError("");
           void videoApi
@@ -688,8 +691,10 @@ export function ExportDialog({
             .finally(() => setBusy(false));
         }}
       >
-        {busy || active ? <Spinner /> : <Icon name="film" />}
-        {busy || active
+        {busy || (active && !readError) ? <Spinner /> : <Icon name="film" />}
+        {active && readError
+          ? (kk ? "Соңғы белгілі күй: ролик дайындалуда" : "Последний известный статус: готовим ролик")
+          : busy || active
           ? kk
             ? "Ролик дайындалуда…"
             : "Готовим ролик…"

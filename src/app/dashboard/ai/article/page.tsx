@@ -1,6 +1,7 @@
 "use client";
-import { startGenerationPolling, GENERATION_POLL_RETRY_EVENT } from "@/lib/generation-polling";
+import { startGenerationPolling, GENERATION_POLL_RETRY_EVENT, isAcceptedGenerationPending } from "@/lib/generation-polling";
 
+import type { GenerationJob } from "@/lib/api";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -58,8 +59,10 @@ export default function ArticlePage() {
   const [loading, setLoading] = useState(false);
   const [generationPending, setGenerationPending] = useState(false);
   const [enqueueing, setEnqueueing] = useState(false);
+  const [lastJob, setLastJob] = useState<GenerationJob | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [acknowledgedJobId, setAcknowledgedJobId] = useState<string | null>(null);
+  const submissionLocked = enqueueing || isAcceptedGenerationPending(currentJobId, lastJob);
 
   // Modal state for adding a revision
   const [showModal, setShowModal] = useState(false);
@@ -104,6 +107,7 @@ export default function ArticlePage() {
         if (job.kind !== "article.generate") {
           throw new Error("MATERIAL_NOT_FOUND");
         }
+        setLastJob(job);
         setAcknowledgedJobId(job.id);
         if ((job.status === "completed" || job.status === "billing_error") && job.result) {
           showArticle(job.result as unknown as ArticleResponse);
@@ -135,6 +139,7 @@ export default function ArticlePage() {
 
   const onGenerate = async (e: FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     if (!form.topic || !form.author_name || !form.author_role) {
       setError(t.article.errors.required);
       return;
@@ -442,7 +447,7 @@ export default function ArticlePage() {
 
             <button
               type="submit"
-              disabled={loading || (balance !== null && !checkBalance("article_generate"))}
+              disabled={submissionLocked || loading || (balance !== null && !checkBalance("article_generate"))}
               className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
             >
               {loading ? (
@@ -700,7 +705,7 @@ export default function ArticlePage() {
                 <button
                   type="button"
                   onClick={onExport}
-                  disabled={loading}
+                  disabled={submissionLocked || loading}
                   className="rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
                 >
                   {t.article.results.export}
@@ -709,7 +714,7 @@ export default function ArticlePage() {
                   <button
                     type="button"
                     onClick={onApplyAllRevisions}
-                    disabled={loading || (balance !== null && !checkBalance("article_revise"))}
+                    disabled={submissionLocked || loading || (balance !== null && !checkBalance("article_revise"))}
                     className="rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] px-6 py-3 font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-70"
                   >
                     {loading

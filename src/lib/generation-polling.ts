@@ -47,6 +47,11 @@ export function isGenerationJobBusy(query: { data?: { status: string } | null; e
   return !query.error && (query.isPending || Boolean(query.data && !TERMINAL.has(query.data.status)));
 }
 
+/** A status-read failure never proves that accepted paid work has stopped. */
+export function isAcceptedGenerationPending(jobId: string | null | undefined, job?: { id: string; status: string } | null): boolean {
+  return Boolean(jobId && (!job || job.id !== jobId || !TERMINAL.has(job.status)));
+}
+
 export const generationPollingRecovery = {
   retry: false,
   refetchOnReconnect: true,

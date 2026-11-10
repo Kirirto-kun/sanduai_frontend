@@ -57,6 +57,7 @@ function EditProjectContent() {
   const [regenerateInstructions, setRegenerateInstructions] = useState<Record<string, string>>({});
 
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
@@ -145,7 +146,7 @@ function EditProjectContent() {
       currentJobId,
       ["science.regenerate", "science.finalize"],
     );
-    if (isUnavailableGenerationJobError(job.error) && !acknowledged) {
+    if (isUnavailableGenerationJobError(job.error) && !acknowledged && !job.isSubmissionLocked) {
       if (currentJobId) handledJobId.current = currentJobId;
       setSessionJobId(null);
       setRegenerating(null);
@@ -162,9 +163,10 @@ function EditProjectContent() {
       return;
     }
     setError(toTeacherErrorMessage(job.error));
-  }, [currentJobId, job.data, job.error, language, projectId, router, toTeacherErrorMessage]);
+  }, [currentJobId, job.data, job.error, job.isSubmissionLocked, language, projectId, router, toTeacherErrorMessage]);
 
   const handleRegenerate = async (sectionType: string) => {
+    if (job.isSubmissionLocked || regenerating || finalizing) return;
     const instruction = regenerateInstructions[sectionType]?.trim() ?? "";
     if (!instruction) {
       alert("Введите инструкцию для перегенерации");
@@ -201,6 +203,7 @@ function EditProjectContent() {
   };
 
   const handleFinalize = async () => {
+    if (job.isSubmissionLocked || regenerating || finalizing) return;
     setFinalizing(true);
     setError(null);
 
@@ -319,14 +322,14 @@ function EditProjectContent() {
                           [key]: e.target.value,
                         }))}
                         className="rounded-lg border border-slate-200 px-3 py-1 text-xs"
-                        disabled={operationActive}
+                        disabled={job.isSubmissionLocked || operationActive}
                       />
                       <button
                         onClick={() => handleRegenerate(key)}
-                        disabled={operationActive || regenerating === key || !checkBalance("sciproject_regenerate")}
+                        disabled={job.isSubmissionLocked || operationActive || regenerating === key || !checkBalance("sciproject_regenerate")}
                         className="rounded-lg bg-orange-500 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
                       >
-                        {regenerating === key ? "..." : `🔄 ${t.scientificProject.wizard.regenerateSection} (${costs.sciproject_regenerate || 3} ${t.tokens?.balance || "токенов"})`}
+                        {regenerating === key && !job.error ? "..." : `🔄 ${t.scientificProject.wizard.regenerateSection} (${costs.sciproject_regenerate || 3} ${t.tokens?.balance || "токенов"})`}
                       </button>
                     </div>
                   </div>
@@ -341,10 +344,10 @@ function EditProjectContent() {
             <div className="mt-8">
               <button
                 onClick={handleFinalize}
-                disabled={finalizing || operationActive}
+                disabled={finalizing || job.isSubmissionLocked || operationActive}
                 className="w-full rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
-                {finalizing ? (
+                {finalizing && !job.error ? (
                   <>
                     <div className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
                     Финализация...

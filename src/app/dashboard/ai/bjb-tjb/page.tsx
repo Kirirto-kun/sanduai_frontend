@@ -117,10 +117,12 @@ function ExamContent() {
   const resultCopy = generatedContentCopy(examProject?.meta.lang ?? form.lang).exam;
 
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
   });
+  const submissionLocked = submitting || job.isSubmissionLocked;
   const loading = submitting || Boolean(
     currentJobId && job.isGenerationBusy,
   );
@@ -167,6 +169,7 @@ function ExamContent() {
 
   const handleGenerate = async (e: FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     setError(null);
 
     // Validation
@@ -613,7 +616,7 @@ function ExamContent() {
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading || (balance !== null && !checkBalance("bjb_generate"))}
+              disabled={submissionLocked || (balance !== null && !checkBalance("bjb_generate"))}
               className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
             >
               {loading ? (

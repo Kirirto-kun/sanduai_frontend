@@ -166,10 +166,12 @@ function ComicsContent() {
   const [submitting, setSubmitting] = useState(false);
 
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
   });
+  const submissionLocked = submitting || job.isSubmissionLocked;
   const loading = submitting || Boolean(
     currentJobId && job.isGenerationBusy,
   );
@@ -232,6 +234,7 @@ function ComicsContent() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     if (!description.trim()) return;
 
     setError(null);
@@ -282,7 +285,7 @@ function ComicsContent() {
               placeholder={t.descriptionPlaceholder}
               rows={5}
               maxLength={2000}
-              disabled={loading}
+              disabled={submissionLocked}
             />
           </Field>
 
@@ -290,7 +293,7 @@ function ComicsContent() {
             <PhotoDropzone
               files={photos}
               onChange={setPhotos}
-              disabled={loading}
+              disabled={submissionLocked}
               labels={{
                 prompt: t.photoPrompt,
                 hint: t.photoHint,
@@ -304,7 +307,7 @@ function ComicsContent() {
               options={panelOptions}
               value={String(panelCount)}
               onChange={(v) => setPanelCount(Number(v))}
-              disabled={loading}
+              disabled={submissionLocked}
               columns={4}
             />
           </Field>
@@ -314,7 +317,7 @@ function ComicsContent() {
               options={styleOptions}
               value={style}
               onChange={setStyle}
-              disabled={loading}
+              disabled={submissionLocked}
               columns={2}
             />
           </Field>
@@ -324,13 +327,13 @@ function ComicsContent() {
               options={langOptions}
               value={lang}
               onChange={setLang}
-              disabled={loading}
+              disabled={submissionLocked}
             />
           </Field>
 
           <GenerateButton
             loading={loading}
-            disabled={!description.trim() || !enoughTokens}
+            disabled={submissionLocked || (!description.trim() || !enoughTokens)}
             label={t.generate}
             loadingLabel={t.generating}
           />

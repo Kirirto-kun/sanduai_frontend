@@ -481,10 +481,12 @@ function WorksheetsContent() {
   });
 
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
   });
+  const submissionLocked = submitting || job.isSubmissionLocked;
 
   const selectedSubject = useMemo(
     () => subjects.data?.find((subjectOption) => subjectOption.id === subjectId) ?? null,
@@ -568,6 +570,7 @@ function WorksheetsContent() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (submissionLocked) return;
     setFormError(null);
     setJobError(null);
 
@@ -640,7 +643,7 @@ function WorksheetsContent() {
                   setSubjectId(event.target.value);
                   setFormError(null);
                 }}
-                disabled={loading}
+                disabled={submissionLocked}
                 aria-label={t.subject}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)]/20 disabled:bg-slate-50"
               >
@@ -663,7 +666,7 @@ function WorksheetsContent() {
                   }}
                   placeholder={t.customSubjectPlaceholder}
                   maxLength={120}
-                  disabled={loading}
+                  disabled={submissionLocked}
                   aria-label={t.customSubject}
                 />
               </Field>
@@ -673,7 +676,7 @@ function WorksheetsContent() {
               <select
                 value={audience}
                 onChange={(event) => setAudience(event.target.value)}
-                disabled={loading}
+                disabled={submissionLocked}
                 aria-label={t.audience}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)]/20 disabled:bg-slate-50"
               >
@@ -695,7 +698,7 @@ function WorksheetsContent() {
             </Field>
 
             <Field label={t.language}>
-              <OptionGrid options={languageOptions} value={worksheetLanguage} onChange={setWorksheetLanguage} disabled={loading} columns={3} />
+              <OptionGrid options={languageOptions} value={worksheetLanguage} onChange={setWorksheetLanguage} disabled={submissionLocked} columns={3} />
             </Field>
 
             <Field label={t.topic}>
@@ -707,7 +710,7 @@ function WorksheetsContent() {
                 }}
                 placeholder={t.topicPlaceholder}
                 maxLength={500}
-                disabled={loading}
+                disabled={submissionLocked}
                 aria-label={t.topic}
               />
             </Field>
@@ -722,7 +725,7 @@ function WorksheetsContent() {
                 placeholder={isPreschool ? t.preschoolContentPlaceholder : t.contentPlaceholder}
                 rows={3}
                 maxLength={4000}
-                disabled={loading}
+                disabled={submissionLocked}
                 aria-label={t.content}
               />
             </Field>
@@ -734,13 +737,13 @@ function WorksheetsContent() {
                   setSourcePages(files);
                   setFormError(null);
                 }}
-                disabled={loading}
+                disabled={submissionLocked}
                 labels={{ prompt: t.sourcePrompt, hint: t.sourceHint, remove: t.sourceRemove, page: t.sourcePage, errors: t.sourceErrors }}
               />
             </Field>
 
             <Field label={t.style}>
-              <OptionGrid options={styleOptions} value={stylePreset} onChange={setStylePreset} disabled={loading} columns={3} />
+              <OptionGrid options={styleOptions} value={stylePreset} onChange={setStylePreset} disabled={submissionLocked} columns={3} />
             </Field>
 
             <Field label={t.styleNotes}>
@@ -750,7 +753,7 @@ function WorksheetsContent() {
                 placeholder={t.styleNotesPlaceholder}
                 rows={2}
                 maxLength={500}
-                disabled={loading}
+                disabled={submissionLocked}
                 aria-label={t.styleNotes}
               />
             </Field>
@@ -770,7 +773,7 @@ function WorksheetsContent() {
                       type="checkbox"
                       checked={taskTypes.includes(taskType)}
                       onChange={() => toggleTaskType(taskType)}
-                      disabled={loading}
+                      disabled={submissionLocked}
                       className="mt-0.5 h-4 w-4 accent-[color:var(--primary)]"
                     />
                     <span>{t.taskLabels[taskType]}</span>
@@ -783,7 +786,7 @@ function WorksheetsContent() {
               <p className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700" role="alert">{formError}</p>
             ) : null}
 
-            <GenerateButton loading={loading} disabled={!enoughTokens} label={`${t.generate} · ${cost} 🪙`} loadingLabel={t.generating} />
+            <GenerateButton loading={loading} disabled={submissionLocked || (!enoughTokens)} label={`${t.generate} · ${cost} 🪙`} loadingLabel={t.generating} />
             {!enoughTokens ? (
               <p className="mt-2 text-center text-xs font-medium text-rose-700">{t.noTokens}: {cost} / {balance ?? 0}</p>
             ) : null}

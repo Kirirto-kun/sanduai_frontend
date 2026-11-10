@@ -1,5 +1,6 @@
 "use client";
-import { startGenerationPolling, GENERATION_POLL_RETRY_EVENT } from "@/lib/generation-polling";
+import type { GenerationJob } from "@/lib/api";
+import { startGenerationPolling, GENERATION_POLL_RETRY_EVENT, isAcceptedGenerationPending } from "@/lib/generation-polling";
 
 import { useCallback, useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -61,8 +62,10 @@ export default function ClassHoursPage() {
   const [enqueueing, setEnqueueing] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [error, setError] = useState("");
+  const [lastJob, setLastJob] = useState<GenerationJob | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [acknowledgedJobId, setAcknowledgedJobId] = useState<string | null>(null);
+  const submissionLocked = enqueueing || isAcceptedGenerationPending(currentJobId, lastJob);
   const resultCopy = generatedContentCopy(formData.language).classHour;
 
   const showClassHour = useCallback((data: ClassHourResponse) => {
@@ -92,6 +95,7 @@ export default function ClassHoursPage() {
         if (job.kind !== "class_hour.generate") {
           throw new Error("MATERIAL_NOT_FOUND");
         }
+        setLastJob(job);
         setAcknowledgedJobId(job.id);
         if ((job.status === "completed" || job.status === "billing_error") && job.result) {
           showClassHour(job.result as unknown as ClassHourResponse);
@@ -142,6 +146,7 @@ export default function ClassHoursPage() {
   // Generate class hour scenario
   const handleGenerate = async (e: FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     setError("");
 
     if (!validateForm()) return;
@@ -285,6 +290,7 @@ export default function ClassHoursPage() {
 
   // Create new scenario
   const handleCreateNew = () => {
+    if (submissionLocked) return;
     setCurrentJobId(null);
     router.replace("/dashboard/ai/class-hours", { scroll: false });
     setLessonData(null);
@@ -467,7 +473,7 @@ export default function ClassHoursPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading || (balance !== null && !checkBalance("class_hour_generate"))}
+                disabled={submissionLocked || isLoading || (balance !== null && !checkBalance("class_hour_generate"))}
                 className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] py-4 text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
               >
                 {isLoading ? (

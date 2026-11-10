@@ -7,11 +7,11 @@ import { AssessmentModeField } from "./AssessmentModeField";
 import { readableObjectiveText } from "./ObjectiveContent";
 import { lessonImageUploadError } from "./image-upload";
 
-type Props = { draft: LessonPlanDraft; onChange: Dispatch<SetStateAction<LessonPlanDraft>>; onSubmit: (event: FormEvent) => void; busy: boolean; kk: boolean; cost?: number; balance: number | null; error: string };
+type Props = { draft: LessonPlanDraft; onChange: Dispatch<SetStateAction<LessonPlanDraft>>; onSubmit: (event: FormEvent) => void; busy: boolean; locked?: boolean; kk: boolean; cost?: number; balance: number | null; error: string };
 export const documentLanguageOptions = [["kazakh", "Қазақша"], ["russian", "Русский"], ["english", "English"], ["kyrgyz", "Кыргызча"], ["uzbek", "O‘zbekcha"]] as const;
 export const teachingLanguageOptions = [["kazakh", "Қазақша"], ["russian", "Русский"], ["uzbek", "O‘zbekcha"], ["uyghur", "ئۇيغۇرچە / Ұйғырша"], ["tajik", "Тоҷикӣ / Тәжікше"]] as const;
 
-export function PlannerForm({ draft, onChange, onSubmit, busy, kk, cost, balance, error }: Props) {
+export function PlannerForm({ draft, onChange, onSubmit, busy, locked = false, kk, cost, balance, error }: Props) {
   const selected = draft.selected_objectives ?? [];
   const [uploadError, setUploadError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -42,7 +42,7 @@ export function PlannerForm({ draft, onChange, onSubmit, busy, kk, cost, balance
 
   return <form onSubmit={onSubmit} className="space-y-6 rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-sm sm:p-7">
     <p className="text-sm leading-6 text-slate-600">{kk ? "Міндетті өрістер * белгісімен көрсетілген. Бос қосымша деректер жоспарға ойдан қосылмайды." : "Обязательные поля отмечены *. Пустые дополнительные сведения останутся незаполненными."}</p>
-    <fieldset disabled={busy} className="grid gap-5 sm:grid-cols-2">
+    <fieldset disabled={busy || locked} className="grid gap-5 sm:grid-cols-2">
       <legend className="mb-4 text-lg font-bold text-slate-900">{kk ? "Сабақ туралы" : "Об уроке"}</legend>
       <TextField label={kk ? "Пән" : "Предмет"} required value={draft.subject} onChange={(value) => set("subject", value)} />
       <label className="text-sm font-semibold text-slate-700">{kk ? "Сынып" : "Класс"} *<select required value={draft.grade} onChange={(event) => set("grade", event.target.value)} className={`${fieldClass} mt-1.5`}><option value="">{kk ? "Таңдаңыз" : "Выберите"}</option>{Array.from({ length: 11 }, (_, index) => <option key={index} value={index + 1}>{index + 1}</option>)}</select></label>
@@ -73,7 +73,7 @@ export function PlannerForm({ draft, onChange, onSubmit, busy, kk, cost, balance
         <TextField label={kk ? "Қолжетімді ресурстар" : "Доступные ресурсы"} multiline value={(draft.resources ?? []).join("\n")} onChange={(value) => set("resources", value.split("\n"))} hint={kk ? "Әр ресурсты жаңа жолға жазыңыз; интернеттің бар-жоғын көрсетіңіз." : "Каждый ресурс с новой строки; укажите, есть ли интернет."} />
         <TextField label={kk ? "Қосымша талаптар" : "Дополнительные требования"} multiline value={draft.additional_requirements ?? ""} onChange={(value) => set("additional_requirements", value)} />
         <TextField label={kk ? "Оқулықтағы мәтін немесе тапсырма" : "Текст или задание из учебника"} multiline value={draft.textbook_text ?? ""} onChange={(value) => set("textbook_text", value)} />
-        <label className="block text-sm font-semibold text-slate-700">{kk ? "Оқулық беттерінің суреттері" : "Изображения страниц учебника"}<span className="mt-1 block text-xs font-normal leading-5 text-slate-600">{kk ? "Ең көбі 3 сурет, әрқайсысы 10 МБ-тан аспасын. Суреттер бет жаңартылғанда сақталмайды; қайта тіркеу қажет." : "До 3 изображений, каждое не более 10 МБ. При обновлении страницы их нужно прикрепить повторно."}</span><input type="file" accept="image/*" multiple onChange={(event) => void upload(event.target.files)} disabled={uploading || busy} className={`${fieldClass} mt-1.5`} /></label>
+        <label className="block text-sm font-semibold text-slate-700">{kk ? "Оқулық беттерінің суреттері" : "Изображения страниц учебника"}<span className="mt-1 block text-xs font-normal leading-5 text-slate-600">{kk ? "Ең көбі 3 сурет, әрқайсысы 10 МБ-тан аспасын. Суреттер бет жаңартылғанда сақталмайды; қайта тіркеу қажет." : "До 3 изображений, каждое не более 10 МБ. При обновлении страницы их нужно прикрепить повторно."}</span><input type="file" accept="image/*" multiple onChange={(event) => void upload(event.target.files)} disabled={uploading || busy || locked} className={`${fieldClass} mt-1.5`} /></label>
         {uploading ? <p role="status" className="text-sm">{kk ? "Суреттер жүктелуде…" : "Загружаем изображения…"}</p> : null}
         {uploadError ? <p role="alert" className="text-sm text-red-700">{uploadError}</p> : null}
         {(draft.textbook_images ?? []).map((image, index) => <div key={index} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-2"><div className="flex items-center gap-3">
@@ -86,7 +86,7 @@ export function PlannerForm({ draft, onChange, onSubmit, busy, kk, cost, balance
     {error ? <p role="alert" className="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">{error}</p> : null}
     <div className="flex flex-col items-start justify-between gap-4 border-t border-slate-200 pt-5 sm:flex-row sm:items-center">
       <div className="text-sm text-slate-600">{cost != null ? <p>{kk ? "Құны" : "Стоимость"}: <strong className="text-slate-900">{cost} {kk ? "монета" : "монет"}</strong></p> : null}{balance != null ? <p>{kk ? "Балансыңыз" : "Ваш баланс"}: {balance}</p> : null}</div>
-      <button type="submit" disabled={busy || uploading} className="min-h-12 w-full rounded-2xl bg-[var(--primary)] px-7 py-3 font-bold text-white shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] disabled:cursor-wait disabled:opacity-60 sm:w-auto">{busy ? (kk ? "Жіберілуде…" : "Отправляем…") : (kk ? "Ашық сабаққа ҚМЖ жасау" : "Создать КМЖ открытого урока")}</button>
+      <button type="submit" disabled={busy || locked || uploading} className="min-h-12 w-full rounded-2xl bg-[var(--primary)] px-7 py-3 font-bold text-white shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] disabled:cursor-wait disabled:opacity-60 sm:w-auto">{busy ? (kk ? "Жіберілуде…" : "Отправляем…") : (kk ? "Ашық сабаққа ҚМЖ жасау" : "Создать КМЖ открытого урока")}</button>
     </div>
   </form>;
 }

@@ -44,10 +44,12 @@ function ImageGenerationContent() {
   const [submitting, setSubmitting] = useState(false);
 
   const job = useGenerationJobQuery({
+    acceptedJobId: currentJobId,
     queryKey: ["generation-job", currentJobId],
     queryFn: () => getGenerationJob(currentJobId as string),
     enabled: Boolean(currentJobId),
   });
+  const submissionLocked = submitting || job.isSubmissionLocked;
   const loading = submitting || Boolean(
     currentJobId && job.isGenerationBusy,
   );
@@ -90,6 +92,7 @@ function ImageGenerationContent() {
 
   const onGenerate = async (e: FormEvent) => {
     e.preventDefault();
+    if (submissionLocked) return;
     if (!prompt.trim()) {
       setError("Введите описание изображения");
       return;
@@ -198,7 +201,7 @@ function ImageGenerationContent() {
             placeholder="Например: Абай Кунанбаев читает книгу"
             className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             rows={4}
-            disabled={loading}
+            disabled={submissionLocked}
           />
           <p className="mt-1 text-xs text-slate-500">
             Опишите, какое изображение вы хотите создать
@@ -207,7 +210,7 @@ function ImageGenerationContent() {
 
         <button
           type="submit"
-          disabled={loading || !hasEnoughBalance || !prompt.trim()}
+          disabled={submissionLocked || !hasEnoughBalance || !prompt.trim()}
           className="w-full rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           {loading ? "Генерация..." : "Сгенерировать изображение"}
@@ -230,7 +233,7 @@ function ImageGenerationContent() {
 
       {/* Ошибка */}
       {error && (
-        <div className="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 text-red-700">
+        <div role="status" className="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 text-red-700">
           {error}
         </div>
       )}

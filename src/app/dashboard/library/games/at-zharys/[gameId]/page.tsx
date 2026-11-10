@@ -227,6 +227,7 @@ function AtZharysGameContent() {
   const searchParams = useSearchParams();
   const requestedJobId = generationJobIdFromSearchParam(searchParams.get("job"));
   const job = useGenerationJobQuery({
+    acceptedJobId: requestedJobId,
     queryKey: ["generation-job", requestedJobId],
     queryFn: () => getGenerationJob(requestedJobId as string),
     enabled: Boolean(requestedJobId),

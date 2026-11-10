@@ -187,6 +187,7 @@ function PedagogicalIdeasContent() {
     [history.data?.items],
   );
   const current = useGenerationJobQuery({
+    acceptedJobId: requestedJobId,
     queryKey: ["generation-job", requestedJobId],
     queryFn: () => getGenerationJob(requestedJobId as string),
     enabled: Boolean(requestedJobId),
@@ -211,6 +212,7 @@ function PedagogicalIdeasContent() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (isSubmitting || current.isSubmissionLocked) return;
     setFormError(null);
     if (!subject.trim() || !grade.trim() || !topic.trim()) {
       setFormError(copy.required);
@@ -350,7 +352,7 @@ function PedagogicalIdeasContent() {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || current.isSubmissionLocked}
             className="mt-5 min-h-13 w-full rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-wait disabled:opacity-60"
           >
             {isSubmitting ? copy.submitting : copy.submit}
