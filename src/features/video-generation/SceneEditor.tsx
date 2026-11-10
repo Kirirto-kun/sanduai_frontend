@@ -355,7 +355,9 @@ export function SceneEditor({
                 </div>
                 <p className="text-sm font-medium text-white/85">
                   {jobs.length
-                    ? kk
+                    ? readError
+                      ? (kk ? "Соңғы белгілі күй: видео жасалуда" : "Последний известный статус: видео создаётся")
+                      : kk
                       ? "Сіздің идеяңыз қозғалысқа айналуда"
                       : "Создаём ваше видео"
                     : kk
@@ -364,7 +366,9 @@ export function SceneEditor({
                 </p>
                 <p className="mt-2 text-xs leading-6 text-slate-400">
                   {jobs.length
-                    ? kk
+                    ? readError
+                      ? (kk ? "Күйін жаңарту мүмкін болмады. Қайта тексеріңіз; сұрауды қайта жіберудің қажеті жоқ." : "Не удаётся обновить статус. Проверьте его снова; повторно отправлять запрос не нужно.")
+                      : kk
                       ? "Бетті жабуға болады — дайын нәтиже осы жобада қалады."
                       : "Можно закрыть страницу — готовый результат появится в этом проекте."
                     : kk
@@ -373,7 +377,8 @@ export function SceneEditor({
                 </p>
                 {jobs.length > 0 && (
                   <span className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs text-indigo-200">
-                    <Spinner />
+                    {!readError && <Spinner />}
+                    {Boolean(readError) && (kk ? "Соңғы белгілі күй: " : "Последний известный статус: ")}
                     {states[jobs[0].status] ??
                       (kk ? "Өңделуде" : "В обработке")}
                   </span>

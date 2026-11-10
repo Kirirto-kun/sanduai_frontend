@@ -110,3 +110,28 @@ it("recovers an unresolved intent even when no job has appeared in the cached pr
   expect(readVideoIntent("owner-a", "scene-a")?.quoteId).toBe("unresolved-quote");
   expect(network.generate).not.toHaveBeenCalled();
 });
+
+it.each([401, 403, 404, 410, 503])("shows a disconnected first-video placeholder without an execution spinner after HTTP %i", async status => {
+  const firstVideo: VideoProject = {
+    ...project, exports: [],
+    scenes: [{ ...project.scenes[0], versions: [], selected_version_id: null, input_asset_id: null, source_scene_id: null, source_version_id: null }],
+  };
+  cache.setQueryData(["video-project", "owner-a", project.id], firstVideo);
+  await mount(status);
+  expect(observer.getCurrentResult().data).toEqual(firstVideo);
+  expect(host.querySelector("[data-media-asset]")).toBeNull();
+  expect(host.querySelector(".animate-spin")).toBeNull();
+  expect(host.textContent).toContain("Последний известный статус: видео создаётся");
+  const replay = [...host.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.includes("Восстановить запрос"))!;
+  expect(replay.disabled).toBe(true);
+  await act(async () => replay.click());
+  expect(network.generate).not.toHaveBeenCalled();
+  expect(readVideoIntent("owner-a", "scene-a")?.quoteId).toBe("unresolved-quote");
+  network.project.mockResolvedValue(firstVideo);
+  const retry = [...host.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Проверить снова")!;
+  await act(async () => retry.click()); await advance();
+  expect(network.project).toHaveBeenCalledTimes(2);
+  expect(observer.getCurrentResult().error).toBeNull();
+  expect(readVideoIntent("owner-a", "scene-a")?.quoteId).toBe("unresolved-quote");
+  expect(network.generate).not.toHaveBeenCalled();
+});
