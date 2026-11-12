@@ -375,6 +375,9 @@ export function useJobEventStream(jobId: string | null | undefined, presentation
             eventName.endsWith(".cancelled") ||
             isTerminalPresentationJob(eventStatus)
           ) {
+            // Reconcile the owned terminal record once: its GET settles the
+            // persisted write identity and supplies safe failure/recovery fields.
+            await queryClient.invalidateQueries({ queryKey: presentationKeys.job(jobId!) });
             break;
           }
         }

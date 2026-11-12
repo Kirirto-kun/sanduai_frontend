@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { presentationKeys, useJob, useJobEventStream } from "./usePresentations";
+import { startGeneration } from "@/lib/presentations-api";
 
 const JOB = "30bdc3b2-41e6-4399-877c-cbab8e93a5d9";
 let root: Root;
@@ -22,6 +23,11 @@ function Probe() {
 function StreamProbe() {
   useJobEventStream(JOB);
   return createElement("div", null, "Stored job stream");
+}
+function JobWithStream() {
+  const job = useJob(JOB);
+  useJobEventStream(JOB);
+  return createElement("div", null, job.data?.status);
 }
 async function advance(ms = 0) { await act(async () => { await vi.advanceTimersByTimeAsync(ms); }); }
 async function mount() {
@@ -47,6 +53,30 @@ afterEach(async () => {
 });
 
 describe("accepted presentation job recovery", () => {
+  it("reconciles terminal SSE with a GET before retiring the paid request identity", async () => {
+    const keys: Array<string | null> = [];
+    let jobReads = 0;
+    vi.stubGlobal("fetch", vi.fn(async (url, init: RequestInit) => {
+      const path = new URL(String(url)).pathname;
+      calls.push({ path, method: init.method ?? "GET" });
+      if (init.method === "POST") {
+        keys.push(new Headers(init.headers).get("Idempotency-Key"));
+        return new Response(JSON.stringify({ job_id: JOB, kind: "generate", status: "queued" }), { status: 202 });
+      }
+      if (path.endsWith("events")) return new Response('id: 2\nevent: job.completed\ndata: {"status":"completed","completed":4,"total":4}\n\n', { headers: { "Content-Type": "text/event-stream" } });
+      jobReads++;
+      return new Response(JSON.stringify({ id: JOB, kind: "generate", status: jobReads === 1 ? "running" : "completed", error_code: null }));
+    }));
+    await startGeneration("stream-project", "stream-plan");
+    cache.setQueryData(presentationKeys.job(JOB), { id: JOB, kind: "generate", status: "queued" });
+    await act(async () => root.render(createElement(QueryClientProvider, { client: cache }, createElement(JobWithStream)))); await advance(1);
+    expect(jobReads).toBe(2);
+    expect(cache.getQueryData(presentationKeys.job(JOB))).toMatchObject({ status: "completed", error_code: null });
+    expect(keys).toHaveLength(1);
+    await startGeneration("stream-project", "stream-plan");
+    expect(keys[1]).not.toBe(keys[0]);
+  });
+
   it("does not replace a completed GET result with a delayed active SSE event", async () => {
     cache.setQueryData(presentationKeys.job(JOB), { id: JOB, kind: "generate", status: "completed", completed: 4, total: 4 });
     vi.stubGlobal("fetch", vi.fn(async (url, init: RequestInit) => {
