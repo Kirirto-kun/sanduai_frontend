@@ -40,11 +40,15 @@ export default function ExportDialog({
   mode,
   open,
   onClose,
+  canCreateExport = true,
+  creationBlockedReason,
 }: {
   presentationId: string;
   mode: PresentationMode;
   open: boolean;
   onClose: () => void;
+  canCreateExport?: boolean;
+  creationBlockedReason?: string;
 }) {
   const { language } = useLanguage();
   const copy = getPresentationCopy(language);
@@ -62,7 +66,7 @@ export default function ExportDialog({
   if (!open) return null;
 
   const create = async () => {
-    if (blocked || exportsQuery.error) return;
+    if (!canCreateExport || blocked || exportsQuery.error) return;
     setError(null);
     try {
       await createMutation.mutateAsync({
@@ -175,10 +179,11 @@ export default function ExportDialog({
             )}
           </div>
         )}
-        {exportIsBeingPrepared && !error && !exportsQuery.error && (
+        {!canCreateExport && creationBlockedReason && <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">{creationBlockedReason}</p>}
+        {canCreateExport && exportIsBeingPrepared && !error && !exportsQuery.error && (
           <p role="status" className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-blue-900">{copy.exportQueuedHint}</p>
         )}
-        <button type="button" onClick={() => void create()} disabled={createMutation.isPending || pendingExport || blocked || Boolean(exportsQuery.error)} className="mt-6 min-h-13 w-full rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-md hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 disabled:opacity-50">{createMutation.isPending || (pendingExport && !exportsQuery.error) ? copy.preparingExport : copy.startExport}</button>
+        <button type="button" onClick={() => void create()} disabled={!canCreateExport || createMutation.isPending || pendingExport || blocked || Boolean(exportsQuery.error)} className="mt-6 min-h-13 w-full rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-md hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 disabled:opacity-50">{canCreateExport && (createMutation.isPending || (pendingExport && !exportsQuery.error)) ? copy.preparingExport : copy.startExport}</button>
 
         <section className="mt-7 border-t border-slate-100 pt-5" aria-labelledby="ready-exports-title">
           <h3 id="ready-exports-title" className="text-sm font-bold text-slate-900">{copy.readyFiles}</h3>

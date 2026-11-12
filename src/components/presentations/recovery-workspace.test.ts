@@ -199,6 +199,48 @@ describe("presentation workspace recovery", () => {
     expect(host.querySelector(".animate-spin")).toBeNull();
     expect(posts).toEqual([]);
   });
+
+  it.each(["running", "partial", "regenerate", "export"])("opens previous export downloads while current work is %s without allowing a new export", async phase => {
+    const previousExport = "6f8c1e31-1c5e-42cb-bb0d-61b7c177345c";
+    const kind = phase === "regenerate" ? "regenerate" : phase === "export" ? "export" : "generate";
+    const status = phase === "partial" ? "completed_with_errors" : "running";
+    const ownJob = { id: state.jobId, job_id: state.jobId, project_id: project.id, generation_id: "44f9ce20-c082-4dc5-862c-5726ed57427a", kind, status, progress: 50, completed: 1, total: 2, error_code: null, progress_detail: {} };
+    currentProject = {
+      ...project, status: phase === "partial" ? "partial_failed" : phase === "running" ? "generating" : "ready", active_plan_job_id: null,
+      active_generation: { id: ownJob.generation_id, status: phase === "running" ? "running" : "completed", total_slides: 2, completed_slides: 1 },
+      latest_job: ownJob,
+      slides: [
+        { slide_key: "slide-1", order: 1, title: "Готовый слайд", status: "ready", spec: { title: "Готовый слайд" } },
+        { slide_key: "slide-2", order: 2, title: "Текущий слайд", status: phase === "partial" ? "failed" : phase === "running" ? "queued" : "ready" },
+      ],
+    };
+    const reads: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url, init: RequestInit) => {
+      const path = new URL(String(url)).pathname;
+      if (init.method && init.method !== "GET") { posts.push(path); return new Response("{}", { status: 405 }); }
+      reads.push(path);
+      if (path.endsWith("/download")) return new Response(new Blob(["saved prior snapshot"]));
+      const value = path.endsWith("/exports") ? { items: [{ id: previousExport, format: "pptx", variant: "image", status: "completed", download_url: `/api/v2/presentations/${project.id}/exports/${previousExport}/download`, error_message: null, created_at: "2026-11-12T00:00:00Z" }] }
+        : path.endsWith("/capabilities") ? { operations: { creative_slides: "available", presentation_export: "available" }, creative: { available: true } }
+          : path.endsWith("/events") ? null : path.includes("/jobs/") ? ownJob : currentProject;
+      return new Response(JSON.stringify(value), { status: value === null ? 503 : 200 });
+    }));
+    await mount(createElement(EditorPage));
+    const open = [...host.querySelectorAll("button")].find(button => button.textContent === "Экспорт")!;
+    expect(open.disabled).toBe(false);
+    await act(async () => open.click()); await advance(1);
+    const dialog = host.querySelector("[role=dialog]")!;
+    expect(dialog).not.toBeNull();
+    const buttons = [...dialog.querySelectorAll("button")];
+    expect(buttons.find(button => button.textContent === "Подготовить файл")?.disabled).toBe(true);
+    const download = buttons.find(button => button.textContent === "Скачать")!;
+    expect(download.disabled).toBe(false);
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:saved-export");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    await act(async () => download.click()); await advance(1);
+    expect(reads).toContain(`/api/v2/presentations/${project.id}/exports/${previousExport}/download`);
+    expect(posts).toEqual([]);
+  });
 });
 
 describe("presentation terminal status display", () => {

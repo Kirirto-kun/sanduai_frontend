@@ -70,9 +70,15 @@ function currentOwner(): string {
   return typeof owner === "string" && owner ? owner : "anonymous";
 }
 
-function readIntents(): Record<string, PresentationIntent> {
+/** null means storage could not be read; an accessible missing entry is authoritative. */
+function readIntents(): Record<string, PresentationIntent> | null {
+  let raw: string | null;
   try {
-    const stored: unknown = typeof window === "undefined" ? {} : JSON.parse(window.localStorage.getItem(INTENTS_KEY) ?? "{}");
+    if (typeof window === "undefined") return null;
+    raw = window.localStorage.getItem(INTENTS_KEY);
+  } catch { return null; }
+  try {
+    const stored: unknown = JSON.parse(raw ?? "{}");
     if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
     return Object.fromEntries(Object.entries(stored).filter(([, value]) => {
       const intent = value as Partial<PresentationIntent> | null;
@@ -83,16 +89,29 @@ function readIntents(): Record<string, PresentationIntent> {
   } catch { return {}; }
 }
 
-function storeIntent(fingerprint: string, intent?: PresentationIntent) {
-  if (intent) memoryIntents.set(fingerprint, intent);
-  else memoryIntents.delete(fingerprint);
-  if (typeof window === "undefined") return;
+function storeIntent(fingerprint: string, intent: PresentationIntent, expectedKey?: string): boolean {
+  const stored = readIntents();
+  // A delayed acknowledgement must not resurrect a settled key or replace a
+  // new action that another tab has already persisted.
+  if (stored && expectedKey && stored[fingerprint]?.key !== expectedKey) return false;
+  memoryIntents.set(fingerprint, intent);
+  if (stored === null) return true;
   try {
-    const stored = readIntents();
-    if (intent && intent.owner !== "anonymous") stored[fingerprint] = intent;
+    if (intent.owner !== "anonymous") stored[fingerprint] = intent;
     else delete stored[fingerprint];
     window.localStorage.setItem(INTENTS_KEY, JSON.stringify(stored));
-  } catch { /* The same identity remains available in memory when storage is full. */ }
+    return true;
+  } catch { return false; }
+}
+
+function forgetIntent(fingerprint: string, expected: PresentationIntent) {
+  const matches = (intent?: PresentationIntent) => intent?.key === expected.key && intent.owner === expected.owner;
+  if (matches(memoryIntents.get(fingerprint))) memoryIntents.delete(fingerprint);
+  const stored = readIntents();
+  if (!stored || !matches(stored[fingerprint])) return;
+  delete stored[fingerprint];
+  try { window.localStorage.setItem(INTENTS_KEY, JSON.stringify(stored)); }
+  catch { /* A retained key can still safely replay the same acknowledged job. */ }
 }
 
 async function writeIdentity(path: string, init: RequestInit): Promise<{ fingerprint: string; intent: PresentationIntent }> {
@@ -100,18 +119,26 @@ async function writeIdentity(path: string, init: RequestInit): Promise<{ fingerp
   // Persist only a digest and request identity, never the teacher's source text.
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${owner}:${init.method}:${path}:${String(init.body ?? "")}`));
   const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
-  const old = readIntents()[fingerprint] ?? memoryIntents.get(fingerprint);
+  const stored = readIntents();
+  const old = stored === null ? memoryIntents.get(fingerprint) : stored[fingerprint];
   const intent = old?.owner === owner && old.createdAt > Date.now() - 24 * 60 * 60 * 1000
     ? old : { key: idempotencyKey(), owner, createdAt: Date.now() };
-  storeIntent(fingerprint, intent);
+  if (!storeIntent(fingerprint, intent)) {
+    // No paid request has been sent. Refuse to lose its recovery identity when
+    // storage is readable but writing the new intent fails.
+    throw new PresentationApiError("The request identity could not be saved.", 0, undefined, undefined, API_ERROR_CODES.NETWORK_ERROR);
+  }
   return { fingerprint, intent };
 }
 
 function settleJobIdentity(jobId: string) {
   const owner = currentOwner();
-  const all = { ...Object.fromEntries(memoryIntents), ...readIntents() };
+  const stored = readIntents();
+  const all = stored ?? Object.fromEntries(memoryIntents);
   for (const [fingerprint, intent] of Object.entries(all)) {
-    if (intent.owner === owner && intent.jobId === jobId) storeIntent(fingerprint);
+    const memory = memoryIntents.get(fingerprint);
+    const knownJobId = intent.jobId ?? (memory?.key === intent.key ? memory.jobId : undefined);
+    if (intent.owner === owner && knownJobId === jobId) forgetIntent(fingerprint, intent);
   }
 }
 
@@ -189,9 +216,10 @@ async function request<T>(
     idempotent?: boolean;
     expectedStatuses?: readonly number[];
     timeoutMs?: number;
+    releaseOnAcknowledgement?: "export";
   } = {},
 ): Promise<T> {
-  const { idempotent, expectedStatuses, timeoutMs, ...requestInit } = options;
+  const { idempotent, expectedStatuses, timeoutMs, releaseOnAcknowledgement, ...requestInit } = options;
   const token = getToken();
   const headers = new Headers(options.headers);
   if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
@@ -219,9 +247,16 @@ async function request<T>(
   if (!identity) return result;
   const tracked = result.then(payload => {
     if (currentOwner() !== identity.intent.owner) throw new PresentationApiError("The account changed.", 403);
+    if (releaseOnAcknowledgement === "export") {
+      // Export rows are polled without a job GET. Once its valid 202 is known,
+      // the server's immutable snapshot identity deduplicates later requests.
+      unwrapJobRef(payload, "export");
+      forgetIntent(identity.fingerprint, identity.intent);
+      return payload;
+    }
     const value = payload as { job_id?: unknown } | null;
     if (typeof value?.job_id === "string" && PRESENTATION_JOB_ID_PATTERN.test(value.job_id)) {
-      storeIntent(identity.fingerprint, { ...identity.intent, jobId: value.job_id });
+      storeIntent(identity.fingerprint, { ...identity.intent, jobId: value.job_id }, identity.intent.key);
     }
     return payload;
   }).finally(() => writesInFlight.delete(identity.fingerprint));
@@ -516,6 +551,7 @@ export async function createExport(
       body: JSON.stringify(input),
       idempotent: true,
       expectedStatuses: [202],
+      releaseOnAcknowledgement: "export",
     }),
     "export",
   );

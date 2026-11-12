@@ -143,10 +143,13 @@ export default function EditorShell({
   const projectAllowsExport = ["ready", "review_required", "needs_review", "partial_failed", "completed"].includes(
     project.status.toLowerCase(),
   );
-  const canExport = projectAllowsExport && allSlidesReady && !editingLocked;
-  const exportBlockedReason = failedSlides.length > 0
-    ? copy.exportBlocked
-    : !allSlidesReady || editingLocked
+  const generationTerminal = project.active_generation ? isTerminalPresentationJob(project.active_generation.status) : !jobActive;
+  const canPrepareExport = projectAllowsExport && allSlidesReady && generationTerminal && !editingLocked && !projectReadError && !jobQuery.error;
+  const exportBlockedReason = projectReadError || jobQuery.error
+    ? copy.readRecoveryHint
+    : failedSlides.length > 0
+    ? copy.exportNewFileBlocked
+    : !canPrepareExport
       ? copy.generationNotFinished
       : undefined;
 
@@ -229,8 +232,6 @@ export default function EditorShell({
           presentationId={project.id}
           title={project.title}
           mode={project.mode}
-          canExport={canExport}
-          exportBlockedReason={exportBlockedReason}
           onExport={() => setExportOpen(true)}
         />
         <div className="flex min-h-[36rem] flex-col lg:h-[calc(100vh-15rem)] lg:min-h-[42rem] lg:flex-row">
@@ -272,7 +273,7 @@ export default function EditorShell({
         </div>
       </div>
 
-      <ExportDialog presentationId={project.id} mode={project.mode} open={exportOpen} onClose={() => setExportOpen(false)} />
+      <ExportDialog presentationId={project.id} mode={project.mode} open={exportOpen} onClose={() => setExportOpen(false)} canCreateExport={canPrepareExport} creationBlockedReason={exportBlockedReason} />
     </div>
   );
 }

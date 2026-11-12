@@ -53,6 +53,27 @@ afterEach(async () => {
 });
 
 describe("accepted presentation job recovery", () => {
+  it("keeps slide.failed events on the stream until later job progress and job completion", async () => {
+    cache.setQueryData(presentationKeys.job(JOB), { id: JOB, kind: "generate", status: "running", completed: 0, total: 4 });
+    let feed!: ReadableStreamDefaultController<Uint8Array>;
+    const body = new ReadableStream<Uint8Array>({ start(controller) { feed = controller; } });
+    vi.stubGlobal("fetch", vi.fn(async (url, init: RequestInit) => {
+      calls.push({ path: new URL(String(url)).pathname, method: init.method ?? "GET" });
+      return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+    }));
+    await act(async () => root.render(createElement(QueryClientProvider, { client: cache }, createElement(StreamProbe))));
+    feed.enqueue(new TextEncoder().encode('id: 1\nevent: slide.failed\ndata: {"slide_key":"slide-1","status":"failed"}\n\n'));
+    await advance(1);
+    expect(cache.getQueryData(presentationKeys.job(JOB))).toMatchObject({ status: "running", completed: 0 });
+    feed.enqueue(new TextEncoder().encode(`id: 2\nevent: job.progress\ndata: {"job_id":"${JOB}","status":"running","completed":2}\n\n`));
+    await advance(1);
+    expect(cache.getQueryData(presentationKeys.job(JOB))).toMatchObject({ status: "running", completed: 2 });
+    feed.enqueue(new TextEncoder().encode(`id: 3\nevent: job.completed\ndata: {"job_id":"${JOB}","status":"completed","completed":4}\n\n`));
+    await advance(1);
+    expect(cache.getQueryData(presentationKeys.job(JOB))).toMatchObject({ status: "completed", completed: 4 });
+    expect(calls).toEqual([{ path: `/api/v2/jobs/${JOB}/events`, method: "GET" }]);
+  });
+
   it("reconciles terminal SSE with a GET before retiring the paid request identity", async () => {
     const keys: Array<string | null> = [];
     let jobReads = 0;

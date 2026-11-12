@@ -343,7 +343,13 @@ export function useJobEventStream(jobId: string | null | undefined, presentation
           setStreamError(false);
           if (event.id) lastEventId.current = event.id;
           const payload = event.data as Partial<JobState> | null;
-          if (payload && typeof payload === "object") {
+          const eventName = event.event.toLowerCase();
+          const terminalEvent = ["completed", "completed_with_errors", "failed", "error", "cancelled", "expired", "queue_expired"].some(name => eventName === name || eventName === `job.${name}`);
+          const jobEvent = eventName.startsWith("job.") || terminalEvent || eventName === "progress"
+            || (eventName === "message" && (payload?.job_id === jobId || payload?.id === jobId));
+          // Slide events may carry their own terminal status. They refresh the
+          // project but must never settle the job or close its progress stream.
+          if (jobEvent && payload && typeof payload === "object") {
             queryClient.setQueryData<JobState>(presentationKeys.job(jobId!), (current) => {
               // Ignore delayed active events after a newer GET settled the job.
               if (isTerminalPresentationJob(current?.status) && !isTerminalPresentationJob(payload.status)) return current;
@@ -364,17 +370,7 @@ export function useJobEventStream(jobId: string | null | undefined, presentation
           }
           const eventStatus =
             payload && typeof payload.status === "string" ? payload.status.toLowerCase() : "";
-          const eventName = event.event.toLowerCase();
-          if (
-            eventName === "completed" ||
-            eventName === "completed_with_errors" ||
-            eventName === "failed" ||
-            eventName === "cancelled" ||
-            eventName.endsWith(".completed") ||
-            eventName.endsWith(".failed") ||
-            eventName.endsWith(".cancelled") ||
-            isTerminalPresentationJob(eventStatus)
-          ) {
+          if (terminalEvent || (jobEvent && isTerminalPresentationJob(eventStatus))) {
             // Reconcile the owned terminal record once: its GET settles the
             // persisted write identity and supplies safe failure/recovery fields.
             await queryClient.invalidateQueries({ queryKey: presentationKeys.job(jobId!) });
