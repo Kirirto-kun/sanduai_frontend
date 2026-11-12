@@ -121,7 +121,7 @@ function presentationError(failure: ApiFailure): PresentationApiError {
     : null;
   const detail = payload?.detail;
   const structuredDetail = detail && typeof detail === "object" && !Array.isArray(detail)
-    ? detail as { message?: unknown; code?: unknown }
+    ? detail as { message?: unknown; code?: unknown; retry_after_seconds?: unknown }
     : null;
   if (payload) {
     const validationMessage = Array.isArray(detail)
@@ -146,13 +146,17 @@ function presentationError(failure: ApiFailure): PresentationApiError {
     const serverCode = typeof structuredDetail?.code === "string"
       ? structuredDetail.code
       : payload.code;
+    const bodyRetry = structuredDetail?.retry_after_seconds;
+    const retryAfterSeconds = failure.retryAfterSeconds ?? (
+      typeof bodyRetry === "number" && Number.isFinite(bodyRetry) && bodyRetry >= 0 ? bodyRetry : undefined
+    );
     return new PresentationApiError(
       message,
       failure.status,
       serverCode,
       structuredDetail ?? detail ?? payload,
       failure.code,
-      failure.retryAfterSeconds,
+      retryAfterSeconds,
     );
   }
 

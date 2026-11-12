@@ -111,6 +111,17 @@ describe("accepted presentation job recovery", () => {
     expect(calls.every(call => call.method === "GET" && call.path.endsWith(JOB))).toBe(true);
   });
 
+  it("bounds failed first reads before any job snapshot has loaded", async () => {
+    unavailable = true; await mount(); await advance(180000);
+    expect(calls).toHaveLength(5);
+    expect(cache.getQueryData(presentationKeys.job(JOB))).toBeUndefined();
+    unavailable = false; status = "completed";
+    await act(async () => host.querySelector("button")!.click()); await advance();
+    expect(host.textContent).toContain("completed");
+    expect(calls).toHaveLength(6);
+    expect(calls.every(call => call.method === "GET" && call.path.endsWith(JOB))).toBe(true);
+  });
+
   it.each(["completed_with_errors", "partial_failed", "expired", "queue_expired", "failed", "cancelled"])("stops reads for terminal %s", async terminal => {
     status = terminal; await mount(); await advance(120000);
     expect(calls).toHaveLength(1);

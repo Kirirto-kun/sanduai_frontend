@@ -45,9 +45,10 @@ export function presentationErrorMessage(
   if (!isPresentationError(error)) return fallback;
 
   const serverCode = normalizedServerCode(error);
-  if (["resource_capacity_busy", "provider_unavailable"].includes(serverCode)) {
+  if (["resource_capacity_busy", "provider_unavailable", "presentation_queue_busy"].includes(serverCode)) {
     const seconds = error.retryAfterSeconds;
-    return copy.capacityUnavailable + (typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0
+    const message = serverCode === "presentation_queue_busy" ? copy.capacityQueueBusy : copy.capacityUnavailable;
+    return message + (typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0
       ? ` ${copy.retryAfterSeconds.replace("{seconds}", String(Math.ceil(seconds)))}` : "");
   }
   if (serverCode === "slides_not_ready" || serverCode === "presentation_slides_not_ready") {

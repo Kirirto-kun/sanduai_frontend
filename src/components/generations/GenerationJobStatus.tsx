@@ -31,7 +31,7 @@ export function GenerationJobStatus({ job, language, error, onRetry, now }: {
     <p role="status" aria-atomic="true" className="font-semibold">
       {connection === "credentials" ? t("Войдите снова или проверьте доступ к материалу.", "Қайта кіріңіз немесе материалға қолжетімділікті тексеріңіз.")
         : connection === "unavailable" ? t("Материал недоступен. Откройте историю или проверьте ссылку.", "Материал қолжетімсіз. Тарихты ашыңыз немесе сілтемені тексеріңіз.")
-        : connection === "reconnecting" ? t("Связь прервалась. Автоматически проверяем статус; повторно отправлять задание не нужно.", "Байланыс үзілді. Күйі автоматты тексеріледі; тапсырманы қайта жіберудің қажеті жоқ.")
+        : connection === "reconnecting" ? t("Связь прервалась. Проверьте статус; повторно отправлять задание не нужно.", "Байланыс үзілді. Күйін қайта тексеріңіз; тапсырманы қайта жіберудің қажеті жоқ.")
         : job ? labels[job.status] : ""}
     </p>
     {!permanent && job && <div aria-live="off" className="mt-1 space-y-1 text-xs leading-5 text-slate-600">

@@ -88,4 +88,12 @@ describe("presentation teacher-facing error copy", () => {
     expect(presentationErrorMessage(error, kk)).toContain("5 сек");
     expect(presentationErrorMessage(error, ru)).not.toContain("provider");
   });
+
+  it("explains a full presentation queue with localized retry timing", () => {
+    const error = Object.assign(apiError({ status: 429, code: API_ERROR_CODES.RATE_LIMITED, serverCode: "PRESENTATION_QUEUE_BUSY" }), { retryAfterSeconds: 5 });
+    expect(presentationErrorMessage(error, ru)).toContain("очередь");
+    expect(presentationErrorMessage(error, ru)).toContain("5 сек");
+    expect(presentationErrorMessage(error, kk)).toContain("кезек");
+    expect(presentationErrorMessage(error, kk)).toContain("5 сек");
+  });
 });

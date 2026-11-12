@@ -160,6 +160,13 @@ describe("presentation API errors", () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("preserves queue retry timing from the additive body contract without replaying the POST", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: { code: "PRESENTATION_QUEUE_BUSY", retry_after_seconds: 5 } }), { status: 429 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(startGeneration(PROJECT_ID, PLAN_ID)).rejects.toMatchObject({ status: 429, serverCode: "PRESENTATION_QUEUE_BUSY", retryAfterSeconds: 5 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("presentation operation availability", () => {

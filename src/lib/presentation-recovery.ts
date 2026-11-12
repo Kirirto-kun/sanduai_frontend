@@ -28,14 +28,17 @@ type ReadState = {
   fetchFailureCount: number;
   errorUpdateCount?: number;
   dataUpdatedAt?: number;
+  dataUpdateCount?: number;
 };
-const failures = new WeakMap<object, { count: number; errorCount?: number; dataAt?: number }>();
+const failures = new WeakMap<object, { count: number; errorCount?: number; dataAt?: number; dataCount?: number }>();
 
 /** Five failed reads end automatic recovery; focus, reconnect and the read button remain available. */
 export function presentationPollingInterval(state: ReadState, healthyInterval: number | false, query: object): number | false {
   const previous = failures.get(query);
-  const record = !state.error || !previous || previous.dataAt !== state.dataUpdatedAt
-    ? { count: 0, errorCount: undefined as number | undefined, dataAt: state.dataUpdatedAt }
+  // With no cached data TanStack temporarily clears error while the next read
+  // is pending. Only a genuine data update proves that recovery succeeded.
+  const record = !previous || previous.dataAt !== state.dataUpdatedAt || previous.dataCount !== state.dataUpdateCount
+    ? { count: 0, errorCount: undefined as number | undefined, dataAt: state.dataUpdatedAt, dataCount: state.dataUpdateCount }
     : previous;
   if (state.error && (record.errorCount !== state.errorUpdateCount || !record.count)) {
     record.count++;
