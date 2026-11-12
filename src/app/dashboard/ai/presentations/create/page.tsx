@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { useCreatePresentation, useStartPlanJob } from "@/hooks/usePresentations";
+import { useCreatePresentation, usePresentationCapabilities, useStartPlanJob } from "@/hooks/usePresentations";
 import type { CreatePresentationInput, PresentationMode } from "@/types/presentations";
 import CreateForm from "@/components/presentations/CreateForm";
 import { useMasterclassHandoff } from "@/features/masterclasses/useMasterclassHandoff";
 import { MasterclassHandoffNotice } from "@/features/masterclasses/MasterclassHandoffNotice";
-import { ErrorNotice, PresentationStepper } from "@/components/presentations/PresentationUI";
+import { ErrorNotice, PresentationAvailabilityNotice, PresentationStepper } from "@/components/presentations/PresentationUI";
+import { isPresentationOperationBlocked, presentationOperationAvailability } from "@/lib/presentation-recovery";
 import { getPresentationCopy } from "@/components/presentations/copy";
 import { presentationErrorMessage } from "@/components/presentations/error-copy";
 import {
@@ -30,6 +31,9 @@ export default function CreatePresentationPage() {
   const mode: PresentationMode = resolvePresentationCreationMode(requestedMode);
   const createMutation = useCreatePresentation();
   const planMutation = useStartPlanJob();
+  const capabilities = usePresentationCapabilities();
+  const availability = presentationOperationAvailability(capabilities.data, "creative_slides");
+  const unavailable = isPresentationOperationBlocked(availability);
   const [error, setError] = useState<string | null>(null);
   const loading = createMutation.isPending || planMutation.isPending;
   const masterclass = useMasterclassHandoff("presentation", !searchParams.has("job") && !searchParams.has("project"));
@@ -47,6 +51,7 @@ export default function CreatePresentationPage() {
   }, [requestedMode, router, searchParams]);
 
   const handleSubmit = async (input: CreatePresentationInput) => {
+    if (unavailable) return;
     setError(null);
     try {
       const project = await createMutation.mutateAsync(input);
@@ -55,8 +60,8 @@ export default function CreatePresentationPage() {
         const jobQuery = job.job_id ? `?job=${encodeURIComponent(job.job_id)}` : "";
         router.push(`/dashboard/ai/presentations/outline/${project.id}${jobQuery}`);
       } catch {
-        // The project is already safe in the library. The outline page resumes
-        // plan creation automatically instead of making the teacher submit again.
+        // The outline recovers the saved project with reads. Starting another
+        // plan always requires an explicit action from the teacher.
         router.push(`/dashboard/ai/presentations/outline/${project.id}`);
       }
     } catch (caught) {
@@ -84,10 +89,11 @@ export default function CreatePresentationPage() {
       </header>
 
       {error && <ErrorNotice message={error} />}
+      <PresentationAvailabilityNotice state={availability} onRetry={() => void capabilities.refetch()} checking={capabilities.isFetching} />
       <MasterclassHandoffNotice handoff={masterclass} />
 
       <div className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-sm backdrop-blur sm:p-8">
-        {!masterclass.loading && !masterclass.error && <CreateForm key={`${masterclass.identity}:${Boolean(handoffInput)}`} mode={mode} loading={loading} initialPayload={handoffInput} onSubmit={handleSubmit} />}
+        {!masterclass.loading && !masterclass.error && <CreateForm key={`${masterclass.identity}:${Boolean(handoffInput)}`} mode={mode} loading={loading} unavailable={unavailable} initialPayload={handoffInput} onSubmit={handleSubmit} />}
       </div>
     </div>
   );

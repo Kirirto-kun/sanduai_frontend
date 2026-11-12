@@ -145,6 +145,7 @@ export default function ClassicEditPanel({
   persistedSlide,
   themeId,
   regenerationActive = false,
+  generationUnavailable = false,
   onThemeChange,
   onDraftChange,
   onJobStarted,
@@ -154,6 +155,7 @@ export default function ClassicEditPanel({
   persistedSlide: PresentationSlide;
   themeId: string;
   regenerationActive?: boolean;
+  generationUnavailable?: boolean;
   onThemeChange: (themeId: string) => void;
   onDraftChange: (spec: SlideSpec, dirty: boolean) => void;
   onJobStarted?: (jobId: string) => void;
@@ -220,6 +222,7 @@ export default function ClassicEditPanel({
 
   useEffect(() => {
     enqueueRef.current = (snapshot) => {
+      if (generationUnavailable || regenerationActive) return;
       if (requestedRef.current === snapshot.serialized || !String(snapshot.draft.title ?? "").trim()) return;
       requestedRef.current = snapshot.serialized;
       pendingRef.current += 1;
@@ -255,7 +258,7 @@ export default function ClassicEditPanel({
           }
         });
     };
-  }, [copy, presentationId]);
+  }, [copy, generationUnavailable, presentationId, regenerationActive]);
 
   useEffect(() => {
     onDraftChangeRef.current(draft, serialized !== saved);
@@ -277,6 +280,7 @@ export default function ClassicEditPanel({
   };
 
   const changeTheme = async (nextTheme: string) => {
+    if (generationUnavailable || regenerationActive) return;
     const previous = localTheme;
     setLocalTheme(nextTheme);
     onThemeChange(nextTheme);
@@ -295,6 +299,7 @@ export default function ClassicEditPanel({
   };
 
   const rebuildSlide = async () => {
+    if (generationUnavailable || regenerationActive) return;
     setSaveError(null);
     try {
       const job = await regenerateMutation.mutateAsync({
@@ -321,7 +326,7 @@ export default function ClassicEditPanel({
       </div>
 
       {saveError && (
-        <button type="button" onClick={() => enqueueRef.current(latestRef.current)} disabled={regenerationActive || saving} className="mt-2 min-h-11 rounded-xl px-3 text-xs font-bold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-45">
+        <button type="button" onClick={() => enqueueRef.current(latestRef.current)} disabled={regenerationActive || generationUnavailable || saving} className="mt-2 min-h-11 rounded-xl px-3 text-xs font-bold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-45">
           {copy.retry}
         </button>
       )}
@@ -332,7 +337,7 @@ export default function ClassicEditPanel({
           <button
             type="button"
             onClick={() => void rebuildSlide()}
-            disabled={regenerateMutation.isPending || regenerationActive || saving}
+            disabled={regenerateMutation.isPending || regenerationActive || generationUnavailable || saving}
             className="mt-3 min-h-11 w-full rounded-xl bg-rose-700 px-4 text-sm font-bold text-white transition hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 disabled:opacity-45"
           >
             {regenerateMutation.isPending || regenerationActive ? copy.regenerating : copy.retryFailedSlide}
@@ -340,7 +345,7 @@ export default function ClassicEditPanel({
         </div>
       )}
 
-      <fieldset disabled={regenerationActive} className="mt-5 space-y-5 disabled:opacity-65">
+      <fieldset disabled={regenerationActive || generationUnavailable} className="mt-5 space-y-5 disabled:opacity-65">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{copy.theme}</p>
           <div className="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-label={copy.theme}>
@@ -392,7 +397,7 @@ export default function ClassicEditPanel({
         <button
           type="button"
           onClick={() => enqueueRef.current(latestRef.current)}
-          disabled={saving || regenerationActive || serialized === saved || !String(draft.title ?? "").trim()}
+          disabled={saving || regenerationActive || generationUnavailable || serialized === saved || !String(draft.title ?? "").trim()}
           className="min-h-12 w-full rounded-xl bg-slate-900 px-4 text-sm font-bold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 disabled:opacity-45"
         >
           {saving ? copy.saving : copy.saveDraft}
@@ -402,7 +407,7 @@ export default function ClassicEditPanel({
         <button
           type="button"
           onClick={() => void rebuildSlide()}
-          disabled={regenerateMutation.isPending || regenerationActive || saving}
+          disabled={regenerateMutation.isPending || regenerationActive || generationUnavailable || saving}
           className="mt-5 min-h-12 w-full rounded-xl border border-sky-200 bg-sky-50 px-4 text-sm font-bold text-sky-900 transition hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 disabled:opacity-45"
         >
           {regenerateMutation.isPending || regenerationActive ? copy.regenerating : copy.rebuildSlide}

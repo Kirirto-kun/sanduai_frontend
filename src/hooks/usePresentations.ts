@@ -1,5 +1,6 @@
 "use client";
-import { generationPollingInterval, generationPollingRecovery } from "@/lib/generation-polling";
+import { generationPollingRecovery } from "@/lib/generation-polling";
+import { isTerminalPresentationJob, presentationPollingInterval } from "@/lib/presentation-recovery";
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,15 +24,19 @@ export const presentationKeys = {
   job: (id: string) => [...presentationKeys.all, "job", id] as const,
   exports: (id: string) => [...presentationKeys.all, "exports", id] as const,
   kmzhSources: () => [...presentationKeys.all, "kmzh-sources"] as const,
+  capabilities: () => [...presentationKeys.all, "capabilities"] as const,
 };
 
-const terminalJobStatuses = new Set([
-  "completed",
-  "completed_with_errors",
-  "failed",
-  "error",
-  "cancelled",
-]);
+export function usePresentationCapabilities(enabled = true) {
+  return useQuery({
+    ...generationPollingRecovery,
+    queryKey: presentationKeys.capabilities(),
+    queryFn: ({ signal }) => api.getPresentationCapabilities(signal),
+    enabled,
+    staleTime: 15000,
+    refetchInterval: (query) => presentationPollingInterval(query.state, 30000, query),
+  });
+}
 
 export function usePresentationsList() {
   return useQuery({
@@ -46,7 +51,7 @@ export function usePresentation(id: string | null | undefined) {
     queryKey: presentationKeys.detail(id ?? ""),
     queryFn: ({ signal }) => api.getPresentation(id!, signal),
     enabled: Boolean(id),
-    refetchInterval: (query) => generationPollingInterval(query.state, (() => {
+    refetchInterval: (query) => presentationPollingInterval(query.state, (() => {
       const status = query.state.data?.status;
       return status === "planning" || status === "queued" || status === "generating"
         ? 2500
@@ -61,10 +66,10 @@ export function useJob(jobId: string | null | undefined) {
     queryKey: presentationKeys.job(jobId ?? ""),
     queryFn: ({ signal }) => api.getJob(jobId!, signal),
     enabled: Boolean(jobId),
-    refetchInterval: (query) => generationPollingInterval(query.state, (() => {
+    refetchInterval: (query) => {
       const status = query.state.data?.status;
-      return status && terminalJobStatuses.has(status) ? false : 2000;
-    })(), query),
+      return isTerminalPresentationJob(status) ? false : presentationPollingInterval(query.state, 2000, query);
+    },
   });
 }
 
@@ -74,7 +79,7 @@ export function usePresentationExports(presentationId: string | null | undefined
     queryKey: presentationKeys.exports(presentationId ?? ""),
     queryFn: ({ signal }) => api.listExports(presentationId!, signal),
     enabled: Boolean(presentationId),
-    refetchInterval: (query) => generationPollingInterval(query.state, (query.state.data?.some((item) =>
+    refetchInterval: (query) => presentationPollingInterval(query.state, (query.state.data?.some((item) =>
         item.status === "queued" || item.status === "running" || item.status === "processing",
       )
         ? 2500
@@ -340,6 +345,8 @@ export function useJobEventStream(jobId: string | null | undefined, presentation
           const payload = event.data as Partial<JobState> | null;
           if (payload && typeof payload === "object") {
             queryClient.setQueryData<JobState>(presentationKeys.job(jobId!), (current) => {
+              // Ignore delayed active events after a newer GET settled the job.
+              if (isTerminalPresentationJob(current?.status) && !isTerminalPresentationJob(payload.status)) return current;
               const status =
                 typeof payload.status === "string"
                   ? payload.status
@@ -366,7 +373,7 @@ export function useJobEventStream(jobId: string | null | undefined, presentation
             eventName.endsWith(".completed") ||
             eventName.endsWith(".failed") ||
             eventName.endsWith(".cancelled") ||
-            terminalJobStatuses.has(eventStatus)
+            isTerminalPresentationJob(eventStatus)
           ) {
             break;
           }

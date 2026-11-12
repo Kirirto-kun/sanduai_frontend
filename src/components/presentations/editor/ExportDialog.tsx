@@ -3,11 +3,12 @@
 import { useId, useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { downloadExport, getDownloadFilename } from "@/lib/presentations-api";
-import { useCreateExport, usePresentationExports } from "@/hooks/usePresentations";
+import { useCreateExport, usePresentationCapabilities, usePresentationExports } from "@/hooks/usePresentations";
+import { isPresentationOperationBlocked, presentationOperationAvailability } from "@/lib/presentation-recovery";
 import type { PresentationMode } from "@/types/presentations";
 import { getPresentationCopy } from "../copy";
 import { isSlidesNotReadyError, presentationErrorMessage } from "../error-copy";
-import { useModalDialog } from "../PresentationUI";
+import { PresentationAvailabilityNotice, PresentationReadNotice, useModalDialog } from "../PresentationUI";
 
 type ExportErrorState = {
   userMessage: string;
@@ -49,6 +50,9 @@ export default function ExportDialog({
   const copy = getPresentationCopy(language);
   const titleId = useId();
   const exportsQuery = usePresentationExports(open ? presentationId : null);
+  const capabilities = usePresentationCapabilities(open);
+  const availability = presentationOperationAvailability(capabilities.data, "presentation_export");
+  const blocked = isPresentationOperationBlocked(availability);
   const createMutation = useCreateExport();
   const [format, setFormat] = useState<"pptx" | "pdf">("pptx");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -58,6 +62,7 @@ export default function ExportDialog({
   if (!open) return null;
 
   const create = async () => {
+    if (blocked || exportsQuery.error) return;
     setError(null);
     try {
       await createMutation.mutateAsync({
@@ -157,6 +162,8 @@ export default function ExportDialog({
         </fieldset>
 
         {mode === "creative" && <p className="mt-4 text-xs leading-5 text-slate-500">{copy.exportCreativeNotice}</p>}
+        <div className="mt-4"><PresentationAvailabilityNotice state={availability} onRetry={() => void capabilities.refetch()} checking={capabilities.isFetching} /></div>
+        {exportsQuery.error && <div className="mt-4"><PresentationReadNotice error={exportsQuery.error} onRetry={() => void exportsQuery.refetch()} checking={exportsQuery.isFetching} /></div>}
 
         {error && (
           <div role="alert" className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-900">
@@ -168,10 +175,10 @@ export default function ExportDialog({
             )}
           </div>
         )}
-        {exportIsBeingPrepared && !error && (
+        {exportIsBeingPrepared && !error && !exportsQuery.error && (
           <p role="status" className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-blue-900">{copy.exportQueuedHint}</p>
         )}
-        <button type="button" onClick={() => void create()} disabled={createMutation.isPending || pendingExport} className="mt-6 min-h-13 w-full rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-md hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 disabled:opacity-50">{createMutation.isPending || pendingExport ? copy.preparingExport : copy.startExport}</button>
+        <button type="button" onClick={() => void create()} disabled={createMutation.isPending || pendingExport || blocked || Boolean(exportsQuery.error)} className="mt-6 min-h-13 w-full rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-md hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 disabled:opacity-50">{createMutation.isPending || (pendingExport && !exportsQuery.error) ? copy.preparingExport : copy.startExport}</button>
 
         <section className="mt-7 border-t border-slate-100 pt-5" aria-labelledby="ready-exports-title">
           <h3 id="ready-exports-title" className="text-sm font-bold text-slate-900">{copy.readyFiles}</h3>

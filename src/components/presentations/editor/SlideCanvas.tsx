@@ -71,11 +71,13 @@ export default function SlideCanvas({
   slide,
   themeId = "academic_blue",
   preferDraftPreview = false,
+  statusPaused = false,
 }: {
   mode: PresentationMode;
   slide: PresentationSlide | null;
   themeId?: string;
   preferDraftPreview?: boolean;
+  statusPaused?: boolean;
 }) {
   const { language } = useLanguage();
   const copy = getPresentationCopy(language);
@@ -98,10 +100,10 @@ export default function SlideCanvas({
                   <p className="mt-3 font-bold text-rose-800">{copy.failedSlide}</p>
                   <p className="mt-1 max-w-sm text-sm leading-6 text-rose-700">{copy.failedSlideHelp}</p>
                 </>
-              ) : waiting ? (
+              ) : waiting && !statusPaused ? (
                 <><div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-200 border-t-violet-600" /><p className="mt-4 text-sm font-semibold text-slate-600">{copy.waitingSlide}</p></>
               ) : (
-                <p className="text-sm font-semibold text-slate-500">{copy.previewUnavailable}</p>
+                <p className="text-sm font-semibold text-slate-500">{waiting ? copy.unfinishedSlideHint : copy.previewUnavailable}</p>
               )}
             </div>
           )

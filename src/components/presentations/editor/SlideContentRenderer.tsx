@@ -12,11 +12,13 @@ export default function CreativeReviewPanel({
   presentationId,
   slide,
   regenerationActive = false,
+  generationUnavailable = false,
   onJobStarted,
 }: {
   presentationId: string;
   slide: PresentationSlide;
   regenerationActive?: boolean;
+  generationUnavailable?: boolean;
   onJobStarted?: (jobId: string) => void;
 }) {
   const { language } = useLanguage();
@@ -35,6 +37,7 @@ export default function CreativeReviewPanel({
   const canAccept = settled && !failed && Boolean(current?.id);
 
   const regenerate = async () => {
+    if (generationUnavailable || regenerationActive) return;
     setError(null);
     try {
       const job = await regenerateMutation.mutateAsync({
@@ -131,7 +134,7 @@ export default function CreativeReviewPanel({
         <button type="button" onClick={() => void accept()} disabled={!canAccept || accepted || activateMutation.isPending || regenerationActive} className="min-h-12 w-full rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-45">{accepted ? copy.accepted : copy.acceptSlide}</button>
         <label htmlFor="creative-regeneration-instruction" className="block pt-2 text-xs font-bold uppercase tracking-wide text-slate-500">{copy.regenerationInstruction}</label>
         <textarea id="creative-regeneration-instruction" rows={3} maxLength={2000} value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder={copy.regenerationInstructionPlaceholder} className="min-h-20 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200" />
-        <button type="button" onClick={() => void regenerate()} disabled={!settled || regenerateMutation.isPending || regenerationActive} className={`min-h-12 w-full rounded-xl border px-4 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 disabled:opacity-45 ${failed ? "border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 focus-visible:ring-rose-500" : "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100 focus-visible:ring-violet-500"}`}>{regenerateMutation.isPending || regenerationActive ? copy.regenerating : failed ? copy.retryFailedSlide : copy.regenerate}</button>
+        <button type="button" onClick={() => void regenerate()} disabled={!settled || regenerateMutation.isPending || regenerationActive || generationUnavailable} className={`min-h-12 w-full rounded-xl border px-4 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 disabled:opacity-45 ${failed ? "border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 focus-visible:ring-rose-500" : "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100 focus-visible:ring-violet-500"}`}>{regenerateMutation.isPending || regenerationActive ? copy.regenerating : failed ? copy.retryFailedSlide : copy.regenerate}</button>
       </div>
     </aside>
   );

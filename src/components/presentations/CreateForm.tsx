@@ -22,11 +22,13 @@ const inputClass =
 export default function CreateForm({
   mode,
   loading,
+  unavailable = false,
   onSubmit,
   initialPayload,
 }: {
   mode: "creative";
   loading: boolean;
+  unavailable?: boolean;
   onSubmit: (input: CreatePresentationInput) => Promise<void> | void;
   initialPayload?: CreatePresentationInput;
 }) {
@@ -62,6 +64,7 @@ export default function CreateForm({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (unavailable || loading) return;
     setSubmitted(true);
     if (exceedsApiBounds || validatePresentationSource({ source, topic, pastedTitle, pastedText, selectedKmzh })) return;
     await onSubmit(buildPresentationCreateInput({
@@ -301,7 +304,7 @@ export default function CreateForm({
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || unavailable}
         className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-violet-600 px-6 text-base font-bold text-white shadow-lg transition hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
       >
         {loading ? copy.creatingPlan : copy.createPlan}

@@ -8,7 +8,7 @@ import { usePresentation } from "@/hooks/usePresentations";
 import EditorShell from "@/components/presentations/editor/EditorShell";
 import LegacyPresentationView from "@/components/presentations/LegacyPresentationView";
 import { isLegacyReadOnly } from "@/components/presentations/legacy-utils";
-import { ErrorNotice, PresentationStepper } from "@/components/presentations/PresentationUI";
+import { ErrorNotice, PresentationReadNotice, PresentationStepper } from "@/components/presentations/PresentationUI";
 import { getPresentationCopy } from "@/components/presentations/copy";
 
 export default function PresentationEditorPage() {
@@ -34,7 +34,7 @@ export default function PresentationEditorPage() {
       </div>
     );
   }
-  if (projectQuery.isError || !projectQuery.data) {
+  if (!projectQuery.data) {
     return <div className="mx-auto max-w-4xl"><ErrorNotice message={copy.genericError} onRetry={() => projectQuery.refetch()} /></div>;
   }
 
@@ -52,7 +52,8 @@ export default function PresentationEditorPage() {
     <div className="mx-auto max-w-[100rem] space-y-5 pb-8">
       <Link href="/dashboard/ai/presentations" className="inline-flex min-h-11 items-center rounded-xl px-2 text-sm font-semibold text-slate-600 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"><span className="mr-2" aria-hidden="true">←</span>{copy.backToPresentations}</Link>
       <PresentationStepper current={reviewStage ? 4 : 3} />
-      <EditorShell project={project} explicitJobId={searchParams.get("job")} />
+      {projectQuery.error && <PresentationReadNotice error={projectQuery.error} onRetry={() => void projectQuery.refetch()} checking={projectQuery.isFetching} />}
+      <EditorShell project={project} explicitJobId={searchParams.get("job")} projectReadError={projectQuery.error} />
     </div>
   );
 }

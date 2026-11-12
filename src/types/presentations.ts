@@ -2,6 +2,17 @@ import type { ContentLanguage } from "@/lib/content-languages";
 
 export type PresentationMode = "classic" | "creative";
 
+export type PresentationOperation = "presentation_plan" | "creative_slides" | "classic_render" | "presentation_export";
+export type OperationAvailability = "available" | "busy" | "unavailable" | "cooldown";
+
+export interface PresentationCapabilities {
+  modes?: PresentationMode[];
+  operations?: Partial<Record<PresentationOperation, OperationAvailability>>;
+  planner?: { remote_available: boolean; fallback_available: boolean };
+  creative?: { available: boolean };
+  classic?: { available: boolean };
+}
+
 export type PresentationStatus =
   | "draft"
   | "planning"
@@ -89,6 +100,7 @@ export interface PresentationPlan {
   presentation_id?: string;
   version?: number;
   revision: number;
+  recovered?: boolean;
   status?: string;
   title: string;
   style_anchor?: StyleAnchor | null;
@@ -287,6 +299,8 @@ export interface JobState {
   total?: number;
   message?: string | null;
   error?: string | Record<string, unknown> | null;
+  error_code?: string | null;
+  retry_after_seconds?: number | null;
   data?: Record<string, unknown> | null;
   progress_detail?: Record<string, unknown> | null;
   updated_at?: string;

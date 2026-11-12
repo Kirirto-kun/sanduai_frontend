@@ -1,5 +1,7 @@
 import { getToken } from "./api";
 import { getApiBase } from "./api-base";
+import { decodeJwtPayload } from "./auth-token";
+import { isTerminalPresentationJob } from "./presentation-recovery";
 import {
   API_ERROR_CODES,
   ApiRequestError,
@@ -19,6 +21,7 @@ import type {
   JobState,
   PlanJobInput,
   PresentationExport,
+  PresentationCapabilities,
   PresentationListResponse,
   PresentationPlan,
   PresentationProject,
@@ -32,6 +35,7 @@ const PREFIX = "/api/v2/presentations";
 
 export class PresentationApiError extends ApiRequestError {
   public readonly serverCode?: string;
+  public readonly retryAfterSeconds?: number;
 
   constructor(
     message: string,
@@ -39,10 +43,12 @@ export class PresentationApiError extends ApiRequestError {
     serverCode?: string,
     details?: unknown,
     stableCode: ApiErrorCode = apiErrorCodeForStatus(status),
+    retryAfterSeconds?: number,
   ) {
     super(message, status, details, stableCode);
     this.name = "PresentationApiError";
     this.serverCode = serverCode;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -51,6 +57,62 @@ function idempotencyKey() {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+const INTENTS_KEY = "sanduai_presentation_intents_v1";
+type PresentationIntent = { key: string; owner: string; createdAt: number; jobId?: string };
+const memoryIntents = new Map<string, PresentationIntent>();
+const writesInFlight = new Map<string, Promise<unknown>>();
+
+function currentOwner(): string {
+  const token = getToken();
+  const owner = token ? decodeJwtPayload(token)?.sub : undefined;
+  return typeof owner === "string" && owner ? owner : "anonymous";
+}
+
+function readIntents(): Record<string, PresentationIntent> {
+  try {
+    const stored: unknown = typeof window === "undefined" ? {} : JSON.parse(window.localStorage.getItem(INTENTS_KEY) ?? "{}");
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
+    return Object.fromEntries(Object.entries(stored).filter(([, value]) => {
+      const intent = value as Partial<PresentationIntent> | null;
+      return intent && typeof intent.key === "string" && typeof intent.owner === "string"
+        && typeof intent.createdAt === "number" && intent.createdAt <= Date.now()
+        && intent.createdAt > Date.now() - 24 * 60 * 60 * 1000;
+    }));
+  } catch { return {}; }
+}
+
+function storeIntent(fingerprint: string, intent?: PresentationIntent) {
+  if (intent) memoryIntents.set(fingerprint, intent);
+  else memoryIntents.delete(fingerprint);
+  if (typeof window === "undefined") return;
+  try {
+    const stored = readIntents();
+    if (intent && intent.owner !== "anonymous") stored[fingerprint] = intent;
+    else delete stored[fingerprint];
+    window.localStorage.setItem(INTENTS_KEY, JSON.stringify(stored));
+  } catch { /* The same identity remains available in memory when storage is full. */ }
+}
+
+async function writeIdentity(path: string, init: RequestInit): Promise<{ fingerprint: string; intent: PresentationIntent }> {
+  const owner = currentOwner();
+  // Persist only a digest and request identity, never the teacher's source text.
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${owner}:${init.method}:${path}:${String(init.body ?? "")}`));
+  const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+  const old = readIntents()[fingerprint] ?? memoryIntents.get(fingerprint);
+  const intent = old?.owner === owner && old.createdAt > Date.now() - 24 * 60 * 60 * 1000
+    ? old : { key: idempotencyKey(), owner, createdAt: Date.now() };
+  storeIntent(fingerprint, intent);
+  return { fingerprint, intent };
+}
+
+function settleJobIdentity(jobId: string) {
+  const owner = currentOwner();
+  const all = { ...Object.fromEntries(memoryIntents), ...readIntents() };
+  for (const [fingerprint, intent] of Object.entries(all)) {
+    if (intent.owner === owner && intent.jobId === jobId) storeIntent(fingerprint);
+  }
 }
 
 function presentationError(failure: ApiFailure): PresentationApiError {
@@ -90,6 +152,7 @@ function presentationError(failure: ApiFailure): PresentationApiError {
       serverCode,
       structuredDetail ?? detail ?? payload,
       failure.code,
+      failure.retryAfterSeconds,
     );
   }
 
@@ -99,6 +162,7 @@ function presentationError(failure: ApiFailure): PresentationApiError {
     undefined,
     failure.details,
     failure.code,
+    failure.retryAfterSeconds,
   );
 }
 
@@ -120,9 +184,10 @@ async function request<T>(
   options: RequestInit & {
     idempotent?: boolean;
     expectedStatuses?: readonly number[];
+    timeoutMs?: number;
   } = {},
 ): Promise<T> {
-  const { idempotent, expectedStatuses, ...requestInit } = options;
+  const { idempotent, expectedStatuses, timeoutMs, ...requestInit } = options;
   const token = getToken();
   const headers = new Headers(options.headers);
   if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
@@ -130,16 +195,34 @@ async function request<T>(
   }
   headers.set("Accept", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  if (idempotent) headers.set("Idempotency-Key", idempotencyKey());
+  const identity = idempotent && expectedStatuses?.includes(202) ? await writeIdentity(path, requestInit) : null;
+  if (identity) {
+    if (currentOwner() !== identity.intent.owner) throw new PresentationApiError("The account changed.", 403);
+    const inFlight = writesInFlight.get(identity.fingerprint);
+    if (inFlight) return inFlight as Promise<T>;
+  }
+  if (idempotent) headers.set("Idempotency-Key", identity?.intent.key ?? idempotencyKey());
 
-  return requestJson<T>(`${API_BASE}${path}`, {
+  const result = requestJson<T>(`${API_BASE}${path}`, {
     ...requestInit,
     headers,
     cache: "no-store",
   }, {
     errorFactory: presentationError,
     expectedStatuses,
+    timeoutMs,
   });
+  if (!identity) return result;
+  const tracked = result.then(payload => {
+    if (currentOwner() !== identity.intent.owner) throw new PresentationApiError("The account changed.", 403);
+    const value = payload as { job_id?: unknown } | null;
+    if (typeof value?.job_id === "string" && PRESENTATION_JOB_ID_PATTERN.test(value.job_id)) {
+      storeIntent(identity.fingerprint, { ...identity.intent, jobId: value.job_id });
+    }
+    return payload;
+  }).finally(() => writesInFlight.delete(identity.fingerprint));
+  writesInFlight.set(identity.fingerprint, tracked);
+  return tracked;
 }
 
 function unwrapProject(payload: unknown): PresentationProject {
@@ -211,6 +294,10 @@ export async function listPresentations(signal?: AbortSignal): Promise<Presentat
   return { items: wrapped.items ?? [], total: wrapped.total };
 }
 
+export function getPresentationCapabilities(signal?: AbortSignal): Promise<PresentationCapabilities> {
+  return request(`${PREFIX}/capabilities`, { signal, timeoutMs: 15000 });
+}
+
 export async function createPresentation(input: CreatePresentationInput): Promise<PresentationProject> {
   return unwrapProject(
     await request(PREFIX, {
@@ -241,7 +328,7 @@ export async function listSavedKmzhSources(signal?: AbortSignal): Promise<SavedK
 
 export async function getPresentation(id: string, signal?: AbortSignal): Promise<PresentationProject> {
   try {
-    return unwrapProject(await request(`${PREFIX}/${encodeURIComponent(id)}`, { signal }));
+    return unwrapProject(await request(`${PREFIX}/${encodeURIComponent(id)}`, { signal, timeoutMs: 15000 }));
   } catch (error) {
     // Legacy bookmarks contain the retired service id rather than the new
     // canonical project id. Resolve only genuine 404s through the owner-scoped
@@ -275,7 +362,7 @@ export async function startPlanJob(id: string, input: PlanJobInput = {}): Promis
   return unwrapJobRef(
     await request(`${PREFIX}/${encodeURIComponent(id)}/plan-jobs`, {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ regenerate: input.regenerate ?? false, instructions: input.instructions }),
       idempotent: true,
       expectedStatuses: [202],
     }),
@@ -350,10 +437,11 @@ export async function startGeneration(
 export async function getJob(jobId: string, signal?: AbortSignal): Promise<JobState> {
   const payload = await request<JobState | { job: JobState; data?: JobState }>(
     `/api/v2/jobs/${encodeURIComponent(jobId)}`,
-    { signal },
+    { signal, timeoutMs: 15000 },
   );
   const wrapped = payload as JobState & { job?: JobState; data?: JobState };
   const job = wrapped.job ?? wrapped.data ?? (payload as JobState);
+  if (isTerminalPresentationJob(job.status)) settleJobIdentity(job.id ?? job.job_id ?? jobId);
   return {
     ...job,
     id: job.id ?? job.job_id ?? jobId,
@@ -435,7 +523,7 @@ export async function listExports(
 ): Promise<PresentationExport[]> {
   const payload = await request<PresentationExport[] | { items?: PresentationExport[]; exports?: PresentationExport[] }>(
     `${PREFIX}/${encodeURIComponent(presentationId)}/exports`,
-    { signal },
+    { signal, timeoutMs: 15000 },
   );
   if (Array.isArray(payload)) return payload;
   return payload.items ?? payload.exports ?? [];

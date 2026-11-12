@@ -1,5 +1,4 @@
 "use client";
-import { GenerationJobStatus } from "@/components/generations/GenerationJobStatus";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -11,6 +10,7 @@ import {
   useCancelJob,
   useJob,
   useJobEventStream,
+  usePresentationCapabilities,
   useStartGeneration,
 } from "@/hooks/usePresentations";
 import type { JobState, PresentationProject, PresentationSlide, SlideSpec } from "@/types/presentations";
@@ -24,6 +24,8 @@ import ClassicEditPanel from "./AiEditPanel";
 import CreativeReviewPanel from "./SlideContentRenderer";
 import ExportDialog from "./ExportDialog";
 import { generationJobId, isActivePresentationJob } from "./editor-state";
+import { isPresentationOperationBlocked, isTerminalPresentationJob, presentationOperationAvailability } from "@/lib/presentation-recovery";
+import { PresentationAvailabilityNotice, PresentationReadNotice } from "../PresentationUI";
 
 function slidesForProject(project: PresentationProject): PresentationSlide[] {
   if (project.slides?.length) {
@@ -66,9 +68,11 @@ function slidesForProject(project: PresentationProject): PresentationSlide[] {
 export default function EditorShell({
   project,
   explicitJobId,
+  projectReadError,
 }: {
   project: PresentationProject;
   explicitJobId?: string | null;
+  projectReadError?: unknown;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -94,10 +98,13 @@ export default function EditorShell({
   const [sessionJobId, setSessionJobId] = useState<string | null>(null);
   const jobId = sessionJobId ?? derivedJobId;
   const jobQuery = useJob(jobId);
-  useJobEventStream(jobId, project.id);
+  useJobEventStream(isTerminalPresentationJob(jobQuery.data?.status) ? null : jobId, project.id);
+  const capabilities = usePresentationCapabilities();
+  const generationAvailability = presentationOperationAvailability(capabilities.data, project.mode === "creative" ? "creative_slides" : "classic_render");
+  const generationBlocked = isPresentationOperationBlocked(generationAvailability) || Boolean(jobQuery.error || projectReadError);
   useEffect(() => {
     const status = jobQuery.data?.status;
-    if (["completed", "completed_with_errors", "failed", "error", "cancelled"].includes(status ?? "")) {
+    if (isTerminalPresentationJob(status)) {
       void queryClient.invalidateQueries({ queryKey: presentationKeys.detail(project.id) });
     }
   }, [jobQuery.data?.status, project.id, queryClient]);
@@ -124,7 +131,8 @@ export default function EditorShell({
     : null);
   const normalizedJobStatus = job?.status.toLowerCase();
   const jobActive = isActivePresentationJob(job);
-  const editingLocked = jobActive || isActivePresentationJob(project.latest_job);
+  const latestDiffers = (project.latest_job?.job_id ?? project.latest_job?.id) !== (job?.job_id ?? job?.id);
+  const editingLocked = jobActive || (latestDiffers && isActivePresentationJob(project.latest_job));
   const failedJob = (normalizedJobStatus === "failed" || normalizedJobStatus === "error") && job?.kind !== "regenerate";
   const regenerationActive = job?.kind === "regenerate" && jobActive;
   const failedSlides = slides.filter((slide) => slide.status.toLowerCase() === "failed");
@@ -158,6 +166,7 @@ export default function EditorShell({
   }, [project.id, router]);
 
   const retryGeneration = async () => {
+    if (generationBlocked) return;
     const plan = project.approved_plan ?? project.active_plan;
     if (!plan) return;
     setRecoveryError(null);
@@ -181,7 +190,8 @@ export default function EditorShell({
 
   return (
     <div className="space-y-4">
-      {jobQuery.error && <GenerationJobStatus language={language} error={jobQuery.error} onRetry={() => void jobQuery.refetch()} />}
+      {jobQuery.error && <PresentationReadNotice error={jobQuery.error} onRetry={() => void jobQuery.refetch()} checking={jobQuery.isFetching} />}
+      <PresentationAvailabilityNotice state={generationAvailability} onRetry={() => void capabilities.refetch()} checking={capabilities.isFetching} />
       {job && !jobQuery.error && (
         <GenerationProgress
           job={job}
@@ -209,7 +219,7 @@ export default function EditorShell({
       {failedJob && failedSlides.length === 0 && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
           <div><p className="font-bold">{copy.jobFailed}</p><p className="mt-1 text-rose-800">{copy.jobFailedHint}</p></div>
-          <button type="button" onClick={() => void retryGeneration()} disabled={retryMutation.isPending} className="min-h-11 rounded-xl bg-rose-700 px-4 font-bold text-white hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-50">{copy.retry}</button>
+          <button type="button" onClick={() => void retryGeneration()} disabled={retryMutation.isPending || generationBlocked} className="min-h-11 rounded-xl bg-rose-700 px-4 font-bold text-white hover:bg-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-50">{copy.retry}</button>
         </div>
       )}
       {recoveryError && <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{recoveryError}</div>}
@@ -230,6 +240,7 @@ export default function EditorShell({
               mode={project.mode}
               slide={displaySlide}
               themeId={themeId}
+              statusPaused={Boolean(jobQuery.error) || isTerminalPresentationJob(job?.status)}
               preferDraftPreview={project.mode === "classic" && (
                 Boolean(effectiveSelectedKey && draftDirty[effectiveSelectedKey]) || regenerationActive
               )}
@@ -242,6 +253,7 @@ export default function EditorShell({
                 persistedSlide={selected}
                 themeId={themeId}
                 regenerationActive={editingLocked}
+                generationUnavailable={generationBlocked}
                 onThemeChange={setThemeId}
                 onDraftChange={(spec, dirty) => updateDraft(selected.slide_key, spec, dirty)}
                 onJobStarted={trackJob}
@@ -252,6 +264,7 @@ export default function EditorShell({
                 presentationId={project.id}
                 slide={selected}
                 regenerationActive={editingLocked}
+                generationUnavailable={generationBlocked}
                 onJobStarted={trackJob}
               />
             )}

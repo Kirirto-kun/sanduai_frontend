@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createExport,
   createPresentation,
+  getPresentationCapabilities,
+  getJob,
   listSavedKmzhSources,
   PresentationApiError,
   regenerateSlide,
@@ -146,6 +148,94 @@ describe("presentation API errors", () => {
       serverCode: "presentation_generation_in_progress",
       message: "A generation is already running.",
     } satisfies Partial<PresentationApiError>);
+  });
+
+  it("preserves capacity retry timing without retrying a paid POST", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      detail: { code: "RESOURCE_CAPACITY_BUSY", message: "private diagnostic" },
+    }), { status: 503, headers: { "Content-Type": "application/json", "Retry-After": "5" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(startGeneration(PROJECT_ID, PLAN_ID)).rejects.toMatchObject({
+      status: 503, serverCode: "RESOURCE_CAPACITY_BUSY", retryAfterSeconds: 5,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("presentation operation availability", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("reads independent creative, classic and export availability", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      modes: ["classic"], creative: { available: false }, classic: { available: true },
+      planner: { remote_available: false, fallback_available: true },
+      operations: { presentation_plan: "available", creative_slides: "unavailable", classic_render: "busy", presentation_export: "available" },
+    }), { headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(getPresentationCapabilities()).resolves.toMatchObject({
+      operations: { creative_slides: "unavailable", classic_render: "busy", presentation_export: "available" },
+      planner: { fallback_available: true },
+    });
+    expect(new URL(String(fetchMock.mock.calls[0]?.[0])).pathname).toBe("/api/v2/presentations/capabilities");
+    expect(fetchMock.mock.calls[0]?.[1]?.method ?? "GET").toBe("GET");
+  });
+});
+
+describe("presentation write identity recovery", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("reuses the persisted identity after a lost acknowledgement and browser reload", async () => {
+    const values = new Map<string, string>();
+    values.set("sanduai_token", `header.${Buffer.from(JSON.stringify({ sub: "teacher-recovery-a" })).toString("base64url")}.signature`);
+    vi.stubGlobal("window", { localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    } });
+    const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError("lost acknowledgement"))
+      .mockImplementation(async (_url, init: RequestInit) => new Response(JSON.stringify(
+        init?.method === "POST" ? { job_id: JOB_ID, kind: "generate", status: "queued" }
+          : { id: JOB_ID, kind: "generate", status: "completed" },
+      ), { status: init?.method === "POST" ? 202 : 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(startGeneration(PROJECT_ID, PLAN_ID)).rejects.toMatchObject({ status: 0 });
+    const firstKey = new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("Idempotency-Key");
+    vi.resetModules();
+    const reloaded = await import("./presentations-api");
+    await reloaded.startGeneration(PROJECT_ID, PLAN_ID);
+    const recoveredKey = new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get("Idempotency-Key");
+    expect(recoveredKey).toBe(firstKey);
+    expect(recoveredKey).toBeTruthy();
+    await reloaded.getJob(JOB_ID);
+    await reloaded.startGeneration(PROJECT_ID, PLAN_ID);
+    expect(new Headers(fetchMock.mock.calls[3]?.[1]?.headers).get("Idempotency-Key")).not.toBe(firstKey);
+    values.set("sanduai_token", `header.${Buffer.from(JSON.stringify({ sub: "teacher-recovery-b" })).toString("base64url")}.signature`);
+    await reloaded.startGeneration(PROJECT_ID, PLAN_ID);
+    expect(new Headers(fetchMock.mock.calls[4]?.[1]?.headers).get("Idempotency-Key"))
+      .not.toBe(new Headers(fetchMock.mock.calls[3]?.[1]?.headers).get("Idempotency-Key"));
+  });
+
+  it("only reads the same job after a first status 503", async () => {
+    const methods: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url, init: RequestInit) => {
+      methods.push(init.method ?? "GET");
+      return methods.length === 1
+        ? new Response(JSON.stringify({ detail: "temporarily busy" }), { status: 503 })
+        : new Response(JSON.stringify({ id: JOB_ID, status: "completed" }), { headers: { "Content-Type": "application/json" } });
+    }));
+    await expect(getJob(JOB_ID)).rejects.toMatchObject({ status: 503 });
+    await expect(getJob(JOB_ID)).resolves.toMatchObject({ id: JOB_ID, status: "completed" });
+    expect(methods).toEqual(["GET", "GET"]);
+  });
+
+  it("keeps the same plan identity when recovery spells out the default regenerate flag", async () => {
+    const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError("lost plan acknowledgement"))
+      .mockResolvedValue(new Response(JSON.stringify({ job_id: JOB_ID, kind: "plan", status: "queued" }), { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(startPlanJob(PROJECT_ID)).rejects.toMatchObject({ status: 0 });
+    await startPlanJob(PROJECT_ID, { regenerate: false });
+    expect(new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get("Idempotency-Key"))
+      .toBe(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("Idempotency-Key"));
   });
 });
 

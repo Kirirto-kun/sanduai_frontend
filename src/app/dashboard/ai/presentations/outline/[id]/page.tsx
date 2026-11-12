@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -11,6 +11,7 @@ import {
   useJob,
   useJobEventStream,
   usePresentation,
+  usePresentationCapabilities,
   useStartGeneration,
   useStartPlanJob,
   useUpdatePlan,
@@ -18,12 +19,13 @@ import {
 import type { JobState, PlanSlide, PresentationPlan, PresentationProject, UpdatePlanInput } from "@/types/presentations";
 import LegacyPresentationView from "@/components/presentations/LegacyPresentationView";
 import OutlineList from "@/components/presentations/OutlineList";
-import { ConfirmDialog, ErrorNotice, ModeBadge, PresentationStepper } from "@/components/presentations/PresentationUI";
+import { ConfirmDialog, ErrorNotice, ModeBadge, PresentationAvailabilityNotice, PresentationReadNotice, PresentationStepper } from "@/components/presentations/PresentationUI";
 import { getPresentationCopy } from "@/components/presentations/copy";
 import { teacherVisibleCoinCost } from "@/components/presentations/creation-policy";
 import { presentationErrorMessage } from "@/components/presentations/error-copy";
 import { isLegacyReadOnly } from "@/components/presentations/legacy-utils";
 import { generationServerStatusCopy } from "@/lib/generation-history";
+import { isPresentationOperationBlocked, isTerminalPresentationJob, presentationOperationAvailability } from "@/lib/presentation-recovery";
 
 function getPlanJobId(project: PresentationProject | undefined, queryValue: string | null) {
   if (queryValue) return queryValue;
@@ -135,6 +137,9 @@ function PlanEditor({ project, initialPlan }: { project: PresentationProject; in
   const approveMutation = useApprovePlan();
   const generationMutation = useStartGeneration();
   const costMutation = useCostEstimate();
+  const capabilities = usePresentationCapabilities();
+  const generationAvailability = presentationOperationAvailability(capabilities.data, project.mode === "creative" ? "creative_slides" : "classic_render");
+  const generationBlocked = isPresentationOperationBlocked(generationAvailability);
   const [title, setTitle] = useState(initialPlan.title || project.title);
   const [slides, setSlides] = useState(initialPlan.slides);
   const [revision, setRevision] = useState(initialPlan.revision);
@@ -217,6 +222,7 @@ function PlanEditor({ project, initialPlan }: { project: PresentationProject; in
   };
 
   const approveAndGenerate = async () => {
+    if (generationBlocked) return;
     setError(null);
     try {
       const approved = await approveMutation.mutateAsync({
@@ -253,6 +259,7 @@ function PlanEditor({ project, initialPlan }: { project: PresentationProject; in
         </div>
 
         <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+          <PresentationAvailabilityNotice state={generationAvailability} onRetry={() => void capabilities.refetch()} checking={capabilities.isFetching} />
           <div className="rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-bold text-slate-900">{copy.costTitle}</p>
@@ -281,7 +288,7 @@ function PlanEditor({ project, initialPlan }: { project: PresentationProject; in
                   {updateMutation.isPending ? copy.saving : dirty ? copy.unsaved : copy.saved}
                 </p>
                 <button type="button" onClick={() => void save().catch(() => undefined)} disabled={!dirty || busy || invalidPlan} className="mt-4 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-40">{copy.saveDraft}</button>
-                <button type="button" onClick={() => void showApproval()} disabled={busy || invalidPlan} className={`mt-2 min-h-14 w-full rounded-2xl px-4 text-sm font-bold text-white shadow-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 ${project.mode === "creative" ? "bg-violet-600 hover:bg-violet-700 focus-visible:ring-violet-500" : "bg-slate-900 hover:bg-slate-800 focus-visible:ring-slate-500"}`}>{copy.approveAndGenerate}</button>
+                <button type="button" onClick={() => void showApproval()} disabled={busy || invalidPlan || generationBlocked} className={`mt-2 min-h-14 w-full rounded-2xl px-4 text-sm font-bold text-white shadow-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 ${project.mode === "creative" ? "bg-violet-600 hover:bg-violet-700 focus-visible:ring-violet-500" : "bg-slate-900 hover:bg-slate-800 focus-visible:ring-slate-500"}`}>{copy.approveAndGenerate}</button>
               </>
             )}
           </div>
@@ -295,9 +302,11 @@ function PlanEditor({ project, initialPlan }: { project: PresentationProject; in
         confirmLabel={copy.approve}
         cancelLabel={copy.cancel}
         busy={approveMutation.isPending || generationMutation.isPending}
+        confirmDisabled={generationBlocked}
         onConfirm={() => void approveAndGenerate()}
         onClose={() => !busy && setApproveOpen(false)}
       >
+        <PresentationAvailabilityNotice state={generationAvailability} onRetry={() => void capabilities.refetch()} checking={capabilities.isFetching} />
         {total != null && (
           <div className="mt-5 flex items-center justify-between rounded-2xl bg-slate-50 p-4">
             <span className="text-sm font-semibold text-slate-600">{copy.costTotal}</span>
@@ -320,9 +329,11 @@ export default function OutlinePage() {
   const planJobId = getPlanJobId(projectQuery.data, searchParams.get("job"));
   const jobQuery = useJob(planJobId);
   const planJobAcknowledged = isExactPlanJob(jobQuery.data, planJobId, projectId);
-  useJobEventStream(planJobAcknowledged ? planJobId : null, projectId);
+  useJobEventStream(planJobAcknowledged && !isTerminalPresentationJob(jobQuery.data?.status) ? planJobId : null, projectId);
   const startPlanMutation = useStartPlanJob();
-  const autoRetryAttempted = useRef(false);
+  const capabilities = usePresentationCapabilities();
+  const planAvailability = presentationOperationAvailability(capabilities.data, "presentation_plan");
+  const planBlocked = isPresentationOperationBlocked(planAvailability);
 
   useEffect(() => {
     const status = jobQuery.data?.status?.toLowerCase();
@@ -340,49 +351,21 @@ export default function OutlinePage() {
     }
   }, [projectQuery.data, router]);
 
-  useEffect(() => {
-    const project = projectQuery.data;
-    const status = jobQuery.data?.status?.toLowerCase();
-    const recoverFailedJob = planJobAcknowledged && (status === "failed" || status === "error");
-    const resumeMissingJob = Boolean(
-      project &&
-      !planJobId &&
-      ["draft", "planning"].includes(project.status.toLowerCase()),
-    );
-    if (
-      project &&
-      !isLegacyReadOnly(project) &&
-      !project.active_plan &&
-      (recoverFailedJob || resumeMissingJob) &&
-      !autoRetryAttempted.current
-    ) {
-      autoRetryAttempted.current = true;
-      void startPlanMutation
-        .mutateAsync({ id: projectId, input: { regenerate: recoverFailedJob } })
-        .then((job) => {
-          router.replace(`/dashboard/ai/presentations/outline/${projectId}?job=${encodeURIComponent(job.job_id)}`);
-        })
-        .catch(() => undefined);
-    }
-    // One automatic recovery attempt per page visit; a visible manual retry remains afterwards.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobQuery.data?.status, planJobAcknowledged, projectQuery.data?.active_plan, projectId, router]);
-
   const restartPlan = async (regenerate = true) => {
+    if (planBlocked) return;
     startPlanMutation.reset();
     const job = await startPlanMutation.mutateAsync({ id: projectId, input: { regenerate } });
     router.replace(`/dashboard/ai/presentations/outline/${projectId}?job=${encodeURIComponent(job.job_id)}`);
   };
 
   const refreshPlanStatus = async () => {
-    await projectQuery.refetch();
-    router.replace(`/dashboard/ai/presentations/outline/${projectId}`);
+    await Promise.all([projectQuery.refetch(), planJobId ? jobQuery.refetch() : Promise.resolve()]);
   };
 
   if (projectQuery.isLoading) {
     return <div className="mx-auto max-w-6xl space-y-4" aria-busy="true"><div className="h-12 animate-pulse rounded-2xl bg-white/70" /><div className="h-72 animate-pulse rounded-3xl bg-white/70" /></div>;
   }
-  if (projectQuery.isError || !projectQuery.data) {
+  if (!projectQuery.data) {
     return <div className="mx-auto max-w-4xl"><ErrorNotice message={copy.genericError} onRetry={() => projectQuery.refetch()} /></div>;
   }
 
@@ -397,11 +380,13 @@ export default function OutlinePage() {
   }
   const plan = project.active_plan;
   const planJobStatus = jobQuery.data?.status?.toLowerCase();
+  const planExpired = planJobStatus === "expired" || planJobStatus === "queue_expired" || jobQuery.data?.error_code === "PRESENTATION_QUEUE_EXPIRED" || jobQuery.data?.error_code === "QUEUE_EXPIRED";
+  const planCapacityFailure = jobQuery.data?.error_code === "RESOURCE_CAPACITY_BUSY" || jobQuery.data?.error_code === "PROVIDER_UNAVAILABLE";
   const jobFailed = planJobAcknowledged && (
-    planJobStatus === "failed" || planJobStatus === "error" || planJobStatus === "cancelled"
+    planJobStatus === "failed" || planJobStatus === "error" || planJobStatus === "cancelled" || planJobStatus === "expired" || planJobStatus === "queue_expired"
   );
   const jobStatusUnavailable = Boolean(
-    planJobId && (jobQuery.isError || (jobQuery.data && !planJobAcknowledged)),
+    planJobId && (jobQuery.isError || (jobQuery.data && !planJobAcknowledged) || (isTerminalPresentationJob(planJobStatus) && !jobFailed)),
   );
 
   return (
@@ -417,25 +402,28 @@ export default function OutlinePage() {
           <ModeBadge mode={project.mode} />
         </div>
       </header>
+      {projectQuery.error && <PresentationReadNotice error={projectQuery.error} onRetry={() => void refreshPlanStatus()} checking={projectQuery.isFetching || jobQuery.isFetching} />}
+      {plan?.recovered && <p role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">{copy.recoveredPlan}</p>}
+      <PresentationAvailabilityNotice state={planAvailability} onRetry={() => void capabilities.refetch()} checking={capabilities.isFetching} fallback={capabilities.data?.planner?.remote_available === false && capabilities.data.planner.fallback_available} />
 
       {!plan && !planJobId ? (
         <section className="rounded-[2rem] border border-amber-200 bg-amber-50 px-6 py-12 text-center shadow-sm">
           <h2 className="text-xl font-bold text-amber-950">{copy.planNotStarted}</h2>
           {startPlanMutation.isPending && <p role="status" className="mx-auto mt-3 max-w-xl text-sm leading-6 text-amber-900">{copy.planAutoRetrying}</p>}
-          {startPlanMutation.isError && <p role="status" className="mx-auto mt-3 max-w-xl text-sm leading-6 text-amber-900">{copy.planRetryUnavailable}</p>}
-          <button type="button" onClick={() => void restartPlan(false).catch(() => undefined)} disabled={startPlanMutation.isPending} className="mt-4 min-h-12 rounded-xl bg-slate-900 px-5 text-sm font-bold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 disabled:opacity-50">{startPlanMutation.isPending ? copy.creatingPlan : copy.startPlan}</button>
+          {startPlanMutation.isError && <p role="status" className="mx-auto mt-3 max-w-xl text-sm leading-6 text-amber-900">{presentationErrorMessage(startPlanMutation.error, copy, copy.planRetryUnavailable)}</p>}
+          <button type="button" onClick={() => void restartPlan(false).catch(() => undefined)} disabled={startPlanMutation.isPending || planBlocked} className="mt-4 min-h-12 rounded-xl bg-slate-900 px-5 text-sm font-bold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 disabled:opacity-50">{startPlanMutation.isPending ? copy.creatingPlan : copy.startPlan}</button>
         </section>
       ) : !plan && jobStatusUnavailable ? (
         <section aria-live="polite" className="rounded-[2rem] border border-amber-200 bg-amber-50 px-6 py-12 text-center shadow-sm">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl shadow-sm" aria-hidden="true">↻</div>
           <h2 className="mt-4 text-xl font-bold text-amber-950">{copy.planStatusUnavailable}</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-amber-900">{copy.planStatusHint}</p>
-          <button type="button" onClick={() => void refreshPlanStatus()} disabled={projectQuery.isFetching} className="mt-5 min-h-12 rounded-xl bg-slate-900 px-5 text-sm font-bold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 disabled:opacity-50">{projectQuery.isFetching ? copy.loading : copy.checkPlanStatus}</button>
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-amber-900">{jobQuery.error ? presentationErrorMessage(jobQuery.error, copy, copy.planStatusHint) : copy.planStatusHint}</p>
+          <button type="button" onClick={() => void refreshPlanStatus()} disabled={projectQuery.isFetching || jobQuery.isFetching} className="mt-5 min-h-12 rounded-xl bg-slate-900 px-5 text-sm font-bold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 disabled:opacity-50">{projectQuery.isFetching || jobQuery.isFetching ? copy.loading : copy.checkPlanStatus}</button>
         </section>
       ) : !plan && !jobFailed ? (
         <section aria-live="polite" className="rounded-[2rem] border border-white/80 bg-white/90 px-6 py-16 text-center shadow-sm">
           <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
-          <h2 className="mt-5 text-xl font-bold text-slate-900">{copy.planGenerating}</h2>
+          <h2 className="mt-5 text-xl font-bold text-slate-900">{planJobAcknowledged ? planJobStatus === "queued" || planJobStatus === "pending" ? copy.jobQueued : copy.statusRunning : copy.planGenerating}</h2>
           <p className="mt-2 text-sm text-slate-500">
             {generationServerStatusCopy(language, planJobAcknowledged)}
           </p>
@@ -443,9 +431,10 @@ export default function OutlinePage() {
       ) : jobFailed && !plan ? (
         <section aria-live="polite" className="rounded-[2rem] border border-amber-200 bg-amber-50 px-6 py-12 text-center shadow-sm">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl shadow-sm" aria-hidden="true">↻</div>
-          <h2 className="mt-4 text-xl font-bold text-amber-950">{startPlanMutation.isPending ? copy.planGenerating : copy.planFailed}</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-amber-900">{startPlanMutation.isPending ? copy.planAutoRetrying : startPlanMutation.isError ? copy.planRetryUnavailable : copy.planFailureHint}</p>
-          <button type="button" onClick={() => void restartPlan().catch(() => undefined)} disabled={startPlanMutation.isPending} className="mt-5 min-h-12 rounded-xl bg-slate-900 px-5 text-sm font-bold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 disabled:opacity-50">{startPlanMutation.isPending ? copy.planRetrying : copy.regeneratePlan}</button>
+          <h2 className="mt-4 text-xl font-bold text-amber-950">{startPlanMutation.isPending ? copy.planGenerating : planExpired ? copy.jobExpired : copy.planFailed}</h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-amber-900">{startPlanMutation.isPending ? copy.planGeneratingHint : startPlanMutation.isError ? presentationErrorMessage(startPlanMutation.error, copy, copy.planRetryUnavailable) : planCapacityFailure ? copy.capacityUnavailable : copy.planFailureHint}</p>
+          <button type="button" onClick={() => void restartPlan().catch(() => undefined)} disabled={startPlanMutation.isPending || planBlocked} className="mt-5 min-h-12 rounded-xl bg-slate-900 px-5 text-sm font-bold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 disabled:opacity-50">{startPlanMutation.isPending ? copy.planRetrying : copy.regeneratePlan}</button>
+          <button type="button" onClick={() => void refreshPlanStatus()} disabled={projectQuery.isFetching || jobQuery.isFetching} className="ml-2 mt-5 min-h-12 rounded-xl border border-amber-300 bg-white px-5 text-sm font-bold text-amber-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 disabled:opacity-50">{copy.resumeJobStatus}</button>
         </section>
       ) : plan ? (
         <PlanEditor key={plan.id} project={project} initialPlan={plan} />

@@ -3,8 +3,37 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { fetchPresentationAsset } from "@/lib/presentations-api";
-import type { PresentationMode, PresentationStatus, SlideStatus } from "@/types/presentations";
+import type { OperationAvailability, PresentationMode, PresentationStatus, SlideStatus } from "@/types/presentations";
 import { getPresentationCopy } from "./copy";
+import { presentationErrorMessage } from "./error-copy";
+
+export function PresentationReadNotice({ error, onRetry, checking = false }: {
+  error: unknown;
+  onRetry: () => void;
+  checking?: boolean;
+}) {
+  const { language } = useLanguage();
+  const copy = getPresentationCopy(language);
+  return <section role="status" aria-atomic="true" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+    <p>{presentationErrorMessage(error, copy, copy.readRecoveryHint)}</p>
+    <button type="button" onClick={onRetry} disabled={checking} className="mt-3 min-h-11 rounded-xl border border-amber-300 bg-white px-4 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 disabled:opacity-50">{checking ? copy.loading : copy.resumeJobStatus}</button>
+  </section>;
+}
+
+export function PresentationAvailabilityNotice({ state, onRetry, checking = false, fallback = false }: {
+  state: OperationAvailability;
+  onRetry: () => void;
+  checking?: boolean;
+  fallback?: boolean;
+}) {
+  const { language } = useLanguage();
+  const copy = getPresentationCopy(language);
+  if (state === "available" && !fallback) return null;
+  return <section role="status" aria-atomic="true" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+    <p>{state === "available" ? copy.fallbackPlan : state === "busy" ? copy.capacityBusy : state === "cooldown" ? copy.capacityCooldown : copy.capacityUnavailable}</p>
+    {state !== "available" && <button type="button" onClick={onRetry} disabled={checking} className="mt-3 min-h-11 rounded-xl border border-amber-300 bg-white px-4 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 disabled:opacity-50">{checking ? copy.loading : copy.checkAvailability}</button>}
+  </section>;
+}
 
 export function PresentationStepper({ current }: { current: 1 | 2 | 3 | 4 }) {
   const { language } = useLanguage();
@@ -79,9 +108,13 @@ export function ProjectStatusBadge({ status }: { status: PresentationStatus }) {
           ? copy.statusPlanReady
           : normalized === "approved"
             ? copy.statusApproved
-            : normalized === "queued" || normalized === "generating"
+            : normalized === "queued" || normalized === "pending"
+              ? copy.jobQueued
+              : normalized === "expired" || normalized === "queue_expired"
+                ? copy.jobExpired
+                : normalized === "generating" || normalized === "running" || normalized === "processing"
               ? copy.statusGenerating
-              : normalized === "review_required" || normalized === "needs_review" || normalized === "partial_failed"
+              : normalized === "review_required" || normalized === "needs_review" || normalized === "partial_failed" || normalized === "completed_with_errors"
                 ? copy.statusReview
                 : normalized === "ready" || normalized === "completed"
                   ? copy.statusReady
@@ -93,9 +126,9 @@ export function ProjectStatusBadge({ status }: { status: PresentationStatus }) {
       ? "bg-slate-100 text-slate-700 ring-slate-300"
       : normalized === "ready" || normalized === "completed"
       ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-      : normalized === "failed" || normalized === "error" || normalized === "partial_failed"
+      : normalized === "failed" || normalized === "error" || normalized === "expired" || normalized === "queue_expired"
         ? "bg-rose-50 text-rose-700 ring-rose-200"
-        : normalized === "review_required" || normalized === "needs_review"
+        : normalized === "review_required" || normalized === "needs_review" || normalized === "partial_failed" || normalized === "completed_with_errors"
           ? "bg-amber-50 text-amber-800 ring-amber-200"
           : normalized === "cancelled"
             ? "bg-slate-100 text-slate-600 ring-slate-200"
@@ -187,6 +220,7 @@ export function ConfirmDialog({
   cancelLabel,
   dangerous = false,
   busy = false,
+  confirmDisabled = false,
   onConfirm,
   onClose,
   children,
@@ -198,6 +232,7 @@ export function ConfirmDialog({
   cancelLabel: string;
   dangerous?: boolean;
   busy?: boolean;
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onClose: () => void;
   children?: ReactNode;
@@ -235,7 +270,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={busy}
+            disabled={busy || confirmDisabled}
             autoFocus
             className={`min-h-11 rounded-xl px-5 text-sm font-semibold text-white shadow-sm transition focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50 ${
               dangerous

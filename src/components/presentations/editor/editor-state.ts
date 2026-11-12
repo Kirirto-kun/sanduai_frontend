@@ -1,15 +1,8 @@
 import type { JobState, PresentationProject } from "@/types/presentations";
-
-const TERMINAL_JOB_STATUSES = new Set([
-  "completed",
-  "completed_with_errors",
-  "failed",
-  "error",
-  "cancelled",
-]);
+import { isTerminalPresentationJob } from "@/lib/presentation-recovery";
 
 export function isActivePresentationJob(job: JobState | null | undefined): boolean {
-  return Boolean(job && !TERMINAL_JOB_STATUSES.has(job.status.toLowerCase()));
+  return Boolean(job && !isTerminalPresentationJob(job.status));
 }
 
 export function generationJobId(

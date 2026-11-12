@@ -6,6 +6,7 @@ type PresentationError = Error & {
   code: string;
   status: number;
   serverCode?: string;
+  retryAfterSeconds?: number;
 };
 
 function isPresentationError(error: unknown): error is PresentationError {
@@ -44,6 +45,11 @@ export function presentationErrorMessage(
   if (!isPresentationError(error)) return fallback;
 
   const serverCode = normalizedServerCode(error);
+  if (["resource_capacity_busy", "provider_unavailable"].includes(serverCode)) {
+    const seconds = error.retryAfterSeconds;
+    return copy.capacityUnavailable + (typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0
+      ? ` ${copy.retryAfterSeconds.replace("{seconds}", String(Math.ceil(seconds)))}` : "");
+  }
   if (serverCode === "slides_not_ready" || serverCode === "presentation_slides_not_ready") {
     return copy.exportSlidesNotReady;
   }

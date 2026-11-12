@@ -61,6 +61,7 @@ export type ApiFailure = {
   status: number;
   code: ApiErrorCode;
   details?: unknown;
+  retryAfterSeconds?: number;
 };
 
 export type ApiErrorFactory = (failure: ApiFailure) => Error;
@@ -352,12 +353,17 @@ export function requestJson<T>(
 
     const payload = await readResponsePayload(response);
     if (!response.ok) {
+      const retryAfter = response.headers.get("Retry-After");
+      const seconds = retryAfter && /^\d+$/.test(retryAfter.trim())
+        ? Number(retryAfter)
+        : retryAfter ? Math.ceil((Date.parse(retryAfter) - Date.now()) / 1000) : NaN;
       throw makeError(
         {
           message: messageFromPayload(payload.data, response.status),
           status: response.status,
           code: apiErrorCodeForStatus(response.status),
           details: payload.data,
+          retryAfterSeconds: Number.isFinite(seconds) && seconds >= 0 ? seconds : undefined,
         },
         options.errorFactory,
       );

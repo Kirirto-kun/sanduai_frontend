@@ -3,6 +3,7 @@
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { JobState } from "@/types/presentations";
 import { getPresentationCopy } from "./copy";
+import { isTerminalPresentationJob } from "@/lib/presentation-recovery";
 
 export default function GenerationProgress({
   job,
@@ -21,8 +22,10 @@ export default function GenerationProgress({
   const copy = getPresentationCopy(language);
   if (!job) return null;
   const status = job.status.toLowerCase();
-  const completedWithErrors = status === "completed_with_errors";
-  const terminal = ["completed", "completed_with_errors", "failed", "error", "cancelled"].includes(status);
+  const completedWithErrors = status === "completed_with_errors" || status === "partial_failed";
+  const expired = status === "expired" || status === "queue_expired" || job.error_code === "QUEUE_EXPIRED" || job.error_code === "PRESENTATION_QUEUE_EXPIRED";
+  const capacityFailure = job.error_code === "RESOURCE_CAPACITY_BUSY" || job.error_code === "PROVIDER_UNAVAILABLE";
+  const terminal = isTerminalPresentationJob(status);
   const displayTotal = job.total ?? (job.kind === "regenerate" ? 1 : total);
   const displayCompleted = job.completed ?? (
     job.kind === "regenerate"
@@ -34,24 +37,32 @@ export default function GenerationProgress({
     : displayTotal > 0
       ? Math.round((displayCompleted / displayTotal) * 100)
       : 0;
-  const title = completedWithErrors
-    ? copy.partialFailure
-    : status === "completed"
-    ? copy.jobCompleted
-    : status === "failed" || status === "error"
-      ? copy.jobFailed
-      : status === "queued" || status === "pending"
-        ? copy.jobQueued
-        : copy.jobRunning;
-  const hint = completedWithErrors
-    ? copy.jobPartialHint
-    : status === "completed"
-      ? copy.jobCompletedHint
-      : status === "failed" || status === "error"
-        ? copy.jobFailedHint
-        : status === "cancelled"
-          ? copy.jobCancelledHint
-          : copy.refreshSafe;
+  const title = expired
+    ? copy.jobExpired
+    : status === "cancelled"
+      ? copy.statusCancelled
+      : completedWithErrors
+        ? copy.partialFailure
+        : status === "completed"
+          ? copy.jobCompleted
+          : status === "failed" || status === "error"
+            ? copy.jobFailed
+            : status === "queued" || status === "pending"
+              ? copy.jobQueued
+              : copy.jobRunning;
+  const hint = capacityFailure
+    ? copy.capacityUnavailable
+    : expired
+      ? copy.jobExpiredHint
+      : completedWithErrors
+        ? copy.jobPartialHint
+        : status === "completed"
+          ? copy.jobCompletedHint
+          : status === "failed" || status === "error"
+            ? copy.jobFailedHint
+            : status === "cancelled"
+              ? copy.jobCancelledHint
+              : copy.refreshSafe;
 
   return (
     <section

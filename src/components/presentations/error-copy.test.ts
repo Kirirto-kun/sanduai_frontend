@@ -81,4 +81,11 @@ describe("presentation teacher-facing error copy", () => {
     expect(hiddenCost).not.toContain("₸");
     expect(hiddenCost).not.toContain("9.95");
   });
+
+  it.each(["RESOURCE_CAPACITY_BUSY", "PROVIDER_UNAVAILABLE"])("localizes %s with the retry time", serverCode => {
+    const error = Object.assign(apiError({ status: 503, serverCode }), { retryAfterSeconds: 5 });
+    expect(presentationErrorMessage(error, ru)).toContain("5 сек");
+    expect(presentationErrorMessage(error, kk)).toContain("5 сек");
+    expect(presentationErrorMessage(error, ru)).not.toContain("provider");
+  });
 });
