@@ -20,6 +20,16 @@ import { videoApi } from "./api";
 import { ApiRequestError, API_ERROR_CODES } from "@/lib/http-client";
 beforeEach(() => vi.clearAllMocks());
 describe("video API contract", () => {
+  it("preserves the confirmed zero-price quote and does not substitute a paid amount", async () => {
+    mocks.json.mockResolvedValue({ id: "free-quote", cost_tokens: "0.00", cost_kzt: "0.00", expires_at: "2099-01-01T00:00:00Z" });
+    const quote = await videoApi.quote("scene");
+    expect(quote.cost_tokens).toBe("0.00");
+    mocks.json.mockResolvedValue({ id: "free-job", status: "queued", cost_tokens: "0.00", captured_tokens: "0.00" });
+    expect(await videoApi.generate(quote.id, "one-free-action")).toMatchObject({ cost_tokens: "0.00", captured_tokens: "0.00" });
+    const [, init] = mocks.json.mock.calls[1];
+    expect(JSON.parse(init.body)).toEqual({ quote_id: "free-quote" });
+    expect(init.headers.get("Idempotency-Key")).toBe("one-free-action");
+  });
   it("keeps video speech language independent from the interface language during AI assistance", async () => {
     mocks.json.mockResolvedValue({
       enhanced_prompt: "Клубника и банан идут по улице.",

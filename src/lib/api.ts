@@ -718,6 +718,7 @@ export type YbyraiChatResponse = {
 export type TokenBalance = {
   balance: number;
   user_id: string;
+  billing_exempt?: boolean;
   has_subscription: boolean;
   subscription_end: string | null; // ISO format: "2026-02-15T00:00:00"
   subscription_plan: "free" | "premium";

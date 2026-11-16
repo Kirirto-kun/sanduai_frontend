@@ -189,6 +189,7 @@ function FormView({
   pendingKind: currentPendingKind,
   connectionIssue,
   balance,
+  billingExempt,
   error,
   onSubmit,
   onTopics,
@@ -204,13 +205,15 @@ function FormView({
   pendingKind: PendingKind | null;
   connectionIssue?: boolean;
   balance: number | null;
+  billingExempt: boolean;
   error: string | null;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onTopics: () => void;
 }) {
   const availableAreas = areasForAge(config.activity_areas, input.age);
   const durationIsCustom = !config.duration_options.includes(input.duration_minutes);
-  const insufficient = balance !== null && balance < config.token_cost;
+  const cost = billingExempt ? 0 : config.token_cost;
+  const insufficient = balance !== null && balance < cost;
   const invalidGroupCount = input.group_count > input.children_count;
   const [goalMode, setGoalMode] = useState<"ai" | "own">(input.goal.trim() ? "own" : "ai");
   const [characterMode, setCharacterMode] = useState<"ai" | "own">(input.story_character.trim() ? "own" : "ai");
@@ -497,7 +500,7 @@ function FormView({
           </div>
           <div className="mt-5 space-y-2 text-sm">
             <div className="flex justify-between gap-3"><span className="text-slate-500">{copy.balance}</span><strong>{balance ?? "—"} {copy.tokens}</strong></div>
-            <div className="flex justify-between gap-3"><span className="text-slate-500">{copy.cost}</span><strong>{config.token_cost} {copy.tokens}</strong></div>
+            <div className="flex justify-between gap-3"><span className="text-slate-500">{copy.cost}</span><strong>{cost} {copy.tokens}</strong></div>
           </div>
           {insufficient ? <p className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">{copy.noTokens}</p> : null}
           <button type="submit" disabled={busy || insufficient} className="mt-5 flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white shadow-lg shadow-slate-900/10 transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-slate-300">
@@ -961,7 +964,7 @@ export default function PreschoolActivityWorkspace() {
   const ownerId = user?.userId ?? null;
   const { language } = useLanguage();
   const copy = preschoolActivityCopy[language];
-  const { balance, refreshBalance } = useTokens();
+  const { balance, billingExempt, refreshBalance } = useTokens();
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedJobId = searchParams.get("job");
@@ -1197,7 +1200,7 @@ export default function PreschoolActivityWorkspace() {
       field?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    if (balance !== null && balance < (config?.token_cost ?? 0)) {
+    if (!billingExempt && balance !== null && balance < (config?.token_cost ?? 0)) {
       setError(copy.noTokens);
       return;
     }
@@ -1343,7 +1346,7 @@ export default function PreschoolActivityWorkspace() {
       {view === "history" && error ? <p role="alert" className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p> : null}
 
       {!connectionError && (pending || enqueueing) && view !== "create" ? <div aria-live="polite" className="mb-5 flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950"><span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-r-transparent" /><span><strong>{pendingText}</strong>{progress?.total ? ` · ${progress.current ?? 0}/${progress.total}` : progress?.message ? ` · ${progress.message}` : ""}</span></div> : null}
-      {view === "create" ? <FormView copy={copy} interfaceLanguage={language} config={config} input={input} setInput={setReadyInput} season={season} setSeason={setSeason} busy={Boolean(pending || enqueueing)} connectionIssue={Boolean(connectionError)} pendingKind={currentOperation} balance={balance} error={error} onSubmit={(event) => void submit(event)} onTopics={() => void suggestTopics()} /> : null}
+      {view === "create" ? <FormView copy={copy} interfaceLanguage={language} config={config} input={input} setInput={setReadyInput} season={season} setSeason={setSeason} busy={Boolean(pending || enqueueing)} connectionIssue={Boolean(connectionError)} pendingKind={currentOperation} balance={balance} billingExempt={billingExempt} error={error} onSubmit={(event) => void submit(event)} onTopics={() => void suggestTopics()} /> : null}
       {view === "history" ? <HistoryView copy={copy} config={config} language={language} items={history} total={historyTotal} loading={historyLoading} error={historyError} search={historySearch} setSearch={setHistorySearch} onOpen={(id) => void openDocument(id)} onAdapt={adapt} onLoadMore={() => void loadHistory(history.length)} /> : null}
       {view === "document" && document ? <DocumentView copy={copy} language={language} config={config} document={document} pendingTaskId={!connectionError ? (pending?.kind === "task" ? pending.taskId : enqueueing === "task" ? enqueueingTaskId : undefined) : undefined} transformLocked={currentOperation === "task"} error={error} downloading={downloading} actions={taskActions} instructions={taskInstructions} onActionChange={(taskId, action) => setTaskActions((current) => ({ ...current, [taskId]: action }))} onInstructionChange={(taskId, value) => setTaskInstructions((current) => ({ ...current, [taskId]: value }))} onTransform={(task) => void transformTask(task)} onBack={createNew} onAdapt={() => adapt(document)} onExport={(format) => void exportDocument(format)} onOpenVisuals={() => setVisualsOpen(true)} /> : null}
 

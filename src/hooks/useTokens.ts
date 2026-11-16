@@ -38,6 +38,7 @@ export function currentSessionUserId(): string | null {
 
 export function useTokens() {
   const [balance, setBalance] = useState<number | null>(null);
+  const [billingExemption, setBillingExemption] = useState({ userId: "", enabled: false });
   const [costs, setCosts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export function useTokens() {
     const sessionUserId = currentSessionUserId();
     if (!token || !sessionUserId) {
       setBalance(null);
+      setBillingExemption({ userId: "", enabled: false });
       setHasSubscription(null);
       setSubscriptionEnd(null);
       setSubscriptionPlan(null);
@@ -64,6 +66,7 @@ export function useTokens() {
     const cachedBalance = getCachedBalance(sessionUserId);
     if (cachedBalance) {
       setBalance(cachedBalance.balance);
+      setBillingExemption({ userId: sessionUserId, enabled: cachedBalance.billing_exempt === true });
       setHasSubscription(cachedBalance.has_subscription);
       setSubscriptionEnd(cachedBalance.subscription_end);
       setSubscriptionPlan(cachedBalance.subscription_plan);
@@ -87,6 +90,7 @@ export function useTokens() {
         return {
           user_id: data.user_id,
           balance: data.balance,
+          billing_exempt: data.billing_exempt === true,
           has_subscription: data.has_subscription,
           subscription_end: data.subscription_end,
           subscription_plan: data.subscription_plan,
@@ -103,6 +107,7 @@ export function useTokens() {
         && (!Number.isFinite(expiresAt) || expiresAt > Date.now());
 
       setBalance(balanceData.balance);
+      setBillingExemption({ userId: sessionUserId, enabled: balanceData.billing_exempt === true });
       setHasSubscription(hasEffectiveSubscription);
       setSubscriptionEnd(balanceData.subscription_end);
       setSubscriptionPlan(hasEffectiveSubscription ? balanceData.subscription_plan : "free");
@@ -110,6 +115,7 @@ export function useTokens() {
       // Сохраняем в кэш для следующего раза
       setCachedBalance(sessionUserId, {
         balance: balanceData.balance,
+        billing_exempt: balanceData.billing_exempt === true,
         has_subscription: hasEffectiveSubscription,
         subscription_end: balanceData.subscription_end,
         subscription_plan: hasEffectiveSubscription ? balanceData.subscription_plan : "free",
@@ -118,6 +124,7 @@ export function useTokens() {
       if (requestId !== balanceRequestId.current || currentSessionUserId() !== sessionUserId) return;
       // Consumers only need a retry signal; never retain a raw server/provider message.
       setError("balance_unavailable");
+      setBillingExemption({ userId: sessionUserId, enabled: false });
       // Если fetch не удался, используем кэш (если он есть)
       if (cachedBalance) {
         setBalance(cachedBalance.balance);
@@ -176,6 +183,7 @@ export function useTokens() {
     } else {
       setLoading(false);
       setBalance(null);
+      setBillingExemption({ userId: "", enabled: false });
       setHasSubscription(null);
       setSubscriptionEnd(null);
       setSubscriptionPlan(null);
@@ -212,6 +220,7 @@ export function useTokens() {
 
   useEffect(() => subscribeToAuthSessionChanges(() => {
     setBalance(null);
+    setBillingExemption({ userId: "", enabled: false });
     setHasSubscription(null);
     setSubscriptionEnd(null);
     setSubscriptionPlan(null);
@@ -267,17 +276,20 @@ export function useTokens() {
     };
   }, [hasSubscription, refreshBalance, subscriptionEnd]);
 
+  const billingExempt = billingExemption.enabled
+    && billingExemption.userId === currentSessionUserId();
   const checkBalance = useCallback(
     (operationType: string): boolean => {
       const cost = costs[operationType];
-      if (!cost || balance === null) return false;
-      return balance >= cost;
+      if (!Number.isFinite(cost) || cost <= 0) return false;
+      return billingExempt || (balance !== null && balance >= cost);
     },
-    [balance, costs],
+    [balance, billingExempt, costs],
   );
 
   return {
     balance,
+    billingExempt,
     costs,
     loading,
     error,

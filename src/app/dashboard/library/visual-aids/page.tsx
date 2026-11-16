@@ -19,7 +19,7 @@ import { errorMessageIncludes, getErrorMessage, getErrorStatus } from "../../../
 
 export default function VisualAidsPage() {
   const t = useTranslations();
-  const { hasSubscription, loading: tokensLoading } = useTokens();
+  const { hasSubscription, billingExempt, loading: tokensLoading } = useTokens();
   
   const [items, setItems] = useState<VisualItem[]>([]);
   const [categories, setCategories] = useState<VisualMaterialCategory[]>([]);
@@ -75,12 +75,12 @@ export default function VisualAidsPage() {
 
   // Load materials
   useEffect(() => {
-    if (hasSubscription !== null && hasSubscription) {
+    if (billingExempt || hasSubscription === true) {
       void fetchMaterials();
     } else if (hasSubscription === false) {
       setLoading(false);
     }
-  }, [fetchMaterials, hasSubscription]);
+  }, [fetchMaterials, hasSubscription, billingExempt]);
 
   const handleSearch = () => {
     setSearchQuery(searchInput);
@@ -93,7 +93,7 @@ export default function VisualAidsPage() {
   };
 
   // Check subscription status
-  if (!tokensLoading && hasSubscription === false) {
+  if (!tokensLoading && hasSubscription === false && !billingExempt) {
     return (
       <div className="glass-card rounded-3xl border border-white/60 px-6 py-12 shadow-md sm:px-8">
         <div className="text-center">

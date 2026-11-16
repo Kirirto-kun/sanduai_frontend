@@ -36,6 +36,8 @@ describe("presentation creation policy", () => {
     })).toBeNull();
     expect(teacherVisibleCoinCost({ coin_cost: 80, retail_tokens: 90 })).toBe(80);
     expect(teacherVisibleCoinCost({ retail_tokens: 90 })).toBe(90);
+    expect(teacherVisibleCoinCost({ coin_cost: 0, retail_tokens: 90 })).toBe(0);
+    expect(teacherVisibleCoinCost({ retail_tokens: 0 })).toBe(0);
   });
 
   it.each(["ru", "kk"] as const)("keeps %s teacher copy free of technical pricing", (language) => {

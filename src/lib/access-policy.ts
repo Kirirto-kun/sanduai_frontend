@@ -33,17 +33,20 @@ export function decideRouteAccess({
   policy,
   isAuthenticated,
   isAdmin,
+  billingExempt = false,
   hasSubscription,
 }: {
   policy: AccessPolicy;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  billingExempt?: boolean;
   hasSubscription: boolean | null;
 }): AccessDecision {
   if (policy === "public") return "allow";
   if (!isAuthenticated) return "login";
   if (policy === "admin") return isAdmin ? "allow" : "forbidden";
   if (policy === "authenticated") return "allow";
+  if (billingExempt === true) return "allow";
   if (hasSubscription === null) return "pending";
   return hasSubscription ? "allow" : "subscribe";
 }

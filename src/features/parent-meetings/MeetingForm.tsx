@@ -8,9 +8,10 @@ import { focusMeetingProblem, meetingListProblems } from "./validation";
 import s from "./parent-meetings.module.css";
 
 type Props = { input: MeetingInput; onChange: (next: MeetingInput) => void; onSubmit: () => void;
-  language: InterfaceLanguage; busy: boolean; locked?: boolean; saved: boolean; error: string | null; cost: number | null; balance: number | null };
+  language: InterfaceLanguage; busy: boolean; locked?: boolean; saved: boolean; error: string | null; cost: number | null; balance: number | null; billingExempt?: boolean };
 
-export default function MeetingForm({ input, onChange, onSubmit, language, busy, locked = false, saved, error, cost, balance }: Props) {
+export default function MeetingForm({ input, onChange, onSubmit, language, busy, locked = false, saved, error, cost: publicCost, balance, billingExempt = false }: Props) {
+  const cost = billingExempt ? 0 : publicCost;
   const t = (ru: string, kk: string) => language === "kk" ? kk : ru;
   const update = <K extends keyof MeetingInput>(key: K, value: MeetingInput[K]) => onChange({ ...input, [key]: value });
   const school = input.organization === "school";

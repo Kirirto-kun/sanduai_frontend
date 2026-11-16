@@ -6,10 +6,10 @@ import Workspace from "./PreschoolActivityWorkspace";
 import { defaultPreschoolInput } from "./model";
 import { savePreschoolPending } from "./recovery";
 import type { PreschoolActivityDocument, PreschoolConfig } from "./types";
-const calls = vi.hoisted(() => ({ config: vi.fn(), job: vi.fn(), get: vi.fn(), generate: vi.fn(), transformTask: vi.fn(), replace: vi.fn(), refreshBalance: vi.fn(), params: "" }));
+const calls = vi.hoisted(() => ({ config: vi.fn(), job: vi.fn(), get: vi.fn(), generate: vi.fn(), transformTask: vi.fn(), replace: vi.fn(), refreshBalance: vi.fn(), params: "", balance: 1000, billingExempt: false }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { userId: "preschool-lock-test" } }) }));
 vi.mock("@/i18n/LanguageContext", () => ({ useLanguage: () => ({ language: "ru" }) }));
-vi.mock("@/hooks/useTokens", () => ({ useTokens: () => ({ balance: 1000, refreshBalance: calls.refreshBalance }) }));
+vi.mock("@/hooks/useTokens", () => ({ useTokens: () => ({ balance: calls.balance, billingExempt: calls.billingExempt, refreshBalance: calls.refreshBalance }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: calls.replace }), useSearchParams: () => new URLSearchParams(calls.params) }));
 vi.mock("./api", () => ({ preschoolActivityApi: { config: calls.config, job: calls.job, get: calls.get, generate: calls.generate, transformTask: calls.transformTask } }));
 const config: PreschoolConfig = {
@@ -27,12 +27,26 @@ const savedDocument: PreschoolActivityDocument = {
 };
 let root: Root; let host: HTMLDivElement;
 beforeEach(() => {
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); localStorage.clear(); calls.params = "";
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); localStorage.clear(); calls.params = ""; calls.balance = 1000; calls.billingExempt = false;
   calls.job.mockRejectedValue({ status: 503 }); calls.config.mockResolvedValue(config); calls.get.mockResolvedValue(savedDocument); calls.generate.mockReset(); calls.transformTask.mockReset();
   host = document.createElement("div"); document.body.append(host); root = createRoot(host);
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); savePreschoolPending("preschool-lock-test", null); });
 async function mount() { await act(async () => root.render(createElement(Workspace))); await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); }); }
+it("enables an exempt account's activity submission at zero balance without showing the ordinary charge", async () => {
+  calls.balance = 0; calls.billingExempt = true;
+  await mount();
+  expect(host.querySelector<HTMLButtonElement>("button[type=submit]")?.disabled).toBe(false);
+  expect(host.textContent).not.toContain("Недостаточно");
+  const summary = host.querySelector("button[type=submit]")?.parentElement?.textContent;
+  expect(summary).toContain("0");
+  expect(summary).not.toMatch(/20\s*токен/);
+});
+it("keeps the ordinary account's activity submission disabled at zero balance", async () => {
+  calls.balance = 0;
+  await mount();
+  expect(host.querySelector<HTMLButtonElement>("button[type=submit]")?.disabled).toBe(true);
+});
 it("keeps the recovered generation locked while suppressing its submit spinner during a read outage", async () => {
   savePreschoolPending("preschool-lock-test", { id: "30bdc3b2-41e6-4399-877c-cbab8e93a5d9", kind: "generate" });
   await mount();

@@ -37,7 +37,7 @@ function LessonPlanContent() {
   const t = useTranslations();
   const { language } = useLanguage();
   const toTeacherErrorMessage = useTeacherErrorMessage();
-  const { costs, balance, checkBalance, refreshBalance } = useTokens();
+  const { costs, balance, billingExempt, checkBalance, refreshBalance } = useTokens();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -768,7 +768,7 @@ function LessonPlanContent() {
                       {t.tokens?.cost || "Стоимость"}:
                     </span>
                     <span className="text-sm font-bold text-slate-900">
-                      {costs.kmzh_generate} {t.tokens?.balance || "токенов"}
+                      {billingExempt ? 0 : costs.kmzh_generate} {t.tokens?.balance || "токенов"}
                     </span>
                   </div>
                   {balance !== null && (

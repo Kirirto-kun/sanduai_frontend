@@ -117,7 +117,7 @@ function fileToDataUrl(file: File): Promise<string> {
 function KornekilikContent() {
   const { language } = useLanguage();
   const t = TEXT[language];
-  const { costs, balance, refreshBalance } = useTokens();
+  const { costs, balance, billingExempt, refreshBalance } = useTokens();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -127,7 +127,7 @@ function KornekilikContent() {
   const settledJobId = useRef<string | null>(null);
   const prefillAppliedRef = useRef(false);
 
-  const cost = costs["kornekilik_generate"] ?? 50;
+  const cost = billingExempt ? 0 : costs["kornekilik_generate"] ?? 50;
 
   const [topic, setTopic] = useState("");
   const [lang, setLang] = useState<Language>(language);

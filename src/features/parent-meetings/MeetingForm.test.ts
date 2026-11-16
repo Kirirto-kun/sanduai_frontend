@@ -5,6 +5,13 @@ import MeetingForm from "./MeetingForm";
 import { blankMeeting } from "./model";
 
 describe("parent meeting form access and audience adaptation", () => {
+  it.each(["ru", "kk"] as const)("allows the server-confirmed exemption at zero balance and shows zero charge in %s", language => {
+    const html = renderToStaticMarkup(createElement(MeetingForm, { input: { ...blankMeeting(), defaults_accepted: true }, onChange: () => {}, onSubmit: () => {}, language, busy: false, saved: true, error: null, cost: 30, balance: 0, billingExempt: true }));
+    expect(html).not.toMatch(/<button(?=[^>]*type="submit")(?=[^>]*disabled="")[^>]*>/);
+    expect(html).not.toContain(language === "ru" ? "Недостаточно токенов" : "Токендер жеткіліксіз");
+    expect(html).toContain(language === "ru" ? "0 токенов" : "0 токен");
+    expect(html).not.toContain(language === "ru" ? "30 токенов" : "30 токен");
+  });
   it.each(["ru", "kk"] as const)("requires consent and supports an existing balance recovery route in %s", language => {
     const html = renderToStaticMarkup(createElement(MeetingForm, { input: blankMeeting(), onChange: () => {}, onSubmit: () => {}, language, busy: false, saved: false, error: null, cost: 30, balance: 0 }));
     expect(html).toContain('href="/dashboard/profile"');

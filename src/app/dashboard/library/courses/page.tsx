@@ -15,7 +15,7 @@ import { teacherFacingErrorMessage } from "../../../../lib/teacher-facing-error"
 export default function CoursesPage() {
   const t = useTranslations();
   const { language } = useLanguage();
-  const { hasSubscription, loading: tokensLoading } = useTokens();
+  const { hasSubscription, billingExempt, loading: tokensLoading } = useTokens();
   const [limit] = useState(12);
   const [offset, setOffset] = useState(0);
 
@@ -85,7 +85,7 @@ export default function CoursesPage() {
   };
 
   // Check subscription status (only for display, not for loading videos)
-  if (!tokensLoading && hasSubscription === false) {
+  if (!tokensLoading && hasSubscription === false && !billingExempt) {
     return (
       <div className="glass-card rounded-3xl border border-white/60 px-6 py-12 shadow-md sm:px-8">
         <div className="text-center">

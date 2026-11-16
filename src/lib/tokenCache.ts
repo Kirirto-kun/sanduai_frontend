@@ -41,6 +41,7 @@ interface CachedCosts {
 export interface CachedBalance {
   user_id: string;
   balance: number;
+  billing_exempt?: boolean;
   has_subscription: boolean;
   subscription_end: string | null;
   subscription_plan: "free" | "premium" | null;
@@ -146,6 +147,9 @@ export function getCachedBalance(userId: string): CachedBalance | null {
       window.localStorage.removeItem(TOKEN_BALANCE_CACHE_KEY);
       return null;
     }
+    // A stale balance can still be useful offline; a stale exemption cannot.
+    data.billing_exempt = data.billing_exempt === true
+      && Date.now() - data.timestamp <= BALANCE_CACHE_TTL;
     if (data.has_subscription && data.subscription_end) {
       const expiresAt = parseSubscriptionEndTimestamp(data.subscription_end);
       if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
@@ -176,6 +180,7 @@ export function isBalanceCacheValid(userId: string): boolean {
  */
 export function setCachedBalance(userId: string, data: {
   balance: number;
+  billing_exempt?: boolean;
   has_subscription: boolean;
   subscription_end: string | null;
   subscription_plan: "free" | "premium" | null;
@@ -186,6 +191,7 @@ export function setCachedBalance(userId: string, data: {
   try {
     const cached: CachedBalance = {
       ...data,
+      billing_exempt: data.billing_exempt === true,
       user_id: userId,
       timestamp: Date.now(),
     };

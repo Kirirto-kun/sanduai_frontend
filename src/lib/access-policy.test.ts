@@ -58,6 +58,12 @@ describe("dashboard access classification", () => {
     ).toBe("subscribe");
   });
 
+  it("uses server-confirmed exemption for library access independently from cached token roles", () => {
+    expect(decideRouteAccess({ policy: "subscription", isAuthenticated: true, isAdmin: false, billingExempt: true, hasSubscription: null })).toBe("allow");
+    expect(decideRouteAccess({ policy: "subscription", isAuthenticated: true, isAdmin: true, billingExempt: false, hasSubscription: false })).toBe("subscribe");
+    expect(decideRouteAccess({ policy: "subscription", isAuthenticated: false, isAdmin: true, billingExempt: true, hasSubscription: null })).toBe("login");
+  });
+
   it("classifies every navigation group and preserves the At Zharys exception", () => {
     const groups = [...SEGMENTS.flatMap((segment) => segment.groups), ...COMMON_GROUPS];
     for (const group of groups) {

@@ -126,6 +126,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const {
     hasSubscription,
+    billingExempt,
     loading: subscriptionLoading,
     error: subscriptionError,
     refreshBalance,
@@ -217,6 +218,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
     policy: routeAccessPolicy,
     isAuthenticated,
     isAdmin: user?.role === "admin",
+    billingExempt,
     hasSubscription,
   });
 
@@ -259,6 +261,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
     const active = isActive(href);
     const subscriptionLocked =
       resolveNavAccess(item, group) === "subscription" &&
+      !billingExempt &&
       hasSubscription !== true;
     return (
       <Link
@@ -674,7 +677,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
 
           <main className="px-2 pb-10 pt-4 sm:px-4 md:px-6 lg:px-8">
             <GenerationCenter />
-            {routeAccessPolicy === "subscription" ? (
+            {routeAccessPolicy === "subscription" && !billingExempt ? (
               <SubscriptionAccessGate
                 hasSubscription={hasSubscription}
                 loading={subscriptionLoading}
